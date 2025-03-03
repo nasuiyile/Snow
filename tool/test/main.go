@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 )
@@ -52,50 +53,43 @@ func getNonLeafNodes(root *Node) []int {
 	return result
 }
 func main() {
-	//
-	//for k := 2; k < 20; k = k + 2 {
-	//	for i := 1; i < 50; i++ {
-	//		if k > i {
-	//			continue
-	//		}
-	//		if k == 2 && i == 8 {
-	//			fmt.Println()
-	//		}
-	//		tree := createTree(i, k)
-	//		values := getNonLeafNodes(tree)
-	//		for _, v := range values {
-	//			v++
-	//			if v >= i {
-	//				v = 0
-	//			}
-	//			node := findNode(tree, v)
-	//			if node == nil {
-	//				return
-	//			}
-	//			if node.Left != nil || node.Right != nil {
-	//				fmt.Println("出问题了兄弟！k:", k, "i:", i)
-	//				fmt.Println("出问题了的值！", node.Current)
-	//			}
-	//		}
-	//	}
-	//
-	//}
-	tree := createTree(11, 4)
+	arr := make([]int, 0)
+	for k := 2; k < 40; k = k + 2 {
+		for i := 1; i < 1000; i++ {
+			if k > i {
+				continue
+			}
+			if k == 2 && i == 8 {
+				fmt.Println()
+			}
+			tree := createTree(i, k)
+			values := getNonLeafNodes(tree)
+			//没有leaf的节点，我们希望所有节点+1一定是叶子节点=
+			for _, v := range values {
+				v++
+				if v >= i {
+					v = 0
+				}
+				node := findNode(tree, v)
+				if node == nil {
+					return
+				}
+				if node.Left != nil || node.Right != nil {
+					fmt.Println("出问题的值！i:", i, "k:", k, "v", v)
+					if i%2 == 1 {
+						arr = append(arr, i)
+					}
+				}
+			}
+		}
+
+	}
+	tree := createTree(90, 2)
 	fmt.Println(tree)
+	marshal, _ := json.Marshal(tree)
+	fmt.Println(string(marshal))
+	//fmt.Println(arr)
 	//values := getNonLeafNodes(tree)
-	//for _, v := range values {
-	//	v++
-	//	if v >= 6 {
-	//		v = 0
-	//	}
-	//	node := findNode(tree, v)
-	//	if node == nil {
-	//		return
-	//	}
-	//	if node.Left != nil || node.Right != nil {
-	//		fmt.Println("出问题了的值！", node.Current)
-	//	}
-	//}
 
 }
 
@@ -119,58 +113,78 @@ func createSubTree(left int, right int, k int) *Node {
 	if left > right {
 		return nil
 	} else if left == right {
+		//只有一个节点，返回当前
 		node.Current = left
 		return &node
-	} else if n < k {
-		if right > (left + k/2) {
-			right = left + k/2
-		} else {
-			node.Current = right
-		}
-		for ; left < right; left++ {
-			if len(node.Left) < k/2 {
+	} else if n <= k {
+		//左右都要有，右边没有元素的情况下放唯一一个放左边
+		for i := 0; i < n; i++ {
+			if i%2 == 0 {
 				node.Left = append(node.Left, &Node{Current: left})
+				left++
 			} else {
-				node.Right = append(node.Right, &Node{Current: left})
+				node.Right = append(node.Right, &Node{Current: right})
+				right--
+			}
+
+		}
+		if len(node.Left) == 1 {
+			node.Current = node.Right[0].Current
+			node.Right = nil
+		} else {
+			node.Current = node.Left[len(node.Left)-1].Current
+			node.Left = node.Left[:len(node.Left)-1]
+			if len(node.Left) == 0 {
+				node.Left = nil
 			}
 		}
+
 		return &node
 	}
 	leftRange := make([]area, 0)
 	rightRange := make([]area, 0)
-	//h是满二叉树的高度，不是总高度
+	//h是总高度-1，也就是说h一定是满二叉树
 	h := getFullHeight(k, n)
-	//因为是满k叉树，所以下一层的数量为	（subFull+1）* k
-
+	//当前节点所在的子树有多少个节点（子树不包括根节点）
+	//这样我们就能和最后一层一起计算当前节点负责的区域了
 	subFull := getFullTreeNum(k, h-1)
-	//当前已经被填充满的大小
+	//当前已经被填充满的大小（包括根节点）
 	fullTree := getFullTreeNum(k, h)
 	//子树的最后一层的
 	nextLevel := (getFullTreeNum(k, h+1) - fullTree) / k
-
+	//最后一层多少节点
 	totalBottom := n - fullTree
+	//factor代表能覆盖多完少子树的最后一层
 	factor := totalBottom / nextLevel
+	//覆盖完所有子树还留下来多少
 	remain := totalBottom % nextLevel
 	leftBound := 0
 	for i := 1; i < k/2+1; i++ {
 		start := leftBound
 		if factor >= 1 {
+			//如果能覆盖的化直接用nextLevel覆盖掉，因为这一层是满的
 			leftBound = leftBound + nextLevel + subFull - 1
 		} else if factor == 0 {
+			//因为factor一直在减少，所以这里是第一次因子为0的时候，把remain补上去
 			leftBound = leftBound + remain + subFull - 1
 		} else {
+			//之后的几层就是没有remain的
 			leftBound = leftBound + subFull - 1
+
+		}
+		//下一次递归的长度
+		nextN := leftBound - start + 1
+		//这个行代码是为了把多余的一个节点放在最最右边节点的左子树上
+		if nextN%2 == 0 && nextN >= 2 {
+			leftBound--
 		}
 		leftRange = append(leftRange, area{Left: start, Right: leftBound})
 		node.Left = append(node.Left, createSubTree(start+left, leftBound+left, k))
 		leftBound++
 		factor--
 	}
-
 	node.Current = leftBound + left
-	if node.Current == 2 {
-		fmt.Println()
-	}
+	//下面是一样的，对右边区域开始操作
 	leftBound++
 	for i := 1; i < k/2+1; i++ {
 		start := leftBound
@@ -182,7 +196,11 @@ func createSubTree(left int, right int, k int) *Node {
 			leftBound = leftBound + subFull - 1
 		}
 		rightRange = append(rightRange, area{Left: start, Right: leftBound})
-		node.Right = append(node.Right, createSubTree(start+left, leftBound+left, k))
+		if i >= k/2 {
+			node.Right = append(node.Right, createSubTree(start+left, right, k))
+		} else {
+			node.Right = append(node.Right, createSubTree(start+left, leftBound+left, k))
+		}
 		leftBound++
 		factor--
 	}
@@ -190,6 +208,7 @@ func createSubTree(left int, right int, k int) *Node {
 	return &node
 }
 
+// 获取对应高度下的总数，后续可以优化
 func getFullTreeNum(k int, h int) int {
 	if h == 1 {
 		return 1
@@ -197,6 +216,8 @@ func getFullTreeNum(k int, h int) int {
 	h--
 	return int((math.Pow(float64(k), float64(h+1)))-1) / (k - 1)
 }
+
+// 获取对应总数下的高度
 func getFullHeight(k int, n int) int {
 	for i := 0; i < 10000000; i++ {
 		full := getFullTreeNum(k, i)
@@ -207,21 +228,5 @@ func getFullHeight(k int, n int) int {
 		}
 	}
 	return -1
-	//return int(math.Log(float64(n)) / math.Log(float64(k)))
-}
 
-func min(a int, b int) int {
-	if a < b {
-		return a
-	} else {
-		return b
-	}
-}
-
-func max(a int, b int) int {
-	if a > b {
-		return a
-	} else {
-		return b
-	}
 }

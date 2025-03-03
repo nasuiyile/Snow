@@ -1,202 +1,171 @@
 package main
 
 import (
-	"bufio"
-	"encoding/binary"
 	"fmt"
-	"log"
 	"net"
-	"sync"
-	"time"
+	"snow/tool"
+	"sort"
 )
 
 // Server 定义服务器结构体
 type Server struct {
 	listener net.Listener
-	clients  map[net.Conn]bool // 存储所有客户端连接
-	mu       sync.Mutex        // 保护 clients 的并发访问
-	Config   Config
+	//clients  map[net.Conn]bool // 存储所有客户端连接
+	Config Config
+	Member MemberShipList
 }
 
-// NewServer 创建并启动一个 TCP 服务器
-func NewServer(port int, clientList []string) (*Server, error) {
-	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
-	if err != nil {
-		return nil, err
-	}
-
-	server := &Server{
-		listener: listener,
-		clients:  make(map[net.Conn]bool),
-	}
-
-	go server.startAcceptingConnections() // 启动接受连接的协程
-
-	// 主动连接到其他客户端
-	for _, addr := range clientList {
-		go server.connectToClient(addr)
-	}
-
-	log.Printf("Server is running on port %d...\n\n", port)
-	return server, nil
+type MemberShipList struct {
+	lock tool.ReentrantLock // 保护 clients 的并发访问并保证 并集群成员有相同的视图
+	//这个就是membership list
+	IPTable [][]byte
+	//这里存放连接和元数据
+	MetaData map[string]MetaData
 }
 
-// startAcceptingConnections 不断接受新的客户端连接
-func (s *Server) startAcceptingConnections() {
-	for {
-		conn, err := s.listener.Accept()
-		if err != nil {
-			log.Println("Error accepting connection:", err)
-			continue
+type MetaData struct {
+	clients net.Conn
+	version int
+}
+type area struct {
+	current int
+	left    int
+	right   int
+}
+
+func (m *MemberShipList) MemberLen() int {
+	return len(m.IPTable)
+}
+
+// 第二个参数表示是否进行了更新,每次调用这个方法索引就会刷新
+func (m *MemberShipList) FindOrInsert(target []byte) (int, bool) {
+	// 使用二分查找定位目标位置
+	index := sort.Search(len(m.IPTable), func(i int) bool {
+		return BytesCompare(m.IPTable[i], target) >= 0
+	})
+
+	// 如果找到相等的元素，直接返回原数组和索引
+	if index < len(m.IPTable) && BytesCompare(m.IPTable[index], target) == 0 {
+		return index, false
+	}
+
+	// 如果没有找到，插入到正确的位置
+	m.IPTable = append(m.IPTable, nil)
+	copy(m.IPTable[index+1:], m.IPTable[index:])
+	m.IPTable[index] = append([]byte{}, target...) // 插入新元素
+
+	fmt.Println("Inserted at index:", index)
+	return index, true
+}
+
+// 比较两个 []byte 的大小
+func BytesCompare(a, b []byte) int {
+	if len(a) < len(b) {
+		return -1
+	} else if len(a) > len(b) {
+		return 1
+	}
+	for i := range a {
+		if a[i] < b[i] {
+			return -1
+		} else if a[i] > b[i] {
+			return 1
 		}
-
-		s.mu.Lock()
-		s.clients[conn] = true // 将新连接加入 clients
-		s.mu.Unlock()
-
-		go s.handleConnection(conn) // 处理客户端连接
 	}
+	return 0
 }
 
-// handleConnection 处理客户端连接
-func (s *Server) handleConnection(conn net.Conn) {
-	defer func() {
-		conn.Close()
-		s.mu.Lock()
-		delete(s.clients, conn) // 移除关闭的连接
-		s.mu.Unlock()
-	}()
+func NewMetaData(conn net.Conn) MetaData {
+	return MetaData{
+		version: 0,
+		clients: conn,
+	}
+}
+func (m *MemberShipList) AddNode(conn net.Conn, joinRing bool) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	fmt.Println(conn.LocalAddr().String())
+	addr := conn.RemoteAddr().String()
+	v, ok := m.MetaData[addr]
+	if ok {
+		v.clients = conn
+	} else {
+		m.MetaData[addr] = NewMetaData(conn)
+	}
+	if joinRing {
+		bytes := IPv4To6Bytes(addr)
+		m.FindOrInsert(bytes)
+	}
 
-	reader := bufio.NewReader(conn)
-	for {
-		// 读取消息头 (4字节表示消息长度)
-		header := make([]byte, 4)
-		_, err := reader.Read(header)
-		if err != nil {
-			log.Printf("Read header error from %v: %v\n", conn.RemoteAddr(), err)
-			return
+}
+
+func ObtainOnIPRing(current int, offset int, n int) int {
+	return (current + offset + n) % n
+}
+
+// 发消息
+func (s *Server) InitMessage() map[string][]byte {
+	s.Member.lock.Lock()
+	defer s.Member.lock.Unlock()
+	if s.Member.MemberLen() == 0 {
+		return make(map[string][]byte)
+	}
+	current, _ := s.Member.FindOrInsert(s.Config.IPBytes())
+	//当前的索引往左偏移
+	leftIndex := ObtainOnIPRing(current, -(s.Member.MemberLen()-1)/2, s.Member.MemberLen())
+	//右索引是左索引-1，这是环的特性
+	rightIndex := ObtainOnIPRing(leftIndex, -1, s.Member.MemberLen())
+	leftIP := s.Member.IPTable[leftIndex]
+	rightIP := s.Member.IPTable[rightIndex]
+	// 6
+	return s.NextHopMember(userMsg, leftIP, rightIP)
+}
+
+func (s *Server) NextHopMember(header byte, leftIP []byte, rightIP []byte) map[string][]byte {
+	//todo 这里可以优化读写锁
+	s.Member.lock.Lock()
+	defer s.Member.lock.Unlock()
+	forwardList := make(map[string][]byte)
+
+	//要转发的所有节点
+	IPTable := s.Member.IPTable
+	leftIndex, lok := s.Member.FindOrInsert(leftIP)
+	rightIndex, rok := s.Member.FindOrInsert(rightIP)
+	currentIndex, cok := s.Member.FindOrInsert(s.Config.IPBytes())
+	//如果更新了就重新找一遍节点
+	if lok || rok || cok {
+		leftIndex, _ = s.Member.FindOrInsert(leftIP)
+		rightIndex, _ = s.Member.FindOrInsert(rightIP)
+		currentIndex, _ = s.Member.FindOrInsert(s.Config.IPBytes())
+	}
+	//构建子树
+	next := createSubTree(leftIndex, rightIndex, currentIndex, s.Member.MemberLen(), s.Config.FanOut)
+	for _, v := range next {
+		payload := make([]byte, 0)
+		payload = append(payload, header)
+		payload = append(payload, IPTable[v.left]...)
+		payload = append(payload, IPTable[v.right]...)
+		forwardList[ByteToIPv4Port(IPTable[v.current])] = payload
+	}
+	return forwardList
+}
+func createSubTree(left int, right int, current int, n int, k int) []area {
+	offset := 0
+	//偏移到正数方便算
+	if left > right {
+		offset = left
+		current = ObtainOnIPRing(right, -left, n)
+		right = ObtainOnIPRing(right, -left, n)
+		left = 0
+	}
+	AreaLen := right - left + 1
+
+	areas := make([]area, 0)
+	//除去自己的，剩余节点小于等于k，那就直接转发
+	if (AreaLen - 1) <= k {
+		for ; left <= right; left++ {
+			areas = append(areas, area{current: left + offset, left: left + offset, right: left + offset})
 		}
-
-		// 解析消息长度
-		messageLength := int(binary.BigEndian.Uint32(header))
-		if messageLength <= 0 {
-			log.Printf("Invalid message length from %v: %d\n", conn.RemoteAddr(), messageLength)
-			continue
-		}
-
-		// 根据消息长度读取消息体
-		msg := make([]byte, messageLength)
-		_, err = reader.Read(msg)
-		if err != nil {
-			log.Printf("Read body error from %v: %v\n", conn.RemoteAddr(), err)
-			return
-		}
-		handler(msg)
-
-		// 打印接收到的消息
-		//fmt.Printf("Received message from %v: %s\n", conn.RemoteAddr(), string(body))
-
-		//// 回复客户端
-		//response := "Message received"
-		//responseBytes := []byte(response)
-		//
-		//length := uint32(len(responseBytes))
-		//binary.BigEndian.PutUint32(header, length)
-		//
-		//conn.Write(header)
-		//conn.Write(responseBytes)
 	}
-}
-
-// connectToClient 主动连接到其他客户端
-func (s *Server) connectToClient(addr string) {
-	conn, err := net.Dial("tcp", addr)
-
-	if err != nil {
-		log.Printf("Failed to connect to %s: %v\n", addr, err)
-		return
-	}
-
-	log.Printf("Connected to %s\n", addr)
-
-	s.mu.Lock()
-	s.clients[conn] = true // 将新连接加入 clients
-	s.mu.Unlock()
-
-	go s.handleConnection(conn) // 处理客户端连接
-}
-
-// SendMessage 向所有客户端发送消息
-func (s *Server) SendMessage(message string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if len(s.clients) == 0 {
-		return fmt.Errorf("no clients connected")
-	}
-
-	// 将消息转换为字节数组
-	messageBytes := []byte(message)
-
-	// 创建消息头，存储消息长度 (4字节大端序)
-	length := uint32(len(messageBytes))
-	header := make([]byte, 4)
-	binary.BigEndian.PutUint32(header, length)
-
-	// 遍历所有客户端并发送消息
-	for conn := range s.clients {
-		go func(c net.Conn) {
-			_, err := c.Write(header)
-			if err != nil {
-				log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-				return
-			}
-
-			_, err = c.Write(messageBytes)
-			if err != nil {
-				log.Printf("Error sending body to %v: %v", c.RemoteAddr(), err)
-				return
-			}
-		}(conn)
-	}
-
-	return nil
-}
-
-// Close 关闭服务器
-func (s *Server) Close() {
-	s.listener.Close()
-	s.mu.Lock()
-	for conn := range s.clients {
-		conn.Close()
-	}
-	s.mu.Unlock()
-}
-
-func main() {
-	_, err := NewServer(5000, []string{})
-
-	// 将客户端列表字符串拆分为数组
-	clientAddresses := []string{"localhost:5000"}
-
-	// 创建服务器
-	server, err := NewServer(5001, clientAddresses)
-	if err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
-	defer server.Close()
-
-	// 模拟每隔5秒向所有客户端发送一条消息
-	go func() {
-		for {
-			time.Sleep(5 * time.Second)
-			err := server.SendMessage("Hello from server!")
-			if err != nil {
-				log.Println("Error broadcasting message:", err)
-			}
-		}
-	}()
-
-	// 主线程保持运行
-	select {}
+	return areas
 }
