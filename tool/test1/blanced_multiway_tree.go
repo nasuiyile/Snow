@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -60,37 +61,37 @@ func getNonLeafNodes2(area int, root int) []int {
 	return result
 }
 func main() {
-	arr := make([]int, 0)
-	for k := 2; k < 40; k = k + 2 {
-		for i := 1; i < 100; i = i + 1 {
-			if k > i {
-				continue
-			}
-			if k == 2 && i == 8 {
-				fmt.Println()
-			}
-			tree := createTree(i, k)
-			values := getNonLeafNodes2(i, tree.Current)
-			//没有leaf的节点，我们希望所有节点+1一定是叶子节点=
-			for _, v := range values {
-				node := findNode(tree, v)
-				if node == nil {
-					return
-				}
-				if node.Left != nil || node.Right != nil {
-					fmt.Println("出问题的值！i:", i, "k:", k, "v", v, "current:", node.Current)
-					if i%2 == 1 {
-						arr = append(arr, i)
-					}
-				}
-			}
-		}
-
-	}
-	//tree := createTree(9, 4)
-	//fmt.Println(tree)
-	//marshal, _ := json.Marshal(tree)
-	//fmt.Println(string(marshal))
+	//arr := make([]int, 0)
+	//for k := 2; k < 40; k = k + 2 {
+	//	for i := 1; i < 100; i = i + 1 {
+	//		if k > i {
+	//			continue
+	//		}
+	//		if k == 2 && i == 8 {
+	//			fmt.Println()
+	//		}
+	//		tree := createTree(i, k)
+	//		values := getNonLeafNodes2(i, tree.Current)
+	//		//没有leaf的节点，我们希望所有节点+1一定是叶子节点=
+	//		for _, v := range values {
+	//			node := findNode(tree, v)
+	//			if node == nil {
+	//				return
+	//			}
+	//			if node.Left != nil || node.Right != nil {
+	//				fmt.Println("出问题的值！i:", i, "k:", k, "v", v, "current:", node.Current)
+	//				if i%2 == 1 {
+	//					arr = append(arr, i)
+	//				}
+	//			}
+	//		}
+	//	}
+	//
+	//}
+	tree := createTree(10, 2)
+	fmt.Println(tree)
+	marshal, _ := json.Marshal(tree)
+	fmt.Println(string(marshal))
 	//fmt.Println(arr)
 	//values := getNonLeafNodes(tree)
 
@@ -103,13 +104,11 @@ type Node struct {
 }
 
 func createTree(n int, k int) *Node {
-	return createSubTree(0, n-1, (n-1)/2, k)
+	return createSubTree(0, n-1, (n)/2, k)
 }
 
 // 除了根节点外，每次都会指定current
 func createSubTree(left int, right int, current int, k int) *Node {
-	if current == 10 {
-	}
 	node := Node{Current: current}
 	if left > right {
 		return nil
@@ -126,8 +125,6 @@ func createSubTree(left int, right int, current int, k int) *Node {
 		}
 		return &node
 	}
-	//当前找单数还是双数
-	parity := current % 2
 
 	leftArea := (current - left) / (k / 2)
 	leftRemain := (current - left) % (k / 2)
@@ -140,12 +137,9 @@ func createSubTree(left int, right int, current int, k int) *Node {
 			currentArea++
 		}
 		rightBound := previousScope + currentArea - 1
-		leftNodeValue := (previousScope + rightBound) / 2
-		//先找到和当前单双数一样的节点,如果找不到的化就直接返回当前值
-		if leftNodeValue%2 != parity {
-			if leftNodeValue < rightBound {
-				leftNodeValue++
-			}
+		leftNodeValue := (previousScope + (rightBound + 1)) / 2
+		if leftNodeValue == 2 {
+			fmt.Println()
 		}
 
 		node.Left = append(node.Left, createSubTree(previousScope, rightBound, leftNodeValue, k))
@@ -163,13 +157,8 @@ func createSubTree(left int, right int, current int, k int) *Node {
 			currentArea++
 		}
 		rightBound := previousScope + currentArea - 1
-		rightNodeValue := (previousScope + rightBound) / 2
-		//先找到和当前单双数一样的节点
-		if rightNodeValue%2 != parity {
-			if rightNodeValue < rightBound {
-				rightNodeValue++
-			}
-		}
+		rightNodeValue := (previousScope + (rightBound + 1)) / 2
+
 		node.Right = append(node.Right, createSubTree(previousScope, rightBound, rightNodeValue, k))
 		previousScope = rightBound + 1
 	}

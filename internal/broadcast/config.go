@@ -1,16 +1,20 @@
-package main
+package broadcast
 
 import (
 	"encoding/binary"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"net"
+	"os"
 	"strconv"
 )
 
 type Config struct {
-	Ipv6      bool
-	FanOut    int
-	IpAddress string
+	Ipv6         bool   `yaml:"Ipv6"`
+	FanOut       int    `yaml:"FanOut"`
+	LocalAddress string `yaml:"LocalAddress"`
+	Coloring     bool   `yaml:"Coloring"`
+	Test         bool   `yaml:"Test"`
 }
 
 func (c *Config) CutBytes(bytes []byte) []byte {
@@ -34,7 +38,7 @@ func (c *Config) IpLen() int {
 }
 func (c *Config) IPBytes() []byte {
 	if !c.Ipv6 {
-		return IPv4To6Bytes(c.IpAddress)
+		return IPv4To6Bytes(c.LocalAddress)
 	}
 	return nil
 }
@@ -78,4 +82,18 @@ func ByteToIPv4Port(data []byte) string {
 
 	// 构造 IP:Port 字符串
 	return fmt.Sprintf("%s:%d", ip.String(), port)
+}
+
+func LoadConfig(filename string) (*Config, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var config Config
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, err
+	}
+
+	return &config, nil
 }

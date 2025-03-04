@@ -1,7 +1,7 @@
-package main
+package broadcast
 
 import (
-	"fmt"
+	"log"
 	"net"
 )
 
@@ -25,18 +25,19 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 	switch msgType {
 	case userMsg:
 		// 打印接收到的消息
-		fmt.Println("收到用户消息")
+		log.Println(s.Config.LocalAddress, "get user message")
 		body := s.Config.CutBytes(msg)
-		fmt.Printf("Received message from %v: %s\n", conn.RemoteAddr(), string(body))
+		log.Printf("Received message from %v: %s\n", conn.RemoteAddr(), string(body))
 		msg = forward(msg, s)
 	default:
-		fmt.Println("没有被处理的消息！")
+		log.Printf("Received non type message from %v: %s\n", conn.RemoteAddr(), string(msg))
 	}
 }
 
 func forward(msg []byte, s *Server) []byte {
 	leftIP := msg[:s.Config.IpLen()]
-	rightIP := msg[s.Config.IpLen()-1 : s.Config.IpLen()*2]
-	s.NextHopMember(msg[0], leftIP, rightIP)
-	return msg[:s.Config.IpLen()*2-1]
+	rightIP := msg[s.Config.IpLen() : s.Config.IpLen()*2]
+	member := s.NextHopMember(msg[0], leftIP, rightIP)
+	s.ForwardMessage(msg, member)
+	return msg[:s.Config.IpLen()*2]
 }

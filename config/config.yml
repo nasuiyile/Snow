@@ -1,0 +1,5 @@
+Ipv6: false #是否使用IPv6, 注意所有客户端需要配重一直
+FanOut: 10  # 每个节点的扇出是多少
+LocalAddress: "127.0.0.1" #启动后会自动把这个字段填充端口
+Coloring: true  #是否开启染色算法
+Test: true  #测试模式下 membership list里的ip不会被删除。并且会发送额外的信息到固定的服务端进行调试

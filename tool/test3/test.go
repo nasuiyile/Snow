@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 )
@@ -114,6 +115,8 @@ func main() {
 	//}
 	tree := createTree(35, 4)
 	PrintTree(tree)
+	marshal, _ := json.Marshal(tree)
+	fmt.Println(string(marshal))
 }
 
 type Node struct {

@@ -1,4 +1,4 @@
-package main
+package broadcast
 
 import (
 	"bufio"
@@ -6,27 +6,30 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"time"
+	"snow/tool"
 )
 
 // NewServer 创建并启动一个 TCP 服务器
-func NewServer(port int, clientList []string) (*Server, error) {
-	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+func NewServer(port int, configPath string, clientList []string) (*Server, error) {
+	config, err := LoadConfig(configPath)
+	if err != nil {
+		panic(err)
+	}
+	config.LocalAddress = fmt.Sprintf("%s:%d", config.LocalAddress, port)
+	listener, err := net.Listen("tcp", config.LocalAddress)
 	if err != nil {
 		return nil, err
 	}
-
 	server := &Server{
 		listener: listener,
-		Config:   Config{Ipv6: false, IpAddress: fmt.Sprintf("%s%d", "127.0.0.1:", port), FanOut: 2},
+		Config:   config,
 		Member: MemberShipList{
 			IPTable:  make([][]byte, 0),
-			MetaData: make(map[string]MetaData),
+			MetaData: make(map[string]*MetaData),
 		},
 	}
-
+	server.Member.FindOrInsert(IPv4To6Bytes(config.LocalAddress))
 	go server.startAcceptingConnections() // 启动接受连接的协程
-
 	// 主动连接到其他客户端
 	for _, addr := range clientList {
 		go server.connectToClient(addr)
@@ -101,16 +104,27 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 // connectToClient 主动连接到其他客户端
 func (s *Server) connectToClient(addr string) {
-	conn, err := net.Dial("tcp", addr)
-
+	conn, err := s.connectToPeer(addr)
 	if err != nil {
-		log.Printf("Failed to connect to %s: %v\n", addr, err)
 		return
 	}
-
+	go s.handleConnection(conn) // 处理客户端连接
+}
+func (s *Server) connectToPeer(addr string) (net.Conn, error) {
+	if s.Config.Test {
+		s.Member.lock.Lock()
+		defer s.Member.lock.Unlock()
+		s.Member.MetaData[addr] = NewMetaData(nil)
+		s.Member.FindOrInsert(IPv4To6Bytes(addr))
+	}
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		log.Printf("Failed to connect to %s: %v\n", addr, err)
+		return nil, err
+	}
 	log.Printf("Connected to %s\n", addr)
 	s.Member.AddNode(conn, true)
-	go s.handleConnection(conn) // 处理客户端连接
+	return conn, nil
 }
 
 // SendMessage 向对应
@@ -119,9 +133,8 @@ func (s *Server) SendMessage(message string) error {
 	defer s.Member.lock.Unlock()
 
 	if len(s.Member.MetaData) == 0 {
-		fmt.Println("broadcasting message: no clients connected")
+		log.Println("broadcasting message: no clients connected")
 	}
-	member := s.InitMessage()
 
 	// 将消息转换为字节数组
 	messageBytes := []byte(message)
@@ -130,36 +143,84 @@ func (s *Server) SendMessage(message string) error {
 	length := uint32(len(messageBytes) + s.Config.Placeholder())
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, length)
-
+	member := s.InitMessage(userMsg)
 	if len(member) == 0 {
 		log.Printf("There are no other nodes in the member list")
 	}
 	for ip, payload := range member {
 		conn := s.Member.MetaData[ip].clients
 		if conn == nil {
-			continue
+			//先建立一次链接进行尝试
+			newConn, err := s.connectToPeer(ip)
+			if err != nil {
+				log.Println("can't connect to ", ip)
+				continue
+			} else {
+				s.Member.MetaData[ip].clients = newConn
+			}
 		}
-		go func(c net.Conn) {
+		go func(c net.Conn, s *Server) {
+
 			//写入消息包的大小
 			_, err := c.Write(header)
 			if err != nil {
 				log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
 				return
 			}
-			_, err = c.Write(payload)
+			//因为tcp会帮你填0所以一定要一起发送
+			allMessage := append(payload, messageBytes...)
+			_, err = c.Write(allMessage)
 			if err != nil {
 				log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
 				return
 			}
-
-			_, err = c.Write(messageBytes)
-			if err != nil {
-				log.Printf("Error sending body to %v: %v", c.RemoteAddr(), err)
-				return
+			if s.Config.Test {
+				tool.SendHttp(s.Config.LocalAddress, ip, allMessage)
 			}
-		}(conn)
+		}(conn, s)
 	}
 
+	return nil
+}
+
+// ForwardMessage SendMessage 向对应
+func (s *Server) ForwardMessage(msg []byte, member map[string][]byte) error {
+	for ip, payload := range member {
+		conn := s.Member.MetaData[ip].clients
+		if conn == nil {
+			//先建立一次链接进行尝试
+			newConn, err := s.connectToPeer(ip)
+			if err != nil {
+				log.Println(s.Config.LocalAddress, "can't connect to ", ip)
+				continue
+			} else {
+				s.Member.MetaData[ip].clients = newConn
+			}
+		}
+		// 创建消息头，存储消息长度 (4字节大端序)
+		length := uint32(len(msg))
+		header := make([]byte, 4)
+		binary.BigEndian.PutUint32(header, length)
+
+		if len(member) == 0 {
+			log.Printf("can't forward! membership is empty")
+		}
+		go func(c net.Conn, s *Server) {
+			//写入消息包的大小
+			_, err := c.Write(header)
+			if err != nil {
+				log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
+				return
+			}
+			//因为tcp会帮你填0所以一定要一起发送
+			copy(msg, payload)
+			_, err = c.Write(msg)
+			if err != nil {
+				log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
+				return
+			}
+		}(conn, s)
+	}
 	return nil
 }
 
@@ -172,32 +233,4 @@ func (s *Server) Close() {
 	}
 
 	s.Member.lock.Unlock()
-}
-
-func main() {
-	_, err := NewServer(5500, []string{})
-
-	// 将客户端列表字符串拆分为数组
-	clientAddresses := []string{"127.0.0.1:5500"}
-
-	// 创建服务器
-	server, err := NewServer(5001, clientAddresses)
-	if err != nil {
-		log.Fatalf("Failed to start server: %v", err)
-	}
-	defer server.Close()
-
-	// 模拟每隔1秒向所有客户端发送一条消息
-	go func() {
-		for {
-			time.Sleep(1 * time.Second)
-			err := server.SendMessage("Hello from server!")
-			if err != nil {
-				log.Println("Error broadcasting message:", err)
-			}
-		}
-	}()
-
-	// 主线程保持运行
-	select {}
 }

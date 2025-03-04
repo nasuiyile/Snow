@@ -1,4 +1,4 @@
-package main
+package broadcast
 
 import (
 	"fmt"
@@ -10,9 +10,8 @@ import (
 // Server 定义服务器结构体
 type Server struct {
 	listener net.Listener
-	//clients  map[net.Conn]bool // 存储所有客户端连接
-	Config Config
-	Member MemberShipList
+	Config   *Config
+	Member   MemberShipList
 }
 
 type MemberShipList struct {
@@ -20,7 +19,7 @@ type MemberShipList struct {
 	//这个就是membership list
 	IPTable [][]byte
 	//这里存放连接和元数据
-	MetaData map[string]MetaData
+	MetaData map[string]*MetaData
 }
 
 type MetaData struct {
@@ -37,8 +36,10 @@ func (m *MemberShipList) MemberLen() int {
 	return len(m.IPTable)
 }
 
-// 第二个参数表示是否进行了更新,每次调用这个方法索引就会刷新
+// FindOrInsert 第二个参数表示是否进行了更新,每次调用这个方法索引就会刷新
 func (m *MemberShipList) FindOrInsert(target []byte) (int, bool) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 	// 使用二分查找定位目标位置
 	index := sort.Search(len(m.IPTable), func(i int) bool {
 		return BytesCompare(m.IPTable[i], target) >= 0
@@ -56,9 +57,10 @@ func (m *MemberShipList) FindOrInsert(target []byte) (int, bool) {
 
 	fmt.Println("Inserted at index:", index)
 	return index, true
+
 }
 
-// 比较两个 []byte 的大小
+// BytesCompare 比较两个 []byte 的大小
 func BytesCompare(a, b []byte) int {
 	if len(a) < len(b) {
 		return -1
@@ -75,8 +77,8 @@ func BytesCompare(a, b []byte) int {
 	return 0
 }
 
-func NewMetaData(conn net.Conn) MetaData {
-	return MetaData{
+func NewMetaData(conn net.Conn) *MetaData {
+	return &MetaData{
 		version: 0,
 		clients: conn,
 	}
@@ -84,7 +86,6 @@ func NewMetaData(conn net.Conn) MetaData {
 func (m *MemberShipList) AddNode(conn net.Conn, joinRing bool) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	fmt.Println(conn.LocalAddr().String())
 	addr := conn.RemoteAddr().String()
 	v, ok := m.MetaData[addr]
 	if ok {
@@ -103,11 +104,11 @@ func ObtainOnIPRing(current int, offset int, n int) int {
 	return (current + offset + n) % n
 }
 
-// 发消息
-func (s *Server) InitMessage() map[string][]byte {
+// InitMessage 发消息
+func (s *Server) InitMessage(msgType MsgType) map[string][]byte {
 	s.Member.lock.Lock()
 	defer s.Member.lock.Unlock()
-	if s.Member.MemberLen() == 0 {
+	if s.Member.MemberLen() == 1 {
 		return make(map[string][]byte)
 	}
 	current, _ := s.Member.FindOrInsert(s.Config.IPBytes())
@@ -117,14 +118,16 @@ func (s *Server) InitMessage() map[string][]byte {
 	rightIndex := ObtainOnIPRing(leftIndex, -1, s.Member.MemberLen())
 	leftIP := s.Member.IPTable[leftIndex]
 	rightIP := s.Member.IPTable[rightIndex]
-	// 6
-	return s.NextHopMember(userMsg, leftIP, rightIP)
+	return s.NextHopMember(msgType, leftIP, rightIP)
 }
 
-func (s *Server) NextHopMember(header byte, leftIP []byte, rightIP []byte) map[string][]byte {
+func (s *Server) NextHopMember(msgType byte, leftIP []byte, rightIP []byte) map[string][]byte {
 	//todo 这里可以优化读写锁
 	s.Member.lock.Lock()
 	defer s.Member.lock.Unlock()
+	if s.Member.MemberLen() == 1 {
+		return make(map[string][]byte)
+	}
 	forwardList := make(map[string][]byte)
 
 	//要转发的所有节点
@@ -137,34 +140,54 @@ func (s *Server) NextHopMember(header byte, leftIP []byte, rightIP []byte) map[s
 		leftIndex, _ = s.Member.FindOrInsert(leftIP)
 		rightIndex, _ = s.Member.FindOrInsert(rightIP)
 		currentIndex, _ = s.Member.FindOrInsert(s.Config.IPBytes())
+		//引用也要重新更新
+		IPTable = s.Member.IPTable
 	}
 	//构建子树
 	next := createSubTree(leftIndex, rightIndex, currentIndex, s.Member.MemberLen(), s.Config.FanOut)
 	for _, v := range next {
 		payload := make([]byte, 0)
-		payload = append(payload, header)
+		payload = append(payload, msgType)
 		payload = append(payload, IPTable[v.left]...)
 		payload = append(payload, IPTable[v.right]...)
 		forwardList[ByteToIPv4Port(IPTable[v.current])] = payload
 	}
 	return forwardList
 }
-func createSubTree(left int, right int, current int, n int, k int) []area {
+func createSubTree(left int, right int, current int, n int, k int) []*area {
 	offset := 0
 	//偏移到正数方便算
 	if left > right {
 		offset = left
-		current = ObtainOnIPRing(right, -left, n)
-		right = ObtainOnIPRing(right, -left, n)
+		current = ObtainOnIPRing(current, -offset, n)
+		right = ObtainOnIPRing(right, -offset, n)
 		left = 0
 	}
-	AreaLen := right - left + 1
+	tree := balancedMultiwayTree(left, right, current, n, k)
+	//计算完把偏移设置为原位
+	for _, v := range tree {
+		v.current = ObtainOnIPRing(v.current, offset, n)
+		v.right = ObtainOnIPRing(v.right, offset, n)
+		v.left = ObtainOnIPRing(v.left, offset, n)
+	}
+	return tree
+}
 
-	areas := make([]area, 0)
+func balancedMultiwayTree(left int, right int, current int, n int, k int) []*area {
+	AreaLen := right - left + 1
+	areas := make([]*area, 0)
 	//除去自己的，剩余节点小于等于k，那就直接转发
 	if (AreaLen - 1) <= k {
 		for ; left <= right; left++ {
-			areas = append(areas, area{current: left + offset, left: left + offset, right: left + offset})
+			if left == current {
+				continue
+			}
+			//只有这一个节点了
+			areas = append(areas, &area{
+				current: left,
+				left:    left,
+				right:   left,
+			})
 		}
 	}
 	return areas
