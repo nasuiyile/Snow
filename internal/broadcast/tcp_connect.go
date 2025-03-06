@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"snow/tool"
@@ -65,7 +66,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 	for {
 		// 读取消息头 (4字节表示消息长度)
 		header := make([]byte, 4)
-		_, err := reader.Read(header)
+		_, err := io.ReadFull(reader, header)
 		if err != nil {
 			log.Printf("Read header error from %v: %v\n", conn.RemoteAddr(), err)
 			return
@@ -80,11 +81,12 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 		// 根据消息长度读取消息体
 		msg := make([]byte, messageLength)
-		_, err = reader.Read(msg)
+		_, err = io.ReadFull(reader, msg)
 		if err != nil {
 			log.Printf("Read body error from %v: %v\n", conn.RemoteAddr(), err)
 			return
 		}
+
 		handler(msg, s, conn)
 
 		// 打印接收到的消息
@@ -128,100 +130,68 @@ func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 }
 
 // SendMessage 向对应
-func (s *Server) SendMessage(message string) error {
+func (s *Server) BroadMessage(message string) error {
 	s.Member.lock.Lock()
 	defer s.Member.lock.Unlock()
-
-	if len(s.Member.MetaData) == 0 {
-		log.Println("broadcasting message: no clients connected")
-	}
-
-	// 将消息转换为字节数组
-	messageBytes := []byte(message)
-
-	// 创建消息头，存储消息长度 (4字节大端序)
-	length := uint32(len(messageBytes) + s.Config.Placeholder())
-	header := make([]byte, 4)
-	binary.BigEndian.PutUint32(header, length)
 	member := s.InitMessage(userMsg)
-	if len(member) == 0 {
-		log.Printf("There are no other nodes in the member list")
-	}
+	messageBytes := []byte(message)
 	for ip, payload := range member {
-		conn := s.Member.MetaData[ip].clients
-		if conn == nil {
-			//先建立一次链接进行尝试
-			newConn, err := s.connectToPeer(ip)
-			if err != nil {
-				log.Println("can't connect to ", ip)
-				continue
-			} else {
-				s.Member.MetaData[ip].clients = newConn
-			}
-		}
-		go func(c net.Conn, s *Server) {
-
-			//写入消息包的大小
-			_, err := c.Write(header)
-			if err != nil {
-				log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-				return
-			}
-			//因为tcp会帮你填0所以一定要一起发送
-			allMessage := append(payload, messageBytes...)
-			_, err = c.Write(allMessage)
-			if err != nil {
-				log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-				return
-			}
-			if s.Config.Test {
-				tool.SendHttp(s.Config.LocalAddress, ip, allMessage)
-			}
-		}(conn, s)
+		length := uint32(len(messageBytes) + s.Config.Placeholder())
+		newMsg := make([]byte, length)
+		copy(newMsg, payload)
+		copy(newMsg[s.Config.Placeholder():], messageBytes)
+		s.SendMessage(ip, newMsg)
 	}
-
 	return nil
 }
 
 // ForwardMessage SendMessage 向对应
 func (s *Server) ForwardMessage(msg []byte, member map[string][]byte) error {
 	for ip, payload := range member {
-		conn := s.Member.MetaData[ip].clients
-		if conn == nil {
-			//先建立一次链接进行尝试
-			newConn, err := s.connectToPeer(ip)
-			if err != nil {
-				log.Println(s.Config.LocalAddress, "can't connect to ", ip)
-				continue
-			} else {
-				s.Member.MetaData[ip].clients = newConn
-			}
-		}
-		// 创建消息头，存储消息长度 (4字节大端序)
-		length := uint32(len(msg))
-		header := make([]byte, 4)
-		binary.BigEndian.PutUint32(header, length)
-
-		if len(member) == 0 {
-			log.Printf("can't forward! membership is empty")
-		}
-		go func(c net.Conn, s *Server) {
-			//写入消息包的大小
-			_, err := c.Write(header)
-			if err != nil {
-				log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-				return
-			}
-			//因为tcp会帮你填0所以一定要一起发送
-			copy(msg, payload)
-			_, err = c.Write(msg)
-			if err != nil {
-				log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-				return
-			}
-		}(conn, s)
+		msgCopy := make([]byte, len(msg))
+		copy(msgCopy, msg)
+		copy(msgCopy, payload)
+		s.SendMessage(ip, msgCopy)
 	}
+
 	return nil
+}
+func (s *Server) SendMessage(ip string, msg []byte) {
+	metaData, _ := s.Member.MetaData[ip]
+	conn := metaData.clients
+	if conn == nil {
+		//先建立一次链接进行尝试
+		newConn, err := s.connectToPeer(ip)
+		if err != nil {
+			log.Println(s.Config.LocalAddress, "can't connect to ", ip)
+			return
+		} else {
+			s.Member.MetaData[ip].clients = newConn
+			conn = newConn
+		}
+	}
+	// 创建消息头，存储消息长度 (4字节大端序)
+	length := uint32(len(msg))
+
+	header := make([]byte, 4)
+	binary.BigEndian.PutUint32(header, length)
+
+	go func(c net.Conn, s *Server) {
+		//写入消息包的大小
+		_, err := c.Write(header)
+		if err != nil {
+			log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
+			return
+		}
+		_, err = c.Write(msg)
+		if err != nil {
+			log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
+			return
+		}
+		if s.Config.Test {
+			tool.SendHttp(s.Config.LocalAddress, ip, msg)
+		}
+	}(conn, s)
 }
 
 // Close 关闭服务器

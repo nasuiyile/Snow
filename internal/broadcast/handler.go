@@ -1,8 +1,10 @@
 package broadcast
 
 import (
+	"fmt"
 	"log"
 	"net"
+	"time"
 )
 
 type MsgType = byte
@@ -19,9 +21,10 @@ const (
 )
 
 func handler(msg []byte, s *Server, conn net.Conn) {
+	//s.Member.lock.Lock()
+	//defer s.Member.lock.Unlock()
 	//判断消息类型
 	msgType := msg[0]
-	msg = msg[1:]
 	switch msgType {
 	case userMsg:
 		// 打印接收到的消息
@@ -34,10 +37,28 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 	}
 }
 
+// 解决问题 left right current
 func forward(msg []byte, s *Server) []byte {
-	leftIP := msg[:s.Config.IpLen()]
-	rightIP := msg[s.Config.IpLen() : s.Config.IpLen()*2]
-	member := s.NextHopMember(msg[0], leftIP, rightIP)
-	s.ForwardMessage(msg, member)
-	return msg[:s.Config.IpLen()*2]
+	time.Sleep(100 * time.Millisecond)
+	isSame := true
+	msgType := msg[0]
+	leftIP := msg[1 : s.Config.IpLen()+1]
+	rightIP := msg[s.Config.IpLen()+1 : s.Config.IpLen()*2+1]
+	for i := 0; i < len(leftIP); i++ {
+		if leftIP[i] != rightIP[i] {
+			isSame = false
+		}
+	}
+	if !isSame {
+		member := s.NextHopMember(msgType, leftIP, rightIP)
+		for ip, _ := range member {
+			if ip == s.Config.LocalAddress {
+				fmt.Println()
+			}
+		}
+		s.ForwardMessage(msg, member)
+
+	}
+
+	return msg[:s.Config.Placeholder()]
 }

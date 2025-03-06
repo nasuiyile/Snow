@@ -59,9 +59,7 @@ func main() {
 			if k > i {
 				continue
 			}
-			if k == 2 && i == 8 {
-				fmt.Println()
-			}
+
 			tree := createTree(i, k)
 			values := getNonLeafNodes(tree)
 			//没有leaf的节点，我们希望所有节点+1一定是叶子节点=

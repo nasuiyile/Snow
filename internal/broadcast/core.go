@@ -103,6 +103,12 @@ func (m *MemberShipList) AddNode(conn net.Conn, joinRing bool) {
 func ObtainOnIPRing(current int, offset int, n int) int {
 	return (current + offset + n) % n
 }
+func CurrentIsMid(left int, current int, right int, n int) bool {
+	if left <= right {
+		return current >= left && current <= right
+	}
+	return current >= left || current <= right
+}
 
 // InitMessage 发消息
 func (s *Server) InitMessage(msgType MsgType) map[string][]byte {
@@ -113,11 +119,12 @@ func (s *Server) InitMessage(msgType MsgType) map[string][]byte {
 	}
 	current, _ := s.Member.FindOrInsert(s.Config.IPBytes())
 	//当前的索引往左偏移
-	leftIndex := ObtainOnIPRing(current, -(s.Member.MemberLen()-1)/2, s.Member.MemberLen())
+	leftIndex := ObtainOnIPRing(current, -(s.Member.MemberLen())/2, s.Member.MemberLen())
 	//右索引是左索引-1，这是环的特性
 	rightIndex := ObtainOnIPRing(leftIndex, -1, s.Member.MemberLen())
 	leftIP := s.Member.IPTable[leftIndex]
 	rightIP := s.Member.IPTable[rightIndex]
+
 	return s.NextHopMember(msgType, leftIP, rightIP)
 }
 
@@ -144,8 +151,9 @@ func (s *Server) NextHopMember(msgType byte, leftIP []byte, rightIP []byte) map[
 		IPTable = s.Member.IPTable
 	}
 	//构建子树
-	next := createSubTree(leftIndex, rightIndex, currentIndex, s.Member.MemberLen(), s.Config.FanOut)
+	next := CreateSubTree(leftIndex, rightIndex, currentIndex, s.Member.MemberLen(), s.Config.FanOut, s.Config.Coloring)
 	for _, v := range next {
+
 		payload := make([]byte, 0)
 		payload = append(payload, msgType)
 		payload = append(payload, IPTable[v.left]...)
@@ -154,7 +162,7 @@ func (s *Server) NextHopMember(msgType byte, leftIP []byte, rightIP []byte) map[
 	}
 	return forwardList
 }
-func createSubTree(left int, right int, current int, n int, k int) []*area {
+func CreateSubTree(left int, right int, current int, n int, k int, coloring bool) []*area {
 	offset := 0
 	//偏移到正数方便算
 	if left > right {
@@ -163,22 +171,34 @@ func createSubTree(left int, right int, current int, n int, k int) []*area {
 		right = ObtainOnIPRing(right, -offset, n)
 		left = 0
 	}
-	tree := balancedMultiwayTree(left, right, current, n, k)
+	tree := make([]*area, 0)
+	//是否进行节点染色
+	if coloring {
+		tree = BalancedMultiwayTree(left, right, current, k)
+	} else {
+		tree = BalancedMultiwayTree(left, right, current, k)
+	}
+
 	//计算完把偏移设置为原位
 	for _, v := range tree {
 		v.current = ObtainOnIPRing(v.current, offset, n)
 		v.right = ObtainOnIPRing(v.right, offset, n)
 		v.left = ObtainOnIPRing(v.left, offset, n)
+
 	}
+
 	return tree
 }
 
-func balancedMultiwayTree(left int, right int, current int, n int, k int) []*area {
+func BalancedMultiwayTree(left int, right int, current int, k int) []*area {
+
 	AreaLen := right - left + 1
 	areas := make([]*area, 0)
 	//除去自己的，剩余节点小于等于k，那就直接转发
-	if (AreaLen - 1) <= k {
-		for ; left <= right; left++ {
+	if left > right {
+		return nil
+	} else if (AreaLen - 1) <= k {
+		for ; left < right; left++ {
 			if left == current {
 				continue
 			}
@@ -189,6 +209,40 @@ func balancedMultiwayTree(left int, right int, current int, n int, k int) []*are
 				right:   left,
 			})
 		}
+		return areas
 	}
+	leftArea := (current - left) / (k / 2)
+	leftRemain := (current - left) % (k / 2)
+	previousScope := left
+	for i := 0; i < k/2; i++ {
+		//将多余的区域从左边开始均分给每一个节点
+		currentArea := leftArea
+		if leftRemain > 0 {
+			leftRemain--
+			currentArea++
+		}
+		rightBound := previousScope + currentArea - 1
+		leftNodeValue := (previousScope + (rightBound + 1)) / 2
+		areas = append(areas, &area{left: previousScope, right: rightBound, current: leftNodeValue})
+		previousScope = rightBound + 1
+	}
+
+	previousScope = current + 1
+	rightArea := (right - current) / (k / 2)
+	rightRemain := (right - current) % (k / 2)
+	for i := 0; i < k/2; i++ {
+		//将多余的区域从左边开始均分给每一个节点
+		currentArea := rightArea
+		if rightRemain > 0 {
+			rightRemain--
+			currentArea++
+		}
+		rightBound := previousScope + currentArea - 1
+		rightNodeValue := (previousScope + (rightBound + 1)) / 2
+		areas = append(areas, &area{left: previousScope, right: rightBound, current: rightNodeValue})
+
+		previousScope = rightBound + 1
+	}
+
 	return areas
 }

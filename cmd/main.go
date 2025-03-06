@@ -8,24 +8,29 @@ import (
 )
 
 func main() {
-
 	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
-	_, err := broadcast.NewServer(5000, configPath, []string{})
-	// 将客户端列表字符串拆分为数组
-	clientAddresses := initAddress(10)
-	// 创建服务器
-	server, err := broadcast.NewServer(5001, configPath, clientAddresses)
-	if err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	n := 10
+	clientAddresses := initAddress(n)
+	serverList := make([]*broadcast.Server, 0)
+	for i := 0; i < n; i++ {
+		server, err := broadcast.NewServer(5000+i, configPath, clientAddresses)
+		if err != nil {
+			return
+		}
+		serverList = append(serverList, server)
 	}
-	server2, err := broadcast.NewServer(5002, configPath, clientAddresses)
-	defer server.Close()
+
+	defer func() {
+		for _, v := range serverList {
+			v.Close()
+		}
+	}()
 
 	// 模拟每隔1秒向所有客户端发送一条消息
 	go func() {
 		for {
-			time.Sleep(5 * time.Second)
-			err := server2.SendMessage("Hello from server!")
+			time.Sleep(3 * time.Second)
+			err := serverList[5].BroadMessage("Hello from server!")
 			if err != nil {
 				log.Println("Error broadcasting message:", err)
 			}

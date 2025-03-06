@@ -18,7 +18,7 @@ type Config struct {
 }
 
 func (c *Config) CutBytes(bytes []byte) []byte {
-	return bytes[c.Placeholder()-1:]
+	return bytes[c.Placeholder():]
 }
 
 func (c *Config) Placeholder() int {
