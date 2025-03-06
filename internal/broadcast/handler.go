@@ -1,7 +1,6 @@
 package broadcast
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"time"
@@ -28,9 +27,16 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 	switch msgType {
 	case userMsg:
 		// 打印接收到的消息
-		log.Println(s.Config.LocalAddress, "get user message")
 		body := s.Config.CutBytes(msg)
-		log.Printf("Received message from %v: %s\n", conn.RemoteAddr(), string(body))
+		log.Printf("%s Received message from %v: %s\n", s.Config.LocalAddress, conn.RemoteAddr(), string(body[8:]))
+		if s.IsReceived(body) {
+			//这里把时间戳也一起裁剪下来了
+			log.Printf("%s message already exists from %v: %s\n", s.Config.LocalAddress, conn.RemoteAddr(), string(body[8:]))
+			return
+		}
+		//再这里做业务处理逻辑
+		time.Sleep(200 * time.Millisecond)
+
 		msg = forward(msg, s)
 	default:
 		log.Printf("Received non type message from %v: %s\n", conn.RemoteAddr(), string(msg))
@@ -39,7 +45,7 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 
 // 解决问题 left right current
 func forward(msg []byte, s *Server) []byte {
-	time.Sleep(100 * time.Millisecond)
+
 	isSame := true
 	msgType := msg[0]
 	leftIP := msg[1 : s.Config.IpLen()+1]
@@ -51,11 +57,11 @@ func forward(msg []byte, s *Server) []byte {
 	}
 	if !isSame {
 		member := s.NextHopMember(msgType, leftIP, rightIP, false)
-		for ip, _ := range member {
-			if ip == s.Config.LocalAddress {
-				fmt.Println()
-			}
-		}
+		//for ip, _ := range member {
+		//	if ip == s.Config.LocalAddress {
+		//		fmt.Println()
+		//	}
+		//}
 		s.ForwardMessage(msg, member)
 
 	}

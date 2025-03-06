@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"snow/internal/state"
 	"snow/tool"
 )
 
@@ -28,6 +29,7 @@ func NewServer(port int, configPath string, clientList []string) (*Server, error
 			IPTable:  make([][]byte, 0),
 			MetaData: make(map[string]*MetaData),
 		},
+		State: state.NewTimeoutMap(),
 	}
 	server.Member.FindOrInsert(IPv4To6Bytes(config.LocalAddress))
 	go server.startAcceptingConnections() // 启动接受连接的协程
@@ -145,7 +147,12 @@ func (s *Server) BroadcastMessage(message string) error {
 	return nil
 }
 
-// ForwardMessage SendMessage 向对应
+// GossipMessage gossip协议是会广播给发送给自己的节点的= =
+func (s *Server) GossipMessage(msg []byte, member map[string][]byte) error {
+	return nil
+}
+
+// ForwardMessage 转发消息
 func (s *Server) ForwardMessage(msg []byte, member map[string][]byte) error {
 	for ip, payload := range member {
 		msgCopy := make([]byte, len(msg))

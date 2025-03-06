@@ -10,22 +10,24 @@ import (
 )
 
 type Config struct {
-	Ipv6         bool   `yaml:"Ipv6"`
-	FanOut       int    `yaml:"FanOut"`
-	LocalAddress string `yaml:"LocalAddress"`
-	Coloring     bool   `yaml:"Coloring"`
-	Test         bool   `yaml:"Test"`
+	Ipv6           bool   `yaml:"Ipv6"`
+	FanOut         int    `yaml:"FanOut"`
+	LocalAddress   string `yaml:"LocalAddress"`
+	Coloring       bool   `yaml:"Coloring"`
+	Test           bool   `yaml:"Test"`
+	ExpirationTime int64  `yaml:"ExpirationTime"`
 }
 
 func (c *Config) CutBytes(bytes []byte) []byte {
-	return bytes[c.Placeholder():]
+	return bytes[c.Placeholder()-8:]
 }
 
 func (c *Config) Placeholder() int {
+	//ipv4/6的地址和1个tag，加上8个byte的时间戳
 	if c.Ipv6 {
-		return 18 + 18 + 1
+		return 18 + 18 + 1 + 8
 	} else {
-		return 6 + 6 + 1
+		return 6 + 6 + 1 + 8
 	}
 }
 

@@ -22,9 +22,10 @@ var title = ""
 var rNode atomic.Int32
 
 type Message struct {
-	Size   int //多少个byte
-	Target string
-	From   string
+	Size    int //多少个byte
+	Target  string
+	From    string
+	primary bool
 }
 
 func put(key string, value Message) {

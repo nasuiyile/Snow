@@ -1,10 +1,13 @@
 package broadcast
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
+	"snow/internal/state"
 	"snow/tool"
 	"sort"
+	"time"
 )
 
 // Server 定义服务器结构体
@@ -12,6 +15,7 @@ type Server struct {
 	listener net.Listener
 	Config   *Config
 	Member   MemberShipList
+	State    *state.TimeoutMap
 }
 
 type MemberShipList struct {
@@ -30,6 +34,10 @@ type area struct {
 	current int
 	left    int
 	right   int
+}
+
+func (s *Server) IsReceived(m []byte) bool {
+	return s.State.Add(m, s.Config.ExpirationTime)
 }
 
 func (m *MemberShipList) MemberLen() int {
@@ -163,6 +171,9 @@ func (s *Server) NextHopMember(msgType byte, leftIP []byte, rightIP []byte, isRo
 		payload = append(payload, msgType)
 		payload = append(payload, IPTable[v.left]...)
 		payload = append(payload, IPTable[v.right]...)
+		timestamp := make([]byte, 8)
+		binary.BigEndian.PutUint64(timestamp, uint64(time.Now().Unix()))
+		payload = append(payload, timestamp...)
 		forwardList[ByteToIPv4Port(IPTable[v.current])] = payload
 	}
 
@@ -254,9 +265,6 @@ func BalancedMultiwayTree(left int, right int, current int, k int) []*area {
 }
 
 func ColoringMultiwayTree(left int, right int, current int, k int) []*area {
-	if current == 8 {
-		fmt.Println()
-	}
 	AreaLen := right - left + 1
 	areas := make([]*area, 0)
 	//除去自己的，剩余节点小于等于k，那就直接转发
