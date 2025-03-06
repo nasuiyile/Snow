@@ -50,7 +50,7 @@ func forward(msg []byte, s *Server) []byte {
 		}
 	}
 	if !isSame {
-		member := s.NextHopMember(msgType, leftIP, rightIP)
+		member := s.NextHopMember(msgType, leftIP, rightIP, false)
 		for ip, _ := range member {
 			if ip == s.Config.LocalAddress {
 				fmt.Println()

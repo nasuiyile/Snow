@@ -239,8 +239,8 @@ func getRing(w http.ResponseWriter, r *http.Request) {
 		builder.WriteString(fmt.Sprintf("    \"%s\" [pos=\"%.2f,%.2f!\"];\n", label, x, y))
 
 		// 生成边，连接当前节点和下一个节点
-		nextIndex := (i + 1) % len(arr)
-		builder.WriteString(fmt.Sprintf("    \"%s\" -- \"%s\";\n", label, arr[nextIndex]))
+		//nextIndex := (i + 1) % len(arr)
+		//builder.WriteString(fmt.Sprintf("    \"%s\" -- \"%s\";\n", label, arr[nextIndex]))
 	}
 	//for i, v := range arr {
 	//    if i == len(arr)-1 {
@@ -253,6 +253,7 @@ func getRing(w http.ResponseWriter, r *http.Request) {
 	//}
 
 	//builder.WriteString(";")
+
 	for k, v := range m {
 		for _, target := range v {
 			for _, v := range arr {

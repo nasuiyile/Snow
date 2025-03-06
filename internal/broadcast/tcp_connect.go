@@ -130,7 +130,7 @@ func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 }
 
 // SendMessage 向对应
-func (s *Server) BroadMessage(message string) error {
+func (s *Server) BroadcastMessage(message string) error {
 	s.Member.lock.Lock()
 	defer s.Member.lock.Unlock()
 	member := s.InitMessage(userMsg)

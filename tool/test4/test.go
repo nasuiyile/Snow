@@ -6,6 +6,6 @@ import (
 )
 
 func main() {
-	tree := broadcast.CreateSubTree(0, 9, 5, 10, 2)
+	tree, _ := broadcast.CreateSubTree(5, 9, 9, 10, 2, true)
 	fmt.Println(tree)
 }

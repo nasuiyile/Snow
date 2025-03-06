@@ -30,7 +30,7 @@ func main() {
 	go func() {
 		for {
 			time.Sleep(3 * time.Second)
-			err := serverList[5].BroadMessage("Hello from server!")
+			err := serverList[5].BroadcastMessage("Hello from server!")
 			if err != nil {
 				log.Println("Error broadcasting message:", err)
 			}
