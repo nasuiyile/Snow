@@ -1,7 +1,7 @@
 package state
 
 import (
-	"github.com/zeebo/blake3"
+	"snow/tool"
 	"sync"
 	"time"
 )
@@ -41,7 +41,7 @@ func (tm *TimeoutMap) Set(key string, value string, timeout int64) bool {
 	return res
 }
 
-// 获取键值对，并判断是否过期。如果过期则删除并返回空值。
+// Get 获取键值对，并判断是否过期。如果过期则删除并返回空值。
 func (tm *TimeoutMap) Get(key string) interface{} {
 	tm.mutex.RLock()
 	defer tm.mutex.RUnlock()
@@ -81,11 +81,5 @@ func (tm *TimeoutMap) cleanUp() {
 
 // Add 判断是否被写入过
 func (t *TimeoutMap) Add(msg []byte, timeout int64) bool {
-	return t.Set(Hash(msg), "", timeout)
-}
-
-func Hash(msg []byte) string {
-	sum256 := blake3.Sum256([]byte(msg))
-	sum := string(sum256[:])
-	return sum
+	return t.Set(tool.Hash(msg), "", timeout)
 }

@@ -15,7 +15,8 @@ type Server struct {
 	listener net.Listener
 	Config   *Config
 	Member   MemberShipList
-	State    *state.TimeoutMap
+	State    state.State
+	Action   Action
 }
 
 type MemberShipList struct {
@@ -36,8 +37,54 @@ type area struct {
 	right   int
 }
 
+// Action 接收到消息后执行的操作，不允许对原byte进行修改。不需要的操作可以不进行设置
+type Action struct {
+	//同步操作，等操作执行之后，消息才会被继续广播，返回false代表不用继续广播了（用户自己做幂等操作的情况下才可以设置为false）
+	SyncAction       *func([]byte) bool
+	AsyncAction      *func([]byte)           //异步操作，不需要操作执行完，消息被处理的同时也可以被继续广播
+	ReliableCallback *func(isConverged bool) //可靠消息的回调逻辑，只对根节点有作用。表示这条消息是否已经被广播到了全局
+}
+
+func (s *Server) ReduceReliableTimeout(m []byte, f func(isConverged bool)) {
+	s.State.ReliableMsgLock.Lock()
+	defer s.State.ReliableMsgLock.Unlock()
+	hash := string(m)
+	r, ok := s.State.ReliableTimeout[hash]
+	if !ok {
+		return
+	}
+	r.Counter--
+
+	if r.Counter == 0 {
+
+		delete(s.State.ReliableTimeout, hash)
+		//如果计数器为0代表已经收到了全部消息，这时候就可以触发根节点的回调方法
+		if r.IsRoot {
+			go f(true)
+			return
+		}
+		newMsg := make([]byte, 1+len(hash)+s.Config.IpLen())
+		copy(newMsg[1+len(hash):], s.Config.IPBytes())
+		newMsg[0] = reliableMsgAck
+		copy(newMsg[1:], hash)
+		s.SendMessage(ByteToIPv4Port(r.Ip), newMsg)
+
+	}
+
+}
+
+func (a *Action) process(body []byte) bool {
+	if a.AsyncAction != nil {
+		go (*a.AsyncAction)(body)
+	}
+	if a.SyncAction != nil {
+		return (*a.SyncAction)(body)
+	}
+	return true
+}
+
 func (s *Server) IsReceived(m []byte) bool {
-	return s.State.Add(m, s.Config.ExpirationTime)
+	return s.State.State.Add(m, s.Config.ExpirationTime)
 }
 
 func (m *MemberShipList) MemberLen() int {
@@ -119,11 +166,11 @@ func CurrentIsMid(left int, current int, right int, n int) bool {
 }
 
 // InitMessage 发消息
-func (s *Server) InitMessage(msgType MsgType) map[string][]byte {
+func (s *Server) InitMessage(msgType MsgType) (map[string][]byte, int64) {
 	s.Member.lock.Lock()
 	defer s.Member.lock.Unlock()
 	if s.Member.MemberLen() == 1 {
-		return make(map[string][]byte)
+		return make(map[string][]byte), 0
 	}
 	current, _ := s.Member.FindOrInsert(s.Config.IPBytes())
 	//当前的索引往左偏移
@@ -136,12 +183,12 @@ func (s *Server) InitMessage(msgType MsgType) map[string][]byte {
 	return s.NextHopMember(msgType, leftIP, rightIP, true)
 }
 
-func (s *Server) NextHopMember(msgType byte, leftIP []byte, rightIP []byte, isRoot bool) map[string][]byte {
+func (s *Server) NextHopMember(msgType byte, leftIP []byte, rightIP []byte, isRoot bool) (map[string][]byte, int64) {
 	//todo 这里可以优化读写锁
 	s.Member.lock.Lock()
 	defer s.Member.lock.Unlock()
 	if s.Member.MemberLen() == 1 {
-		return make(map[string][]byte)
+		return make(map[string][]byte), 0
 	}
 	forwardList := make(map[string][]byte)
 	//要转发的所有节点
@@ -161,23 +208,27 @@ func (s *Server) NextHopMember(msgType byte, leftIP []byte, rightIP []byte, isRo
 	//构建子树
 	next, areaLen := CreateSubTree(leftIndex, rightIndex, currentIndex, s.Member.MemberLen(), k, s.Config.Coloring)
 	//构建 secondary tree,注意这里的左边界和右边界要和根节点保持一致
-	if isRoot && areaLen > (1+k) {
+	if isRoot && areaLen > (1+k) && s.Config.Coloring {
 		//next = make([]*area, 0)
 		secondaryRoot := ObtainOnIPRing(currentIndex, -1, s.Member.MemberLen())
 		next = append(next, &area{left: leftIndex, right: rightIndex, current: secondaryRoot})
 	}
+	unix := time.Now().Unix()
 	for _, v := range next {
 		payload := make([]byte, 0)
 		payload = append(payload, msgType)
 		payload = append(payload, IPTable[v.left]...)
 		payload = append(payload, IPTable[v.right]...)
-		timestamp := make([]byte, 8)
-		binary.BigEndian.PutUint64(timestamp, uint64(time.Now().Unix()))
-		payload = append(payload, timestamp...)
+		if isRoot {
+			timestamp := make([]byte, 8)
+			binary.BigEndian.PutUint64(timestamp, uint64(unix))
+			payload = append(payload, timestamp...)
+		}
 		forwardList[ByteToIPv4Port(IPTable[v.current])] = payload
+
 	}
 
-	return forwardList
+	return forwardList, unix
 }
 func CreateSubTree(left int, right int, current int, n int, k int, coloring bool) ([]*area, int) {
 	offset := 0
@@ -326,9 +377,7 @@ func ColoringMultiwayTree(left int, right int, current int, k int) []*area {
 		rightBound := previousScope + currentArea - 1
 		rightNodeValue := (previousScope + (rightBound + 1)) / 2
 		//先找到和当前单双数一样的节点
-		if rightNodeValue == 3 {
-			fmt.Println()
-		}
+
 		if rightNodeValue%2 != parity {
 			if rightNodeValue < rightBound {
 				rightNodeValue++

@@ -21,6 +21,9 @@ type Config struct {
 func (c *Config) CutBytes(bytes []byte) []byte {
 	return bytes[c.Placeholder()-8:]
 }
+func (c *Config) CutTimestamp(bytes []byte) []byte {
+	return bytes[8:]
+}
 
 func (c *Config) Placeholder() int {
 	//ipv4/6的地址和1个tag，加上8个byte的时间戳
@@ -98,4 +101,8 @@ func LoadConfig(filename string) (*Config, error) {
 	}
 
 	return &config, nil
+}
+
+func (c *Config) GetReliableTimeOut() int64 {
+	return 60
 }

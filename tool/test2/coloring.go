@@ -173,9 +173,7 @@ func createSubTree(left int, right int, current int, k int) *Node {
 		rightBound := previousScope + currentArea - 1
 		rightNodeValue := (previousScope + (rightBound + 1)) / 2
 		//先找到和当前单双数一样的节点
-		if rightNodeValue == 3 {
-			fmt.Println()
-		}
+
 		if rightNodeValue%2 != parity {
 			if rightNodeValue < rightBound {
 				rightNodeValue++

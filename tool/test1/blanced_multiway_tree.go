@@ -138,9 +138,6 @@ func createSubTree(left int, right int, current int, k int) *Node {
 		}
 		rightBound := previousScope + currentArea - 1
 		leftNodeValue := (previousScope + (rightBound + 1)) / 2
-		if leftNodeValue == 2 {
-			fmt.Println()
-		}
 
 		node.Left = append(node.Left, createSubTree(previousScope, rightBound, leftNodeValue, k))
 		previousScope = rightBound + 1

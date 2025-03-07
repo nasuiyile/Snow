@@ -2,6 +2,7 @@ package tool
 
 import (
 	"fmt"
+	"github.com/zeebo/blake3"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -23,17 +24,38 @@ func SendHttp(from string, target string, data []byte) {
 }
 
 // GetRandomExcluding 定义一个函数，生成指定范围内的随机数，如果取到特定值则重新生成
-func GetRandomExcluding(min, max, exclude int) int {
+func GetRandomExcluding(min, max, exclude int, k int) []int {
+	res := make([]int, 0)
+	if max-min+1 <= k+1 {
+		for ; min <= max; min++ {
+			if min != exclude {
+				res = append(res, min)
+			}
+		}
+		return res
+	}
 	// 使用当前时间的纳秒级时间戳创建一个新的随机数生成器
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	for {
+START:
+	for len(res) < k {
 		// 生成 [min, max] 范围内的随机数
 		randomNum := r.Intn(max-min+1) + min
+		for i := 0; i < len(res); i++ {
+			if randomNum == res[i] {
+				goto START
+			}
+		}
 		// 如果生成的随机数不等于 exclude，则返回
 		if randomNum != exclude {
-			return randomNum
+			res = append(res, randomNum)
 		}
 		// 否则继续循环，重新生成
 	}
+	return res
+}
+
+func Hash(msg []byte) string {
+	sum256 := blake3.Sum256([]byte(msg))
+	sum := string(sum256[:])
+	return sum
 }
