@@ -9,7 +9,6 @@ import (
 	"net"
 	"snow/internal/state"
 	"snow/tool"
-	"time"
 )
 
 // NewServer 创建并启动一个 TCP 服务器
@@ -50,6 +49,7 @@ func NewServer(port int, configPath string, clientList []string, action Action) 
 // startAcceptingConnections 不断接受新的客户端连接
 func (s *Server) startAcceptingConnections() {
 	for {
+		//其实是由netpoller 来触发的
 		conn, err := s.listener.Accept()
 		if err != nil {
 			log.Println("Error accepting connection:", err)
@@ -135,44 +135,6 @@ func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 	s.Member.AddNode(conn, true)
 	return conn, nil
 }
-
-func (s *Server) BroadcastMessage(message string) error {
-	s.Member.lock.Lock()
-	defer s.Member.lock.Unlock()
-	member, _ := s.InitMessage(userMsg)
-	messageBytes := []byte(message)
-	for ip, payload := range member {
-		length := uint32(len(messageBytes) + s.Config.Placeholder())
-		newMsg := make([]byte, length)
-		copy(newMsg, payload)
-		copy(newMsg[s.Config.Placeholder():], messageBytes)
-		s.SendMessage(ip, newMsg)
-	}
-	return nil
-}
-
-// GossipMessage gossip协议是有可能广播给发送给自己的节点的= =
-func (s *Server) GossipMessage(msg []byte) error {
-	idx, _ := s.Member.FindOrInsert(s.Config.IPBytes())
-	randomNodes := tool.GetRandomExcluding(0, s.Member.MemberLen()-1, idx, s.Config.FanOut)
-	for _, v := range randomNodes {
-		bytes := s.Member.IPTable[v]
-		s.SendMessage(ByteToIPv4Port(bytes), msg)
-	}
-	return nil
-}
-
-// ForwardMessage 转发消息
-func (s *Server) ForwardMessage(msg []byte, member map[string][]byte) error {
-	for ip, payload := range member {
-		msgCopy := make([]byte, len(msg))
-		copy(msgCopy, msg)
-		copy(msgCopy, payload)
-		s.SendMessage(ip, msgCopy)
-	}
-
-	return nil
-}
 func (s *Server) SendMessage(ip string, msg []byte) {
 	metaData, _ := s.Member.MetaData[ip]
 	conn := metaData.clients
@@ -209,36 +171,6 @@ func (s *Server) SendMessage(ip string, msg []byte) {
 			tool.SendHttp(s.Config.LocalAddress, ip, msg)
 		}
 	}(conn, s)
-}
-
-func (s *Server) ReliableMessage(message string) error {
-	s.Member.lock.Lock()
-	defer s.Member.lock.Unlock()
-	member, unix := s.InitMessage(reliableMsg)
-	timeBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(timeBytes, uint64(unix))
-	timeBytes = append(timeBytes, message...)
-	hash := []byte(tool.Hash([]byte(timeBytes)))
-	s.State.AddReliableTimeout(hash, true, len(member), nil)
-	timeout := s.Config.GetReliableTimeOut()
-	time.AfterFunc(time.Duration(timeout)*time.Second, func() {
-		reliableTimeout := s.State.GetReliableTimeout(hash)
-		//如果超时还没被删除就手动调用
-		if reliableTimeout != nil {
-			if s.Action.ReliableCallback != nil {
-				(*s.Action.ReliableCallback)(false)
-			}
-		}
-	})
-	messageBytes := []byte(message)
-	for ip, payload := range member {
-		length := uint32(len(messageBytes) + s.Config.Placeholder())
-		newMsg := make([]byte, length)
-		copy(newMsg, payload)
-		copy(newMsg[s.Config.Placeholder():], messageBytes)
-		s.SendMessage(ip, newMsg)
-	}
-	return nil
 }
 
 // Close 关闭服务器

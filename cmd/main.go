@@ -47,8 +47,8 @@ func main() {
 	// 模拟每隔1秒向所有客户端发送一条消息
 	go func() {
 		for {
-			time.Sleep(5 * time.Second)
-			err := serverList[5].ReliableMessage("Hello from server!")
+			time.Sleep(3 * time.Second)
+			err := serverList[5].ColoringMessage("Hello from server!")
 			if err != nil {
 				log.Println("Error broadcasting message:", err)
 			}

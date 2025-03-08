@@ -17,7 +17,9 @@ const (
 	suspectMsg
 	aliveMsg
 	deadMsg
-	userMsg        //普通的消息
+	//以上的都是服务发现的
+	coloringMsg
+	regularMsg     //普通的消息
 	reliableMsg    //可靠消息
 	reliableMsgAck //可靠消息回执
 	gossipMsg      //gossip消息
@@ -30,7 +32,13 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 	//判断消息类型
 	msgType := msg[0]
 	switch msgType {
-	case userMsg:
+	case regularMsg:
+		//转发逻辑和普通的用户消息是一样的
+		body := s.Config.CutBytes(msg)
+		if isFirst(body, s) {
+			forward(msg, s, parentIP)
+		}
+	case coloringMsg:
 		//转发逻辑和普通的用户消息是一样的
 		body := s.Config.CutBytes(msg)
 		if isFirst(body, s) {
@@ -44,7 +52,6 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 			forward(msg, s, parentIP)
 		}
 	case reliableMsgAck:
-
 		body := msg[1:]
 		//去重的消息可能会过滤掉相同的ack。在消息尾部追加ip来解决
 		if isFirst(body, s) {

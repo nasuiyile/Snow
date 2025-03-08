@@ -54,9 +54,7 @@ func (s *Server) ReduceReliableTimeout(m []byte, f func(isConverged bool)) {
 		return
 	}
 	r.Counter--
-
 	if r.Counter == 0 {
-
 		delete(s.State.ReliableTimeout, hash)
 		//如果计数器为0代表已经收到了全部消息，这时候就可以触发根节点的回调方法
 		if r.IsRoot {
@@ -158,12 +156,6 @@ func (m *MemberShipList) AddNode(conn net.Conn, joinRing bool) {
 func ObtainOnIPRing(current int, offset int, n int) int {
 	return (current + offset + n) % n
 }
-func CurrentIsMid(left int, current int, right int, n int) bool {
-	if left <= right {
-		return current >= left && current <= right
-	}
-	return current >= left || current <= right
-}
 
 // InitMessage 发消息
 func (s *Server) InitMessage(msgType MsgType) (map[string][]byte, int64) {
@@ -184,6 +176,7 @@ func (s *Server) InitMessage(msgType MsgType) (map[string][]byte, int64) {
 }
 
 func (s *Server) NextHopMember(msgType byte, leftIP []byte, rightIP []byte, isRoot bool) (map[string][]byte, int64) {
+	coloring := msgType == coloringMsg
 	//todo 这里可以优化读写锁
 	s.Member.lock.Lock()
 	defer s.Member.lock.Unlock()
@@ -206,9 +199,9 @@ func (s *Server) NextHopMember(msgType byte, leftIP []byte, rightIP []byte, isRo
 	}
 	k := s.Config.FanOut
 	//构建子树
-	next, areaLen := CreateSubTree(leftIndex, rightIndex, currentIndex, s.Member.MemberLen(), k, s.Config.Coloring)
+	next, areaLen := CreateSubTree(leftIndex, rightIndex, currentIndex, s.Member.MemberLen(), k, coloring)
 	//构建 secondary tree,注意这里的左边界和右边界要和根节点保持一致
-	if isRoot && areaLen > (1+k) && s.Config.Coloring {
+	if isRoot && areaLen > (1+k) && coloring {
 		//next = make([]*area, 0)
 		secondaryRoot := ObtainOnIPRing(currentIndex, -1, s.Member.MemberLen())
 		next = append(next, &area{left: leftIndex, right: rightIndex, current: secondaryRoot})
@@ -256,141 +249,4 @@ func CreateSubTree(left int, right int, current int, n int, k int, coloring bool
 	}
 
 	return tree, areaLen
-}
-
-func BalancedMultiwayTree(left int, right int, current int, k int) []*area {
-
-	AreaLen := right - left + 1
-	areas := make([]*area, 0)
-	//除去自己的，剩余节点小于等于k，那就直接转发
-	if left > right {
-		return nil
-	} else if (AreaLen - 1) <= k {
-		for ; left < right; left++ {
-			if left == current {
-				continue
-			}
-			//只有这一个节点了
-			areas = append(areas, &area{
-				current: left,
-				left:    left,
-				right:   left,
-			})
-		}
-		return areas
-	}
-	leftArea := (current - left) / (k / 2)
-	leftRemain := (current - left) % (k / 2)
-	previousScope := left
-	for i := 0; i < k/2; i++ {
-		//将多余的区域从左边开始均分给每一个节点
-		currentArea := leftArea
-		if leftRemain > 0 {
-			leftRemain--
-			currentArea++
-		}
-		rightBound := previousScope + currentArea - 1
-		leftNodeValue := (previousScope + (rightBound + 1)) / 2
-		areas = append(areas, &area{left: previousScope, right: rightBound, current: leftNodeValue})
-		previousScope = rightBound + 1
-	}
-
-	previousScope = current + 1
-	rightArea := (right - current) / (k / 2)
-	rightRemain := (right - current) % (k / 2)
-	for i := 0; i < k/2; i++ {
-		//将多余的区域从左边开始均分给每一个节点
-		currentArea := rightArea
-		if rightRemain > 0 {
-			rightRemain--
-			currentArea++
-		}
-		rightBound := previousScope + currentArea - 1
-		rightNodeValue := (previousScope + (rightBound + 1)) / 2
-		areas = append(areas, &area{left: previousScope, right: rightBound, current: rightNodeValue})
-
-		previousScope = rightBound + 1
-	}
-
-	return areas
-}
-
-func ColoringMultiwayTree(left int, right int, current int, k int) []*area {
-	AreaLen := right - left + 1
-	areas := make([]*area, 0)
-	//除去自己的，剩余节点小于等于k，那就直接转发
-	if left > right {
-		return nil
-	} else if (AreaLen - 1) <= k {
-		for ; left < current; left++ {
-			areas = append(areas, &area{left: left, current: left, right: left})
-		}
-		for ; current < right; current++ {
-			current++
-			areas = append(areas, &area{left: current, current: current, right: current})
-		}
-		return areas
-	}
-	//当前找单数还是双数
-	parity := current % 2
-	leftArea := (current - left) / (k / 2)
-	leftRemain := (current - left) % (k / 2)
-	previousScope := left
-	for i := 0; i < k/2; i++ {
-		//将多余的区域从左边开始均分给每一个节点
-		currentArea := leftArea
-		if leftRemain > 0 {
-			leftRemain--
-			currentArea++
-		}
-		rightBound := previousScope + currentArea - 1
-		leftNodeValue := (previousScope + (rightBound + 1)) / 2
-		//先找到和当前单双数一样的节点,如果找不到的化就直接返回当前值
-		if leftNodeValue%2 != parity {
-			if leftNodeValue < rightBound {
-				leftNodeValue++
-			} else if leftNodeValue > previousScope {
-				leftNodeValue--
-			}
-		}
-		if leftNodeValue != current {
-			areas = append(areas, &area{left: previousScope, right: rightBound, current: leftNodeValue})
-		}
-		previousScope = rightBound + 1
-	}
-
-	if previousScope >= right {
-		return areas
-	}
-	previousScope = current + 1
-
-	rightArea := (right - current) / (k / 2)
-	rightRemain := (right - current) % (k / 2)
-	for i := 0; i < k/2; i++ {
-
-		//将多余的区域从左边开始均分给每一个节点
-		currentArea := rightArea
-		if rightRemain > 0 {
-			rightRemain--
-			currentArea++
-		}
-		rightBound := previousScope + currentArea - 1
-		rightNodeValue := (previousScope + (rightBound + 1)) / 2
-		//先找到和当前单双数一样的节点
-
-		if rightNodeValue%2 != parity {
-			if rightNodeValue < rightBound {
-				rightNodeValue++
-			} else if rightNodeValue > previousScope {
-				rightNodeValue--
-			}
-		}
-		if rightNodeValue != current {
-			areas = append(areas, &area{left: previousScope, right: rightBound, current: rightNodeValue})
-		}
-		previousScope = rightBound + 1
-	}
-
-	return areas
-
 }
