@@ -37,12 +37,19 @@ func (s *Server) ColoringMessage(message string) error {
 }
 
 // GossipMessage gossip协议是有可能广播给发送给自己的节点的= =
-func (s *Server) GossipMessage(msg []byte) error {
+func (s *Server) GossipMessage(msg string) error {
+	bytes := make([]byte, len(msg)+TimeLen+TagLen)
+	bytes[0] = gossipMsg
+	copy(bytes[TagLen:], tool.TimeBytes())
+	copy(bytes[TagLen+TimeLen:], msg)
+	return s.SendGossip(bytes)
+}
+
+func (s *Server) SendGossip(msg []byte) error {
 	idx, _ := s.Member.FindOrInsert(s.Config.IPBytes())
 	randomNodes := tool.GetRandomExcluding(0, s.Member.MemberLen()-1, idx, s.Config.FanOut)
 	for _, v := range randomNodes {
-		bytes := s.Member.IPTable[v]
-		s.SendMessage(ByteToIPv4Port(bytes), msg)
+		s.SendMessage(ByteToIPv4Port(s.Member.IPTable[v]), msg)
 	}
 	return nil
 }

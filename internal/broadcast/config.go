@@ -9,6 +9,9 @@ import (
 	"strconv"
 )
 
+const TimeLen = 8
+const TagLen = 1
+
 type Config struct {
 	Ipv6           bool   `yaml:"Ipv6"`
 	FanOut         int    `yaml:"FanOut"`
@@ -18,11 +21,15 @@ type Config struct {
 	ExpirationTime int64  `yaml:"ExpirationTime"`
 }
 
+// 这个方法会留下时间戳
 func (c *Config) CutBytes(bytes []byte) []byte {
 	return bytes[c.Placeholder()-8:]
 }
 func (c *Config) CutTimestamp(bytes []byte) []byte {
 	return bytes[8:]
+}
+func TimestampLen(bytes []byte) {
+
 }
 
 func (c *Config) Placeholder() int {

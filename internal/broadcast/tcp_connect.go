@@ -85,7 +85,6 @@ func (s *Server) handleConnection(conn net.Conn) {
 			log.Printf("Invalid message length from %v: %d\n", conn.RemoteAddr(), messageLength)
 			continue
 		}
-
 		// 根据消息长度读取消息体
 		msg := make([]byte, messageLength)
 		_, err = io.ReadFull(reader, msg)

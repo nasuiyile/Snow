@@ -48,7 +48,7 @@ func main() {
 	go func() {
 		for {
 			time.Sleep(3 * time.Second)
-			err := serverList[5].ColoringMessage("Hello from server!")
+			err := serverList[5].GossipMessage("Hello from server!")
 			if err != nil {
 				log.Println("Error broadcasting message:", err)
 			}

@@ -1,6 +1,7 @@
 package tool
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/zeebo/blake3"
 	"math/rand"
@@ -14,7 +15,12 @@ func SendHttp(from string, target string, data []byte) {
 	values.Add("From", from)
 	values.Add("Target", target)
 	values.Add("Size", fmt.Sprintf("%d", len(data)))
-
+	//if fanOut {
+	//	values.Add("FanOut", "true")
+	//} else {
+	//	values.Add("FanOut", "false")
+	//
+	//}
 	// 构建完整的URL，包括查询参数
 	baseURL := "http://127.0.0.1:8111/putRing"
 	fullURL := fmt.Sprintf("%s?%s", baseURL, values.Encode())
@@ -58,4 +64,11 @@ func Hash(msg []byte) string {
 	sum256 := blake3.Sum256([]byte(msg))
 	sum := string(sum256[:])
 	return sum
+}
+
+func TimeBytes() []byte {
+	unix := time.Now().Unix()
+	timestamp := make([]byte, 8)
+	binary.BigEndian.PutUint64(timestamp, uint64(unix))
+	return timestamp
 }

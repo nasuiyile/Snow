@@ -33,19 +33,16 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 	msgType := msg[0]
 	switch msgType {
 	case regularMsg:
-		//转发逻辑和普通的用户消息是一样的
 		body := s.Config.CutBytes(msg)
 		if isFirst(body, s) {
 			forward(msg, s, parentIP)
 		}
 	case coloringMsg:
-		//转发逻辑和普通的用户消息是一样的
 		body := s.Config.CutBytes(msg)
 		if isFirst(body, s) {
 			forward(msg, s, parentIP)
 		}
 	case reliableMsg:
-		//转发逻辑和普通的用户消息是一样的
 		body := s.Config.CutBytes(msg)
 		if isFirst(body, s) {
 			//如果自己是叶子节点发送ack给父节点	并删除ack的map
@@ -60,6 +57,14 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 				body = body[:len(body)-s.Config.IpLen()]
 				s.ReduceReliableTimeout(body, *s.Action.ReliableCallback)
 			}
+		}
+	case gossipMsg:
+		//gossip不需要和Snow算法一样携带俩个ip
+		body := msg[1:]
+		if isFirst(body, s) {
+			data := make([]byte, len(msg))
+			copy(data, msg)
+			s.SendGossip(data)
 		}
 	default:
 		log.Printf("Received non type message from %v: %s\n", conn.RemoteAddr(), string(msg))
