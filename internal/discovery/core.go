@@ -12,6 +12,6 @@ func initMsg(msg []byte) {
 
 }
 
-func NodeChange(msg []byte) {
+func NodeChange(pingMsg []byte, ip string) {
 	//
 }

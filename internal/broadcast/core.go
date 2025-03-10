@@ -152,7 +152,6 @@ func (m *MemberShipList) AddNode(conn net.Conn, joinRing bool) {
 		bytes := IPv4To6Bytes(addr)
 		m.FindOrInsert(bytes)
 	}
-
 }
 
 func ObtainOnIPRing(current int, offset int, n int) int {
