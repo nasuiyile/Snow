@@ -1,5 +1,33 @@
 package broadcast
 
+func CreateSubTree(left int, right int, current int, n int, k int, coloring bool) ([]*area, int) {
+	offset := 0
+	//偏移到正数方便算
+	if left > right {
+		offset = left
+		current = ObtainOnIPRing(current, -offset, n)
+		right = ObtainOnIPRing(right, -offset, n)
+		left = 0
+	}
+	tree := make([]*area, 0)
+	//是否进行节点染色
+	if coloring {
+		tree = ColoringMultiwayTree(left, right, current, k)
+	} else {
+		tree = BalancedMultiwayTree(left, right, current, k)
+	}
+	areaLen := right - left + 1
+	//计算完把偏移设置为原位
+	for _, v := range tree {
+		v.current = ObtainOnIPRing(v.current, offset, n)
+		v.right = ObtainOnIPRing(v.right, offset, n)
+		v.left = ObtainOnIPRing(v.left, offset, n)
+
+	}
+
+	return tree, areaLen
+}
+
 func BalancedMultiwayTree(left int, right int, current int, k int) []*area {
 
 	AreaLen := right - left + 1

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"log"
 	"net"
-	"snow/internal/discovery"
 	"snow/tool"
 )
 
@@ -80,7 +79,7 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 		}
 	case nodeChange:
 		//分别是消息类型，消息时间戳，加入节点的ip
-		discovery.NodeChange(msg[1:], parentIP)
+		NodeChange(msg[1:], parentIP, s)
 	default:
 		log.Printf("Received non type message from %v: %s\n", conn.RemoteAddr(), string(msg))
 	}
@@ -126,7 +125,7 @@ func forward(msg []byte, s *Server, parentIp string) {
 			copy(newMsg[1:], hash)
 			s.SendMessage(parentIp, newMsg)
 		} else {
-			s.State.AddReliableTimeout(hash, false, len(member), IPv4To6Bytes(parentIp))
+			s.State.AddReliableTimeout(hash, false, len(member), tool.IPv4To6Bytes(parentIp))
 		}
 		for _, payload := range member {
 			payload = append(payload, s.Config.IPBytes()...)

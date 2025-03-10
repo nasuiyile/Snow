@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"snow/internal/membership"
 	"snow/internal/state"
 	"snow/tool"
 	"syscall"
@@ -31,9 +32,9 @@ func NewServer(port int, configPath string, clientList []string, action Action) 
 	server := &Server{
 		listener: listener,
 		Config:   config,
-		Member: MemberShipList{
+		Member: membership.MemberShipList{
 			IPTable:  make([][]byte, 0),
-			MetaData: make(map[string]*MetaData),
+			MetaData: make(map[string]*membership.MetaData),
 		},
 		State: state.State{
 			State:           state.NewTimeoutMap(),
@@ -53,7 +54,7 @@ func NewServer(port int, configPath string, clientList []string, action Action) 
 			},
 		},
 	}
-	server.Member.FindOrInsert(IPv4To6Bytes(config.LocalAddress))
+	server.Member.FindOrInsert(tool.IPv4To6Bytes(config.LocalAddress))
 	go server.startAcceptingConnections() // 启动接受连接的协程
 	// 主动连接到其他客户端
 	for _, addr := range clientList {
@@ -82,9 +83,9 @@ func (s *Server) startAcceptingConnections() {
 func (s *Server) handleConnection(conn net.Conn) {
 	defer func() {
 		conn.Close()
-		s.Member.lock.Lock()
+		s.Member.Lock()
 		delete(s.Member.MetaData, conn.RemoteAddr().String()) // 移除关闭的连接
-		s.Member.lock.Unlock()
+		s.Member.Unlock()
 	}()
 
 	reader := bufio.NewReader(conn)
@@ -138,10 +139,10 @@ func (s *Server) connectToClient(addr string) {
 }
 func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 	if s.Config.Test {
-		s.Member.lock.Lock()
-		defer s.Member.lock.Unlock()
-		s.Member.MetaData[addr] = NewMetaData(nil)
-		s.Member.FindOrInsert(IPv4To6Bytes(addr))
+		s.Member.Lock()
+		defer s.Member.Unlock()
+		s.Member.MetaData[addr] = membership.NewMetaData(nil)
+		s.Member.FindOrInsert(tool.IPv4To6Bytes(addr))
 	}
 
 	// 赋值给 Dialer 的 LocalAddr
@@ -156,7 +157,7 @@ func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 }
 func (s *Server) SendMessage(ip string, msg []byte) {
 	metaData, _ := s.Member.MetaData[ip]
-	conn := metaData.clients
+	conn := metaData.Clients
 	if conn == nil {
 		//先建立一次链接进行尝试
 		newConn, err := s.connectToPeer(ip)
@@ -164,7 +165,7 @@ func (s *Server) SendMessage(ip string, msg []byte) {
 			log.Println(s.Config.LocalAddress, "can't connect to ", ip)
 			return
 		} else {
-			s.Member.MetaData[ip].clients = newConn
+			s.Member.MetaData[ip].Clients = newConn
 			conn = newConn
 		}
 	}
@@ -195,10 +196,10 @@ func (s *Server) SendMessage(ip string, msg []byte) {
 // Close 关闭服务器
 func (s *Server) Close() {
 	s.listener.Close()
-	s.Member.lock.Lock()
+	s.Member.Lock()
 	for _, v := range s.Member.MetaData {
-		v.clients.Close()
+		v.Clients.Close()
 	}
 
-	s.Member.lock.Unlock()
+	s.Member.Unlock()
 }

@@ -7,8 +7,8 @@ import (
 )
 
 func (s *Server) StandardMessage(message string, msgAction MsgAction) error {
-	s.Member.lock.Lock()
-	defer s.Member.lock.Unlock()
+	s.Member.Lock()
+	defer s.Member.Unlock()
 	member, _ := s.InitMessage(regularMsg, msgAction)
 	messageBytes := []byte(message)
 	for ip, payload := range member {
@@ -22,8 +22,8 @@ func (s *Server) StandardMessage(message string, msgAction MsgAction) error {
 }
 
 func (s *Server) ColoringMessage(message string, msgAction MsgAction) error {
-	s.Member.lock.Lock()
-	defer s.Member.lock.Unlock()
+	s.Member.Lock()
+	defer s.Member.Unlock()
 	member, _ := s.InitMessage(coloringMsg, msgAction)
 	messageBytes := []byte(message)
 	for ip, payload := range member {
@@ -50,7 +50,7 @@ func (s *Server) SendGossip(msg []byte) error {
 	idx, _ := s.Member.FindOrInsert(s.Config.IPBytes())
 	randomNodes := tool.GetRandomExcluding(0, s.Member.MemberLen()-1, idx, s.Config.FanOut)
 	for _, v := range randomNodes {
-		s.SendMessage(ByteToIPv4Port(s.Member.IPTable[v]), msg)
+		s.SendMessage(tool.ByteToIPv4Port(s.Member.IPTable[v]), msg)
 	}
 	return nil
 }
@@ -67,10 +67,9 @@ func (s *Server) ForwardMessage(msg []byte, member map[string][]byte) error {
 }
 
 func (s *Server) ReliableMessage(message string, msgAction MsgAction) error {
-	s.Member.lock.Lock()
-	defer s.Member.lock.Unlock()
+	s.Member.Lock()
+	defer s.Member.Unlock()
 	member, unix := s.InitMessage(reliableMsg, msgAction)
-
 	timeBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(timeBytes, uint64(unix))
 	timeBytes = append(timeBytes, message...)

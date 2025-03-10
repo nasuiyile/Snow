@@ -48,7 +48,7 @@ func main() {
 	go func() {
 		for {
 			time.Sleep(3 * time.Second)
-			err := serverList[5].ReliableMessage("hello from server!", 0)
+			err := serverList[5].StandardMessage("hello from server!", 0)
 			if err != nil {
 				log.Println("Error broadcasting message:", err)
 			}
