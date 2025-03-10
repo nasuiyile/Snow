@@ -9,6 +9,7 @@ import (
 	"net"
 	"snow/internal/state"
 	"snow/tool"
+	"syscall"
 )
 
 // NewServer 创建并启动一个 TCP 服务器
@@ -17,8 +18,13 @@ func NewServer(port int, configPath string, clientList []string, action Action) 
 	if err != nil {
 		panic(err)
 	}
+	config.ClientAddress = fmt.Sprintf("%s:%d", config.LocalAddress, port+config.ClientPortOffset)
 	config.LocalAddress = fmt.Sprintf("%s:%d", config.LocalAddress, port)
 	listener, err := net.Listen("tcp", config.LocalAddress)
+	if err != nil {
+		return nil, err
+	}
+	clientAddress, err := net.ResolveTCPAddr("tcp", config.ClientAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -34,6 +40,18 @@ func NewServer(port int, configPath string, clientList []string, action Action) 
 			ReliableTimeout: make(map[string]*state.ReliableInfo),
 		},
 		Action: action,
+		client: net.Dialer{
+			LocalAddr: clientAddress,
+			Control: func(network, address string, c syscall.RawConn) error {
+				return c.Control(func(fd uintptr) {
+					// 设置 SO_REUSEADDR
+					err := syscall.SetsockoptInt(syscall.Handle(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+					if err != nil {
+						fmt.Println("设置 SO_REUSEADDR 失败:", err)
+					}
+				})
+			},
+		},
 	}
 	server.Member.FindOrInsert(IPv4To6Bytes(config.LocalAddress))
 	go server.startAcceptingConnections() // 启动接受连接的协程
@@ -125,7 +143,9 @@ func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 		s.Member.MetaData[addr] = NewMetaData(nil)
 		s.Member.FindOrInsert(IPv4To6Bytes(addr))
 	}
-	conn, err := net.Dial("tcp", addr)
+
+	// 赋值给 Dialer 的 LocalAddr
+	conn, err := s.client.Dial("tcp", addr)
 	if err != nil {
 		log.Printf("Failed to connect to %s: %v\n", addr, err)
 		return nil, err

@@ -9,7 +9,7 @@ import (
 
 func main() {
 	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
-	n := 10
+	n := 20
 	clientAddresses := initAddress(n)
 	serverList := make([]*broadcast.Server, 0)
 	syncAction := func(bytes []byte) bool {
@@ -48,7 +48,7 @@ func main() {
 	go func() {
 		for {
 			time.Sleep(3 * time.Second)
-			err := serverList[5].GossipMessage("Hello from server!")
+			err := serverList[5].ReliableMessage("hello from server!", 0)
 			if err != nil {
 				log.Println("Error broadcasting message:", err)
 			}

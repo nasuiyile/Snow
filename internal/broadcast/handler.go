@@ -17,12 +17,20 @@ const (
 	suspectMsg
 	aliveMsg
 	deadMsg
-	//以上的都是服务发现的
+	//节点状态改变
+	nodeChange
+	//这是消息的发送方式
 	coloringMsg
 	regularMsg     //普通的消息
 	reliableMsg    //可靠消息
 	reliableMsgAck //可靠消息回执
 	gossipMsg      //gossip消息
+)
+
+type MsgAction = byte
+
+const (
+	userMsg MsgAction = iota
 )
 
 func handler(msg []byte, s *Server, conn net.Conn) {
@@ -31,27 +39,31 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 	//defer s.Member.lock.Unlock()
 	//判断消息类型
 	msgType := msg[0]
+	//消息要进行的动作
+	msgAction := msg[1]
 	switch msgType {
 	case regularMsg:
 		body := s.Config.CutBytes(msg)
-		if isFirst(body, s) {
+		if isFirst(body, msgAction, s) {
 			forward(msg, s, parentIP)
 		}
 	case coloringMsg:
 		body := s.Config.CutBytes(msg)
-		if isFirst(body, s) {
+		if isFirst(body, msgAction, s) {
 			forward(msg, s, parentIP)
 		}
 	case reliableMsg:
 		body := s.Config.CutBytes(msg)
-		if isFirst(body, s) {
+		if isFirst(body, msgAction, s) {
 			//如果自己是叶子节点发送ack给父节点	并删除ack的map
 			forward(msg, s, parentIP)
 		}
 	case reliableMsgAck:
+
+		//ack不需要ActionType
 		body := msg[1:]
 		//去重的消息可能会过滤掉相同的ack。在消息尾部追加ip来解决
-		if isFirst(body, s) {
+		if isFirst(body, msgAction, s) {
 			//减少计数器
 			if s.Action.ReliableCallback != nil {
 				body = body[:len(body)-s.Config.IpLen()]
@@ -60,26 +72,31 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 		}
 	case gossipMsg:
 		//gossip不需要和Snow算法一样携带俩个ip
-		body := msg[1:]
-		if isFirst(body, s) {
+		body := msg[TagLen:]
+		if isFirst(body, msgAction, s) {
 			data := make([]byte, len(msg))
 			copy(data, msg)
 			s.SendGossip(data)
 		}
+	case nodeChange:
+		//分别是消息类型，消息时间戳，加入节点的ip
+
 	default:
 		log.Printf("Received non type message from %v: %s\n", conn.RemoteAddr(), string(msg))
 	}
 }
 
-func isFirst(body []byte, s *Server) bool {
+func isFirst(body []byte, action MsgAction, s *Server) bool {
 	if s.IsReceived(body) && s.Config.ExpirationTime > 0 {
 		return false
 	}
-	body = s.Config.CutTimestamp(body)
-
-	//这是让用户自己判断消息是否处理过
-	if !s.Action.process(body) {
-		return false
+	if action == userMsg {
+		//如果第二个byte的类型是userMsg才让用户进行处理
+		body = s.Config.CutTimestamp(body)
+		//这是让用户自己判断消息是否处理过
+		if !s.Action.process(body) {
+			return false
+		}
 	}
 	return true
 }
@@ -88,11 +105,12 @@ func isFirst(body []byte, s *Server) bool {
 func forward(msg []byte, s *Server, parentIp string) {
 	member := make(map[string][]byte)
 	msgType := msg[0]
-	leftIP := msg[1 : s.Config.IpLen()+1]
-	rightIP := msg[s.Config.IpLen()+1 : s.Config.IpLen()*2+1]
+	msgAction := msg[1]
+	leftIP := msg[TagLen : s.Config.IpLen()+TagLen]
+	rightIP := msg[s.Config.IpLen()+TagLen : s.Config.IpLen()*2+TagLen]
 	isLeaf := bytes.Compare(leftIP, rightIP) == 0
 	if !isLeaf {
-		member, _ = s.NextHopMember(msgType, leftIP, rightIP, false)
+		member, _ = s.NextHopMember(msgType, msgAction, leftIP, rightIP, false)
 	}
 	//消息中会附带发送给自己的节点
 	if msgType == reliableMsg {
@@ -106,9 +124,9 @@ func forward(msg []byte, s *Server, parentIp string) {
 			copy(newMsg[1+len(hash):], s.Config.IPBytes())
 			newMsg[0] = reliableMsgAck
 			copy(newMsg[1:], hash)
-			s.SendMessage(parentIp, newMsg)
+			s.SendMessage(s.Config.GetServerIp(parentIp), newMsg)
 		} else {
-			s.State.AddReliableTimeout(hash, false, len(member), IPv4To6Bytes(parentIp))
+			s.State.AddReliableTimeout(hash, false, len(member), IPv4To6Bytes(s.Config.GetServerIp(parentIp)))
 		}
 		for _, payload := range member {
 			payload = append(payload, s.Config.IPBytes()...)

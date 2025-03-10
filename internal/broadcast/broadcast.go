@@ -6,10 +6,10 @@ import (
 	"time"
 )
 
-func (s *Server) BroadcastMessage(message string) error {
+func (s *Server) StandardMessage(message string, msgAction MsgAction) error {
 	s.Member.lock.Lock()
 	defer s.Member.lock.Unlock()
-	member, _ := s.InitMessage(regularMsg)
+	member, _ := s.InitMessage(regularMsg, msgAction)
 	messageBytes := []byte(message)
 	for ip, payload := range member {
 		length := uint32(len(messageBytes) + s.Config.Placeholder())
@@ -21,10 +21,10 @@ func (s *Server) BroadcastMessage(message string) error {
 	return nil
 }
 
-func (s *Server) ColoringMessage(message string) error {
+func (s *Server) ColoringMessage(message string, msgAction MsgAction) error {
 	s.Member.lock.Lock()
 	defer s.Member.lock.Unlock()
-	member, _ := s.InitMessage(coloringMsg)
+	member, _ := s.InitMessage(coloringMsg, msgAction)
 	messageBytes := []byte(message)
 	for ip, payload := range member {
 		length := uint32(len(messageBytes) + s.Config.Placeholder())
@@ -37,9 +37,10 @@ func (s *Server) ColoringMessage(message string) error {
 }
 
 // GossipMessage gossip协议是有可能广播给发送给自己的节点的= =
-func (s *Server) GossipMessage(msg string) error {
+func (s *Server) GossipMessage(msg string, msgAction MsgAction) error {
 	bytes := make([]byte, len(msg)+TimeLen+TagLen)
 	bytes[0] = gossipMsg
+	bytes[1] = msgAction
 	copy(bytes[TagLen:], tool.TimeBytes())
 	copy(bytes[TagLen+TimeLen:], msg)
 	return s.SendGossip(bytes)
@@ -65,14 +66,15 @@ func (s *Server) ForwardMessage(msg []byte, member map[string][]byte) error {
 	return nil
 }
 
-func (s *Server) ReliableMessage(message string) error {
+func (s *Server) ReliableMessage(message string, msgAction MsgAction) error {
 	s.Member.lock.Lock()
 	defer s.Member.lock.Unlock()
-	member, unix := s.InitMessage(reliableMsg)
+	member, unix := s.InitMessage(reliableMsg, msgAction)
+
 	timeBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(timeBytes, uint64(unix))
 	timeBytes = append(timeBytes, message...)
-	hash := []byte(tool.Hash([]byte(timeBytes)))
+	hash := []byte(tool.Hash(timeBytes))
 	s.State.AddReliableTimeout(hash, true, len(member), nil)
 	timeout := s.Config.GetReliableTimeOut()
 	time.AfterFunc(time.Duration(timeout)*time.Second, func() {

@@ -17,6 +17,7 @@ type Server struct {
 	Member   MemberShipList
 	State    state.State
 	Action   Action
+	client   net.Dialer //客户端连接器
 }
 
 type MemberShipList struct {
@@ -54,6 +55,9 @@ func (s *Server) ReduceReliableTimeout(m []byte, f func(isConverged bool)) {
 		return
 	}
 	r.Counter--
+	if s.Config.LocalAddress == "127.0.0.1:5005" {
+		fmt.Println()
+	}
 	if r.Counter == 0 {
 		delete(s.State.ReliableTimeout, hash)
 		//如果计数器为0代表已经收到了全部消息，这时候就可以触发根节点的回调方法
@@ -158,7 +162,7 @@ func ObtainOnIPRing(current int, offset int, n int) int {
 }
 
 // InitMessage 发消息
-func (s *Server) InitMessage(msgType MsgType) (map[string][]byte, int64) {
+func (s *Server) InitMessage(msgType MsgType, action MsgAction) (map[string][]byte, int64) {
 	s.Member.lock.Lock()
 	defer s.Member.lock.Unlock()
 	if s.Member.MemberLen() == 1 {
@@ -172,10 +176,10 @@ func (s *Server) InitMessage(msgType MsgType) (map[string][]byte, int64) {
 	leftIP := s.Member.IPTable[leftIndex]
 	rightIP := s.Member.IPTable[rightIndex]
 
-	return s.NextHopMember(msgType, leftIP, rightIP, true)
+	return s.NextHopMember(msgType, action, leftIP, rightIP, true)
 }
 
-func (s *Server) NextHopMember(msgType byte, leftIP []byte, rightIP []byte, isRoot bool) (map[string][]byte, int64) {
+func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []byte, rightIP []byte, isRoot bool) (map[string][]byte, int64) {
 	coloring := msgType == coloringMsg
 	//todo 这里可以优化读写锁
 	s.Member.lock.Lock()
@@ -210,6 +214,7 @@ func (s *Server) NextHopMember(msgType byte, leftIP []byte, rightIP []byte, isRo
 	for _, v := range next {
 		payload := make([]byte, 0)
 		payload = append(payload, msgType)
+		payload = append(payload, msgAction)
 		payload = append(payload, IPTable[v.left]...)
 		payload = append(payload, IPTable[v.right]...)
 		if isRoot {
