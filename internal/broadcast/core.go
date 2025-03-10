@@ -55,9 +55,7 @@ func (s *Server) ReduceReliableTimeout(m []byte, f func(isConverged bool)) {
 		return
 	}
 	r.Counter--
-	if s.Config.LocalAddress == "127.0.0.1:5005" {
-		fmt.Println()
-	}
+
 	if r.Counter == 0 {
 		delete(s.State.ReliableTimeout, hash)
 		//如果计数器为0代表已经收到了全部消息，这时候就可以触发根节点的回调方法

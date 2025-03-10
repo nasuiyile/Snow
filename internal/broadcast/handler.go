@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"log"
 	"net"
+	"snow/internal/discovery"
 	"snow/tool"
 )
 
@@ -34,7 +35,7 @@ const (
 )
 
 func handler(msg []byte, s *Server, conn net.Conn) {
-	parentIP := conn.RemoteAddr().String()
+	parentIP := s.Config.GetServerIp(conn.RemoteAddr().String())
 	//s.Member.lock.Lock()
 	//defer s.Member.lock.Unlock()
 	//判断消息类型
@@ -59,7 +60,6 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 			forward(msg, s, parentIP)
 		}
 	case reliableMsgAck:
-
 		//ack不需要ActionType
 		body := msg[1:]
 		//去重的消息可能会过滤掉相同的ack。在消息尾部追加ip来解决
@@ -80,7 +80,7 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 		}
 	case nodeChange:
 		//分别是消息类型，消息时间戳，加入节点的ip
-
+		discovery.NodeChange(msg[1:], parentIP)
 	default:
 		log.Printf("Received non type message from %v: %s\n", conn.RemoteAddr(), string(msg))
 	}
@@ -124,9 +124,9 @@ func forward(msg []byte, s *Server, parentIp string) {
 			copy(newMsg[1+len(hash):], s.Config.IPBytes())
 			newMsg[0] = reliableMsgAck
 			copy(newMsg[1:], hash)
-			s.SendMessage(s.Config.GetServerIp(parentIp), newMsg)
+			s.SendMessage(parentIp, newMsg)
 		} else {
-			s.State.AddReliableTimeout(hash, false, len(member), IPv4To6Bytes(s.Config.GetServerIp(parentIp)))
+			s.State.AddReliableTimeout(hash, false, len(member), IPv4To6Bytes(parentIp))
 		}
 		for _, payload := range member {
 			payload = append(payload, s.Config.IPBytes()...)
