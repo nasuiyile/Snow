@@ -16,10 +16,11 @@ type ReliableInfo struct {
 	//叶子节点的计数器
 	Counter int
 	//需要回调的parent node
-	Ip []byte
+	Ip     []byte
+	Action *func(isSuccess bool)
 }
 
-func (s *State) AddReliableTimeout(m []byte, isRoot bool, leafNum int, ip []byte) {
+func (s *State) AddReliableTimeout(m []byte, isRoot bool, leafNum int, ip []byte, action *func(isSuccess bool)) {
 	s.ReliableMsgLock.Lock()
 	defer s.ReliableMsgLock.Unlock()
 	hash := string(m)
@@ -27,6 +28,7 @@ func (s *State) AddReliableTimeout(m []byte, isRoot bool, leafNum int, ip []byte
 		IsRoot:  isRoot,
 		Counter: leafNum,
 		Ip:      ip,
+		Action:  action,
 	}
 }
 func (s *State) DeleteReliableTimeout(m []byte) {

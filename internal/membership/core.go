@@ -8,8 +8,8 @@ import (
 )
 
 type MetaData struct {
-	Clients net.Conn
-	version int
+	client  net.Conn
+	Version int
 }
 
 type MemberShipList struct {
@@ -18,6 +18,30 @@ type MemberShipList struct {
 	IPTable [][]byte
 	//这里存放连接和元数据
 	MetaData map[string]*MetaData
+}
+
+func (m *MemberShipList) InitState(metaDataMap map[string]*MetaData) {
+	m.Lock()
+	defer m.Unlock()
+	keys := make([]string, 0, len(metaDataMap)) // 预分配容量以优化性能
+	for k := range metaDataMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	m.MetaData = metaDataMap
+	ipTable := make([][]byte, 0)
+	for _, v := range keys {
+		ipTable = append(ipTable, tool.IPv4To6Bytes(v))
+	}
+	m.IPTable = ipTable
+}
+
+func (m *MetaData) GetClient() net.Conn {
+	return m.client
+}
+
+func (m *MetaData) SetClient(client net.Conn) {
+	m.client = client
 }
 
 func (m *MemberShipList) MemberLen() int {
@@ -67,8 +91,8 @@ func BytesCompare(a, b []byte) int {
 
 func NewMetaData(conn net.Conn) *MetaData {
 	return &MetaData{
-		version: 0,
-		Clients: conn,
+		Version: 0,
+		client:  conn,
 	}
 }
 func (m *MemberShipList) AddNode(conn net.Conn, joinRing bool) {
@@ -77,7 +101,7 @@ func (m *MemberShipList) AddNode(conn net.Conn, joinRing bool) {
 	addr := conn.RemoteAddr().String()
 	v, ok := m.MetaData[addr]
 	if ok {
-		v.Clients = conn
+		v.client = conn
 	} else {
 		m.MetaData[addr] = NewMetaData(conn)
 	}

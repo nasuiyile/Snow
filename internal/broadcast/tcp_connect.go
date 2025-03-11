@@ -74,7 +74,8 @@ func (s *Server) startAcceptingConnections() {
 			log.Println("Error accepting connection:", err)
 			continue
 		}
-		s.Member.AddNode(conn, false)
+		// todo 后期优化成只能保持k个连接
+		//s.Member.AddNode(conn, false)
 		go s.handleConnection(conn) // 处理客户端连接
 	}
 }
@@ -130,12 +131,14 @@ func (s *Server) handleConnection(conn net.Conn) {
 }
 
 // connectToClient 主动连接到其他客户端
-func (s *Server) connectToClient(addr string) {
+func (s *Server) connectToClient(addr string) error {
 	conn, err := s.connectToPeer(addr)
 	if err != nil {
-		return
+		log.Println("Error connection:", err)
+		return err
 	}
 	go s.handleConnection(conn) // 处理客户端连接
+	return nil
 }
 func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 	if s.Config.Test {
@@ -157,7 +160,10 @@ func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 }
 func (s *Server) SendMessage(ip string, msg []byte) {
 	metaData, _ := s.Member.MetaData[ip]
-	conn := metaData.Clients
+	if metaData == nil {
+		return
+	}
+	conn := metaData.GetClient()
 	if conn == nil {
 		//先建立一次链接进行尝试
 		newConn, err := s.connectToPeer(ip)
@@ -165,7 +171,7 @@ func (s *Server) SendMessage(ip string, msg []byte) {
 			log.Println(s.Config.LocalAddress, "can't connect to ", ip)
 			return
 		} else {
-			s.Member.MetaData[ip].Clients = newConn
+			s.Member.MetaData[ip].SetClient(newConn)
 			conn = newConn
 		}
 	}
@@ -175,7 +181,7 @@ func (s *Server) SendMessage(ip string, msg []byte) {
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, length)
 
-	go func(c net.Conn, s *Server) {
+	go func(c net.Conn, config *Config) {
 		//写入消息包的大小
 		_, err := c.Write(header)
 		if err != nil {
@@ -190,7 +196,31 @@ func (s *Server) SendMessage(ip string, msg []byte) {
 		if s.Config.Test {
 			tool.SendHttp(s.Config.LocalAddress, ip, msg)
 		}
-	}(conn, s)
+	}(conn, s.Config)
+}
+
+// 这个方法只能用来回复消息
+func replayMessage(conn net.Conn, config *Config, msg []byte) {
+	// 创建消息头，存储消息长度 (4字节大端序)
+	length := uint32(len(msg))
+	header := make([]byte, 4)
+	binary.BigEndian.PutUint32(header, length)
+	go func(c net.Conn, config *Config) {
+		//写入消息包的大小
+		_, err := c.Write(header)
+		if err != nil {
+			log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
+			return
+		}
+		_, err = c.Write(msg)
+		if err != nil {
+			log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
+			return
+		}
+		if config.Test {
+			tool.SendHttp(config.LocalAddress, conn.RemoteAddr().String(), msg)
+		}
+	}(conn, config)
 }
 
 // Close 关闭服务器
@@ -198,7 +228,7 @@ func (s *Server) Close() {
 	s.listener.Close()
 	s.Member.Lock()
 	for _, v := range s.Member.MetaData {
-		v.Clients.Close()
+		v.GetClient().Close()
 	}
 
 	s.Member.Unlock()

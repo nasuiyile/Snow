@@ -31,6 +31,10 @@ type MsgAction = byte
 
 const (
 	userMsg MsgAction = iota
+	applyJoin
+	stateSync
+	nodeJoin
+	nodeLeave
 )
 
 func handler(msg []byte, s *Server, conn net.Conn) {
@@ -64,14 +68,12 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 		//去重的消息可能会过滤掉相同的ack。在消息尾部追加ip来解决
 		if isFirst(body, msgAction, s) {
 			//减少计数器
-			if s.Action.ReliableCallback != nil {
-				body = body[:len(body)-s.Config.IpLen()]
-				s.ReduceReliableTimeout(body, *s.Action.ReliableCallback)
-			}
+			body = body[:len(body)-s.Config.IpLen()]
+			s.ReduceReliableTimeout(body, s.Action.ReliableCallback)
 		}
 	case gossipMsg:
 		//gossip不需要和Snow算法一样携带俩个ip
-		body := msg[TagLen:]
+		body := msg[1:]
 		if isFirst(body, msgAction, s) {
 			data := make([]byte, len(msg))
 			copy(data, msg)
@@ -79,7 +81,9 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 		}
 	case nodeChange:
 		//分别是消息类型，消息时间戳，加入节点的ip
-		NodeChange(msg[1:], parentIP, s)
+		if isFirst(msg[1:], msgAction, s) {
+			NodeChange(msg[1:], parentIP, s, conn)
+		}
 	default:
 		log.Printf("Received non type message from %v: %s\n", conn.RemoteAddr(), string(msg))
 	}
@@ -125,7 +129,8 @@ func forward(msg []byte, s *Server, parentIp string) {
 			copy(newMsg[1:], hash)
 			s.SendMessage(parentIp, newMsg)
 		} else {
-			s.State.AddReliableTimeout(hash, false, len(member), tool.IPv4To6Bytes(parentIp))
+			//不是发送节点的化，不需要任何回调
+			s.State.AddReliableTimeout(hash, false, len(member), tool.IPv4To6Bytes(parentIp), nil)
 		}
 		for _, payload := range member {
 			payload = append(payload, s.Config.IPBytes()...)

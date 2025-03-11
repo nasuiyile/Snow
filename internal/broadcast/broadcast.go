@@ -66,7 +66,7 @@ func (s *Server) ForwardMessage(msg []byte, member map[string][]byte) error {
 	return nil
 }
 
-func (s *Server) ReliableMessage(message string, msgAction MsgAction) error {
+func (s *Server) ReliableMessage(message string, msgAction MsgAction, action *func(isSuccess bool)) error {
 	s.Member.Lock()
 	defer s.Member.Unlock()
 	member, unix := s.InitMessage(reliableMsg, msgAction)
@@ -74,7 +74,7 @@ func (s *Server) ReliableMessage(message string, msgAction MsgAction) error {
 	binary.BigEndian.PutUint64(timeBytes, uint64(unix))
 	timeBytes = append(timeBytes, message...)
 	hash := []byte(tool.Hash(timeBytes))
-	s.State.AddReliableTimeout(hash, true, len(member), nil)
+	s.State.AddReliableTimeout(hash, true, len(member), nil, action)
 	timeout := s.Config.GetReliableTimeOut()
 	time.AfterFunc(time.Duration(timeout)*time.Second, func() {
 		reliableTimeout := s.State.GetReliableTimeout(hash)
@@ -82,6 +82,9 @@ func (s *Server) ReliableMessage(message string, msgAction MsgAction) error {
 		if reliableTimeout != nil {
 			if s.Action.ReliableCallback != nil {
 				(*s.Action.ReliableCallback)(false)
+			}
+			if action != nil {
+				(*action)(false)
 			}
 		}
 	})

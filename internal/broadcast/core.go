@@ -33,7 +33,7 @@ type Action struct {
 	ReliableCallback *func(isConverged bool) //可靠消息的回调逻辑，只对根节点有作用。表示这条消息是否已经被广播到了全局
 }
 
-func (s *Server) ReduceReliableTimeout(m []byte, f func(isConverged bool)) {
+func (s *Server) ReduceReliableTimeout(m []byte, configAction *func(isConverged bool)) {
 	s.State.ReliableMsgLock.Lock()
 	defer s.State.ReliableMsgLock.Unlock()
 	hash := string(m)
@@ -47,7 +47,12 @@ func (s *Server) ReduceReliableTimeout(m []byte, f func(isConverged bool)) {
 		delete(s.State.ReliableTimeout, hash)
 		//如果计数器为0代表已经收到了全部消息，这时候就可以触发根节点的回调方法
 		if r.IsRoot {
-			go f(true)
+			if configAction != nil {
+				go (*configAction)(true)
+			}
+			if r.Action != nil {
+				go (*r.Action)(true)
+			}
 			return
 		}
 		newMsg := make([]byte, 1+len(hash)+s.Config.IpLen())
@@ -161,4 +166,11 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 	}
 
 	return forwardList, unix
+}
+func (s *Server) ApplyJoin(ip string) {
+	err := s.connectToClient(ip)
+	if err != nil {
+		return
+	}
+	s.SendMessage(ip, PackTag(nodeChange, applyJoin))
 }
