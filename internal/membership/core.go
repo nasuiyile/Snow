@@ -9,6 +9,7 @@ import (
 
 type MetaData struct {
 	client  net.Conn
+	server  net.Conn
 	Version int
 }
 
@@ -18,6 +19,13 @@ type MemberShipList struct {
 	IPTable [][]byte
 	//这里存放连接和元数据
 	MetaData map[string]*MetaData
+}
+
+func (m *MemberShipList) Clean() {
+	m.Lock()
+	defer m.Unlock()
+	m.IPTable = make([][]byte, 0)
+	m.MetaData = make(map[string]*MetaData)
 }
 
 func (m *MemberShipList) InitState(metaDataMap map[string]*MetaData, currentIp []byte) {
@@ -35,6 +43,14 @@ func (m *MemberShipList) InitState(metaDataMap map[string]*MetaData, currentIp [
 	}
 	m.IPTable = ipTable
 	m.FindOrInsert(currentIp)
+}
+
+func (m *MetaData) GetServer() net.Conn {
+	return m.server
+}
+
+func (m *MetaData) SetServer(server net.Conn) {
+	m.server = server
 }
 
 func (m *MetaData) GetClient() net.Conn {
@@ -128,4 +144,42 @@ func (m *MemberShipList) AddMember(ip []byte) {
 		m.MetaData[tool.ByteToIPv4Port(ip)] = NewEmptyMetaData()
 	}
 	m.FindOrInsert(ip)
+}
+func (m *MemberShipList) RemoveMember(ip []byte) {
+	m.Lock()
+	defer m.Unlock()
+	address := tool.ByteToIPv4Port(ip)
+	data, ok := m.MetaData[address]
+	if ok {
+		if data.client != nil {
+			data.client.Close()
+		}
+		if data.server != nil {
+			data.server.Close()
+		}
+		delete(m.MetaData, tool.ByteToIPv4Port(ip))
+	}
+	idx, _ := m.FindOrInsert(ip)
+	//删除当前元素
+	m.IPTable = append(m.IPTable[:idx], m.IPTable[idx+1:]...)
+}
+func (m *MemberShipList) GetMember(key string) *MetaData {
+	m.Lock()
+	defer m.Unlock()
+	return m.MetaData[key]
+}
+func (m *MemberShipList) PutMemberIfNil(key string, value *MetaData) {
+	m.Lock()
+	defer m.Unlock()
+	data := m.MetaData[key]
+	if data == nil {
+		m.MetaData[key] = value
+		return
+	}
+	if data.client == nil && value.client != nil {
+		data.client = value.client
+	}
+	if data.server == nil && value.server != nil {
+		data.server = value.server
+	}
 }

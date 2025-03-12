@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"snow/internal/broadcast"
 	"time"
 )
@@ -36,27 +35,20 @@ func main() {
 		}
 		serverList = append(serverList, server)
 	}
+
 	time.Sleep(5 * time.Second)
-	server, _ := broadcast.NewServer(5100, configPath, nil, action)
-	server.ApplyJoin("127.0.0.1:5001")
-	defer func() {
-		for _, v := range serverList {
-			v.Close()
-		}
-	}()
-	time.Sleep(5 * time.Second)
-	server.RegularMessage([]byte("this in new"), 0)
+	serverList[0].ApplyLeave()
 
 	// 模拟每隔1秒向所有客户端发送一条消息
-	go func() {
-		for {
-			time.Sleep(5 * time.Second)
-			err := serverList[5].RegularMessage([]byte("hello from server!"), 0)
-			if err != nil {
-				log.Println("Error broadcasting message:", err)
-			}
-		}
-	}()
+	//go func() {
+	//	for {
+	//		time.Sleep(5 * time.Second)
+	//		err := serverList[5].ReliableMessage([]byte("hello from server!"), 0, nil)
+	//		if err != nil {
+	//			log.Println("Error broadcasting message:", err)
+	//		}
+	//	}
+	//}()
 
 	// 主线程保持运行
 	select {}

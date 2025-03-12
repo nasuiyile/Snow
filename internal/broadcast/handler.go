@@ -49,46 +49,55 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 	switch msgType {
 	case regularMsg:
 		body := s.Config.CutBytes(msg)
-		if isFirst(body, msgAction, s) {
-			forward(msg, s, parentIP)
+		if !isFirst(body, msgAction, s) {
+			return
 		}
+		forward(msg, s, parentIP)
 	case coloringMsg:
 		body := s.Config.CutBytes(msg)
-		if isFirst(body, msgAction, s) {
-			if msgAction == nodeJoin {
-				//如果不存在
-				s.Member.AddMember(s.Config.CutTimestamp(body))
-			}
-			forward(msg, s, parentIP)
+		if !isFirst(body, msgAction, s) {
+			return
 		}
+		if msgAction == nodeJoin {
+			//如果不存在
+			s.Member.AddMember(s.Config.CutTimestamp(body))
+		}
+		forward(msg, s, parentIP)
 	case reliableMsg:
 		body := s.Config.CutBytes(msg)
-		if isFirst(body, msgAction, s) {
-			//如果自己是叶子节点发送ack给父节点	并删除ack的map
-			forward(msg, s, parentIP)
+		if !isFirst(body, msgAction, s) {
+			return
 		}
+		if msgAction == nodeLeave {
+			s.Member.RemoveMember(s.Config.CutTimestamp(body))
+		}
+		//如果自己是叶子节点发送ack给父节点	并删除ack的map
+		forward(msg, s, parentIP)
 	case reliableMsgAck:
 		//ack不需要ActionType
 		body := msg[1:]
 		//去重的消息可能会过滤掉相同的ack。在消息尾部追加ip来解决
-		if isFirst(body, msgAction, s) {
-			//减少计数器
-			body = body[:len(body)-s.Config.IpLen()]
-			s.ReduceReliableTimeout(body, s.Action.ReliableCallback)
+		if !isFirst(body, msgAction, s) {
+			return
 		}
+		//减少计数器
+		body = body[:len(body)-s.Config.IpLen()]
+		s.ReduceReliableTimeout(body, s.Action.ReliableCallback)
 	case gossipMsg:
 		//gossip不需要和Snow算法一样携带俩个ip
 		body := msg[1:]
-		if isFirst(body, msgAction, s) {
-			data := make([]byte, len(msg))
-			copy(data, msg)
-			s.SendGossip(data)
+		if !isFirst(body, msgAction, s) {
+			return
 		}
+		data := make([]byte, len(msg))
+		copy(data, msg)
+		s.SendGossip(data)
 	case nodeChange:
 		//分别是消息类型，消息时间戳，加入节点的ip
-		if isFirst(msg[1:], msgAction, s) {
-			NodeChange(msg[1:], parentIP, s, conn)
+		if !isFirst(msg[1:], msgAction, s) {
+			return
 		}
+		NodeChange(msg[1:], parentIP, s, conn)
 	default:
 		log.Printf("Received non type message from %v: %s\n", conn.RemoteAddr(), string(msg))
 	}

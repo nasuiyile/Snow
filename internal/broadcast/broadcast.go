@@ -64,9 +64,11 @@ func (s *Server) ForwardMessage(msg []byte, member map[string][]byte) error {
 	return nil
 }
 
-func (s *Server) ReliableMessage(message string, msgAction MsgAction, action *func(isSuccess bool)) error {
+// 在成功时，每个节点都会回调这个方法，在失败时只有根节点和部分成功的节点会重新调用这个方法
+func (s *Server) ReliableMessage(message []byte, msgAction MsgAction, action *func(isSuccess bool)) error {
 	s.Member.Lock()
 	defer s.Member.Unlock()
+
 	member, unix := s.InitMessage(reliableMsg, msgAction)
 	timeBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(timeBytes, uint64(unix))
@@ -86,12 +88,11 @@ func (s *Server) ReliableMessage(message string, msgAction MsgAction, action *fu
 			}
 		}
 	})
-	messageBytes := []byte(message)
 	for ip, payload := range member {
-		length := uint32(len(messageBytes) + s.Config.Placeholder())
+		length := uint32(len(message) + s.Config.Placeholder())
 		newMsg := make([]byte, length)
 		copy(newMsg, payload)
-		copy(newMsg[s.Config.Placeholder():], messageBytes)
+		copy(newMsg[s.Config.Placeholder():], message)
 		s.SendMessage(ip, newMsg)
 	}
 	return nil

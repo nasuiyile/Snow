@@ -2,6 +2,7 @@ package broadcast
 
 import (
 	"encoding/binary"
+	"fmt"
 	"net"
 	"snow/internal/membership"
 	"snow/internal/state"
@@ -50,15 +51,18 @@ func (s *Server) ReduceReliableTimeout(m []byte, configAction *func(isConverged 
 			if configAction != nil {
 				go (*configAction)(true)
 			}
-			if r.Action != nil {
-				go (*r.Action)(true)
-			}
 			return
+		}
+		if r.Action != nil {
+			go (*r.Action)(true)
 		}
 		newMsg := make([]byte, 1+len(hash)+s.Config.IpLen())
 		copy(newMsg[1+len(hash):], s.Config.IPBytes())
 		newMsg[0] = reliableMsgAck
 		copy(newMsg[1:], hash)
+		if s.Config.LocalAddress == "127.0.0.1:5003" {
+			fmt.Println()
+		}
 		s.SendMessage(tool.ByteToIPv4Port(r.Ip), newMsg)
 
 	}
@@ -77,23 +81,6 @@ func (a *Action) process(body []byte) bool {
 
 func (s *Server) IsReceived(m []byte) bool {
 	return s.State.State.Add(m, s.Config.ExpirationTime)
-}
-
-// BytesCompare 比较两个 []byte 的大小
-func BytesCompare(a, b []byte) int {
-	if len(a) < len(b) {
-		return -1
-	} else if len(a) > len(b) {
-		return 1
-	}
-	for i := range a {
-		if a[i] < b[i] {
-			return -1
-		} else if a[i] > b[i] {
-			return 1
-		}
-	}
-	return 0
 }
 
 func ObtainOnIPRing(current int, offset int, n int) int {
@@ -167,10 +154,28 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 
 	return forwardList, unix
 }
+
+// 加入的时候要和一个节点进行交互，离开则不用
 func (s *Server) ApplyJoin(ip string) {
 	err := s.connectToClient(ip)
 	if err != nil {
 		return
 	}
 	s.SendMessage(ip, PackTag(nodeChange, applyJoin))
+}
+
+func (s *Server) ApplyLeave() {
+	f := func(isSuccess bool) {
+		//如果成功了，当前节点下线。如果不成功，在发起一次请求
+
+		if isSuccess {
+			//进行下线操作
+			s.Close()
+			s.Member.Clean()
+		} else {
+			//失败就再发一次
+			s.ApplyLeave()
+		}
+	}
+	s.ReliableMessage(s.Config.IPBytes(), nodeLeave, &f)
 }

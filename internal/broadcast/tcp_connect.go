@@ -74,18 +74,26 @@ func (s *Server) startAcceptingConnections() {
 			log.Println("Error accepting connection:", err)
 			continue
 		}
+		serverIp := s.Config.GetServerIp(conn.RemoteAddr().String())
+		metaData := membership.NewEmptyMetaData()
+		metaData.SetServer(conn)
+		s.Member.PutMemberIfNil(serverIp, metaData)
 		// todo 后期优化成只能保持k个连接
 		//s.Member.AddNode(conn, false)
-		go s.handleConnection(conn) // 处理客户端连接
+		go s.handleConnection(conn, false) // 处理客户端连接
 	}
 }
 
 // handleConnection 处理客户端连接
-func (s *Server) handleConnection(conn net.Conn) {
+func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 	defer func() {
-		conn.Close()
+		addr := conn.RemoteAddr().String()
 		s.Member.Lock()
-		delete(s.Member.MetaData, conn.RemoteAddr().String()) // 移除关闭的连接
+		if !isServer {
+
+			addr = s.Config.GetServerIp(addr)
+		}
+		s.Member.RemoveMember(tool.IPv4To6Bytes(addr))
 		s.Member.Unlock()
 	}()
 
@@ -137,14 +145,14 @@ func (s *Server) connectToClient(addr string) error {
 		log.Println("Error connection:", err)
 		return err
 	}
-	go s.handleConnection(conn) // 处理客户端连接
+	go s.handleConnection(conn, true) // 处理客户端连接
 	return nil
 }
 func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 	if s.Config.Test {
 		s.Member.Lock()
 		defer s.Member.Unlock()
-		s.Member.MetaData[addr] = membership.NewMetaData(nil)
+		s.Member.PutMemberIfNil(addr, membership.NewEmptyMetaData())
 		s.Member.FindOrInsert(tool.IPv4To6Bytes(addr))
 	}
 
@@ -159,12 +167,19 @@ func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 	return conn, nil
 }
 func (s *Server) SendMessage(ip string, msg []byte) {
-	metaData, _ := s.Member.MetaData[ip]
+	metaData := s.Member.GetMember(ip)
+	var conn net.Conn
+	var err error
 	if metaData == nil {
-
-		return
+		//建立临时连接
+		conn, err = s.client.Dial("tcp", ip)
+		if err != nil {
+			log.Printf("Failed to connect to %s: %v\n", ip, err)
+			return
+		}
+	} else {
+		conn = metaData.GetClient()
 	}
-	conn := metaData.GetClient()
 	if conn == nil {
 		//先建立一次链接进行尝试
 		newConn, err := s.connectToPeer(ip)
@@ -172,6 +187,9 @@ func (s *Server) SendMessage(ip string, msg []byte) {
 			log.Println(s.Config.LocalAddress, "can't connect to ", ip)
 			return
 		} else {
+			metaData = membership.NewEmptyMetaData()
+			metaData.SetServer(conn)
+			s.Member.PutMemberIfNil(ip, metaData)
 			s.Member.MetaData[ip].SetClient(newConn)
 			conn = newConn
 		}
