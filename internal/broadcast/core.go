@@ -2,7 +2,6 @@ package broadcast
 
 import (
 	"encoding/binary"
-	"fmt"
 	"net"
 	"snow/internal/membership"
 	"snow/internal/state"
@@ -34,10 +33,15 @@ type Action struct {
 	ReliableCallback *func(isConverged bool) //可靠消息的回调逻辑，只对根节点有作用。表示这条消息是否已经被广播到了全局
 }
 
-func (s *Server) ReduceReliableTimeout(m []byte, configAction *func(isConverged bool)) {
+func (s *Server) ReduceReliableTimeout(msg []byte, configAction *func(isConverged bool)) {
 	s.State.ReliableMsgLock.Lock()
 	defer s.State.ReliableMsgLock.Unlock()
-	hash := string(m)
+	//msgType := msg[0]
+	//消息要进行的动作
+	msgAction := msg[1]
+	//截取32位
+	prefix := TagLen + TimeLen + HashLen
+	hash := string(msg[TagLen+TimeLen : prefix])
 	r, ok := s.State.ReliableTimeout[hash]
 	if !ok {
 		return
@@ -56,15 +60,15 @@ func (s *Server) ReduceReliableTimeout(m []byte, configAction *func(isConverged 
 		if r.Action != nil {
 			go (*r.Action)(true)
 		}
-		newMsg := make([]byte, 1+len(hash)+s.Config.IpLen())
-		copy(newMsg[1+len(hash):], s.Config.IPBytes())
-		newMsg[0] = reliableMsgAck
-		copy(newMsg[1:], hash)
-		if s.Config.LocalAddress == "127.0.0.1:5003" {
-			fmt.Println()
-		}
+		newMsg := make([]byte, len(msg))
+		copy(newMsg, msg)
+		copy(newMsg[prefix:prefix+s.Config.IpLen()], msg[prefix:prefix+s.Config.IpLen()])
 		s.SendMessage(tool.ByteToIPv4Port(r.Ip), newMsg)
-
+		//断开连接
+		time.Sleep(3 * time.Second)
+		if msgAction == nodeLeave {
+			s.Member.RemoveMember(msg[:s.Config.IpLen()])
+		}
 	}
 
 }

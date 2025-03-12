@@ -68,21 +68,17 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 		if !isFirst(body, msgAction, s) {
 			return
 		}
-		if msgAction == nodeLeave {
-			s.Member.RemoveMember(s.Config.CutTimestamp(body))
-		}
 		//如果自己是叶子节点发送ack给父节点	并删除ack的map
 		forward(msg, s, parentIP)
 	case reliableMsgAck:
 		//ack不需要ActionType
-		body := msg[1:]
+		body := msg[TagLen:]
 		//去重的消息可能会过滤掉相同的ack。在消息尾部追加ip来解决
 		if !isFirst(body, msgAction, s) {
 			return
 		}
 		//减少计数器
-		body = body[:len(body)-s.Config.IpLen()]
-		s.ReduceReliableTimeout(body, s.Action.ReliableCallback)
+		s.ReduceReliableTimeout(msg, s.Action.ReliableCallback)
 	case gossipMsg:
 		//gossip不需要和Snow算法一样携带俩个ip
 		body := msg[1:]
@@ -136,11 +132,16 @@ func forward(msg []byte, s *Server, parentIp string) {
 		hash := []byte(tool.Hash(b))
 		if len(member) == 0 {
 			//叶子节点 直接发送ack
-			//消息内容为1个type，加上当前地址长度+ack长度
-			newMsg := make([]byte, 1+len(hash)+s.Config.IpLen())
-			copy(newMsg[1+len(hash):], s.Config.IPBytes())
-			newMsg[0] = reliableMsgAck
-			copy(newMsg[1:], hash)
+			//消息内容为2个type，加上当前地址长度+ack长度
+			newMsg := make([]byte, 0)
+			newMsg = append(newMsg, reliableMsgAck)
+			newMsg = append(newMsg, msgAction)
+			newMsg = append(newMsg, tool.TimeBytes()...)
+			newMsg = append(newMsg, hash...)
+			//父节点ip
+			newMsg = append(newMsg, s.Config.IPBytes()...)
+			//根节点ip
+			newMsg = append(newMsg, s.Config.IPBytes()...)
 			s.SendMessage(parentIp, newMsg)
 		} else {
 			//不是发送节点的化，不需要任何回调

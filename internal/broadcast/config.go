@@ -11,6 +11,7 @@ import (
 
 const TimeLen = 8
 const TagLen = 2
+const HashLen = 32
 
 type Config struct {
 	Ipv6             bool   `yaml:"Ipv6"`

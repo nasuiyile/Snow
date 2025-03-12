@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"snow/internal/broadcast"
 	"time"
 )
 
 func main() {
-	configPath := "C:\\code\\go\\snow\\config\\config.yml"
+	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
 	n := 10
 	clientAddresses := initAddress(n)
 	serverList := make([]*broadcast.Server, 0)
@@ -39,16 +40,16 @@ func main() {
 	time.Sleep(5 * time.Second)
 	serverList[0].ApplyLeave()
 
-	// 模拟每隔1秒向所有客户端发送一条消息
-	//go func() {
-	//	for {
-	//		time.Sleep(5 * time.Second)
-	//		err := serverList[5].ReliableMessage([]byte("hello from server!"), 0, nil)
-	//		if err != nil {
-	//			log.Println("Error broadcasting message:", err)
-	//		}
-	//	}
-	//}()
+	//模拟每隔1秒向所有客户端发送一条消息
+	go func() {
+		for {
+			time.Sleep(7 * time.Second)
+			err := serverList[5].RegularMessage([]byte("hello from server!"), 0)
+			if err != nil {
+				log.Println("Error broadcasting message:", err)
+			}
+		}
+	}()
 
 	// 主线程保持运行
 	select {}
