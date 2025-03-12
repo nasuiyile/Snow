@@ -21,10 +21,10 @@ func NodeChange(msg []byte, ip string, s *Server, conn net.Conn) {
 	switch changeType {
 	case applyJoin:
 		applyJoining(s, conn)
-	case stateSync:
-		stateSynchronizing(ip, data, s)
+	case joinStateSync:
+		joinStateSynchronizing(ip, data, s)
 	case nodeJoin:
-		stateSynchronizing(ip, data, s)
+		joinStateSynchronizing(ip, data, s)
 	default:
 	}
 }
@@ -39,12 +39,12 @@ func applyJoining(s *Server, conn net.Conn) {
 	}
 	fmt.Println(conn.RemoteAddr())
 	state := buffer.Bytes()
-	data := PackTagToHead(nodeChange, stateSync, state)
+	data := PackTagToHead(nodeChange, joinStateSync, state)
 	replayMessage(conn, s.Config, data)
 }
 
 // 接收到同步消息
-func stateSynchronizing(ip string, msg []byte, s *Server) {
+func joinStateSynchronizing(ip string, msg []byte, s *Server) {
 	//同步节点的信息，同步完毕之后请求加入节点
 	buffer := bytes.NewBuffer(msg)
 	var MetaData map[string]*membership.MetaData
@@ -54,10 +54,9 @@ func stateSynchronizing(ip string, msg []byte, s *Server) {
 		fmt.Println("GOB Desialization failed:", err)
 		return
 	}
-	s.Member.InitState(MetaData)
-	bytes := PackTagToHead(nodeChange, nodeJoin, s.Config.IPBytes())
-	//正式发起加入请求
-	s.SendMessage(ip, bytes)
+	s.Member.InitState(MetaData, s.Config.IPBytes())
+	//使用标准消息广播自己需要加入
+	s.ColoringMessage(s.Config.IPBytes(), nodeJoin)
 }
 func PackTagToHead(msgType MsgType, changeType MsgAction, msg []byte) []byte {
 	data := make([]byte, len(msg)+TimeLen+TagLen)
@@ -77,6 +76,6 @@ func PackTag(msgType MsgType, changeType MsgAction) []byte {
 	copy(data[TagLen:], timeBytes)
 	return data
 }
-func nodeJoining() {
+func nodeJoining(ip []byte) {
 
 }

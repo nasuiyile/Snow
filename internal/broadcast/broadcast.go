@@ -6,31 +6,29 @@ import (
 	"time"
 )
 
-func (s *Server) StandardMessage(message string, msgAction MsgAction) error {
+func (s *Server) RegularMessage(message []byte, msgAction MsgAction) error {
 	s.Member.Lock()
 	defer s.Member.Unlock()
 	member, _ := s.InitMessage(regularMsg, msgAction)
-	messageBytes := []byte(message)
 	for ip, payload := range member {
-		length := uint32(len(messageBytes) + s.Config.Placeholder())
+		length := uint32(len(message) + s.Config.Placeholder())
 		newMsg := make([]byte, length)
 		copy(newMsg, payload)
-		copy(newMsg[s.Config.Placeholder():], messageBytes)
+		copy(newMsg[s.Config.Placeholder():], message)
 		s.SendMessage(ip, newMsg)
 	}
 	return nil
 }
 
-func (s *Server) ColoringMessage(message string, msgAction MsgAction) error {
+func (s *Server) ColoringMessage(message []byte, msgAction MsgAction) error {
 	s.Member.Lock()
 	defer s.Member.Unlock()
 	member, _ := s.InitMessage(coloringMsg, msgAction)
-	messageBytes := []byte(message)
 	for ip, payload := range member {
-		length := uint32(len(messageBytes) + s.Config.Placeholder())
+		length := uint32(len(message) + s.Config.Placeholder())
 		newMsg := make([]byte, length)
 		copy(newMsg, payload)
-		copy(newMsg[s.Config.Placeholder():], messageBytes)
+		copy(newMsg[s.Config.Placeholder():], message)
 		s.SendMessage(ip, newMsg)
 	}
 	return nil

@@ -2,6 +2,7 @@ package broadcast
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"net"
 	"snow/tool"
@@ -32,7 +33,7 @@ type MsgAction = byte
 const (
 	userMsg MsgAction = iota
 	applyJoin
-	stateSync
+	joinStateSync
 	nodeJoin
 	nodeLeave
 )
@@ -54,6 +55,10 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 	case coloringMsg:
 		body := s.Config.CutBytes(msg)
 		if isFirst(body, msgAction, s) {
+			if msgAction == nodeJoin {
+				//如果不存在
+				s.Member.AddMember(s.Config.CutTimestamp(body))
+			}
 			forward(msg, s, parentIP)
 		}
 	case reliableMsg:
@@ -136,6 +141,9 @@ func forward(msg []byte, s *Server, parentIp string) {
 			payload = append(payload, s.Config.IPBytes()...)
 		}
 
+	}
+	if s.Config.LocalAddress == "127.0.0.1:5008" {
+		fmt.Print()
 	}
 	s.ForwardMessage(msg, member)
 

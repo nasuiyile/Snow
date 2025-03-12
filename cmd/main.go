@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
+	configPath := "C:\\code\\go\\snow\\config\\config.yml"
 	n := 10
 	clientAddresses := initAddress(n)
 	serverList := make([]*broadcast.Server, 0)
@@ -44,12 +44,14 @@ func main() {
 			v.Close()
 		}
 	}()
+	time.Sleep(5 * time.Second)
+	server.RegularMessage([]byte("this in new"), 0)
 
 	// 模拟每隔1秒向所有客户端发送一条消息
 	go func() {
 		for {
 			time.Sleep(5 * time.Second)
-			err := serverList[5].StandardMessage("hello from server!", 0)
+			err := serverList[5].RegularMessage([]byte("hello from server!"), 0)
 			if err != nil {
 				log.Println("Error broadcasting message:", err)
 			}

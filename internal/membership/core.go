@@ -20,7 +20,7 @@ type MemberShipList struct {
 	MetaData map[string]*MetaData
 }
 
-func (m *MemberShipList) InitState(metaDataMap map[string]*MetaData) {
+func (m *MemberShipList) InitState(metaDataMap map[string]*MetaData, currentIp []byte) {
 	m.Lock()
 	defer m.Unlock()
 	keys := make([]string, 0, len(metaDataMap)) // 预分配容量以优化性能
@@ -34,6 +34,7 @@ func (m *MemberShipList) InitState(metaDataMap map[string]*MetaData) {
 		ipTable = append(ipTable, tool.IPv4To6Bytes(v))
 	}
 	m.IPTable = ipTable
+	m.FindOrInsert(currentIp)
 }
 
 func (m *MetaData) GetClient() net.Conn {
@@ -95,6 +96,13 @@ func NewMetaData(conn net.Conn) *MetaData {
 		client:  conn,
 	}
 }
+func NewEmptyMetaData() *MetaData {
+	return &MetaData{
+		Version: 0,
+		client:  nil,
+	}
+}
+
 func (m *MemberShipList) AddNode(conn net.Conn, joinRing bool) {
 	m.Lock()
 	defer m.Unlock()
@@ -109,4 +117,15 @@ func (m *MemberShipList) AddNode(conn net.Conn, joinRing bool) {
 		bytes := tool.IPv4To6Bytes(addr)
 		m.FindOrInsert(bytes)
 	}
+}
+
+// 和addNode的区别是不需要实际进行连接
+func (m *MemberShipList) AddMember(ip []byte) {
+	m.Lock()
+	defer m.Unlock()
+	_, ok := m.MetaData[tool.ByteToIPv4Port(ip)]
+	if !ok {
+		m.MetaData[tool.ByteToIPv4Port(ip)] = NewEmptyMetaData()
+	}
+	m.FindOrInsert(ip)
 }

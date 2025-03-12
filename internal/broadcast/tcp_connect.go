@@ -161,6 +161,7 @@ func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 func (s *Server) SendMessage(ip string, msg []byte) {
 	metaData, _ := s.Member.MetaData[ip]
 	if metaData == nil {
+
 		return
 	}
 	conn := metaData.GetClient()
