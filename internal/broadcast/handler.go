@@ -36,6 +36,7 @@ const (
 	joinStateSync
 	nodeJoin
 	nodeLeave
+	regularStateSync
 )
 
 func handler(msg []byte, s *Server, conn net.Conn) {
@@ -94,6 +95,8 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 			return
 		}
 		NodeChange(msg[1:], parentIP, s, conn)
+	case regularStateSync:
+
 	default:
 		log.Printf("Received non type message from %v: %s\n", conn.RemoteAddr(), string(msg))
 	}

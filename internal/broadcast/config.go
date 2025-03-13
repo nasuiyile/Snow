@@ -7,6 +7,7 @@ import (
 	"snow/tool"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const TimeLen = 8
@@ -22,6 +23,7 @@ type Config struct {
 	ExpirationTime   int64  `yaml:"ExpirationTime"`
 	ClientPortOffset int    `yaml:"ClientPortOffset"`
 	ClientAddress    string
+	PushPullInterval int64 `yaml:"PushPullInterval"`
 }
 
 // CutBytes 这个方法会留下时间戳
@@ -66,7 +68,8 @@ func LoadConfig(filename string) (*Config, error) {
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, err
 	}
-
+	config.ExpirationTime = config.ExpirationTime * int64(time.Second)
+	config.PushPullInterval = config.PushPullInterval * int64(time.Second)
 	return &config, nil
 }
 

@@ -21,6 +21,7 @@ func NewServer(port int, configPath string, clientList []string, action Action) 
 	}
 	config.ClientAddress = fmt.Sprintf("%s:%d", config.LocalAddress, port+config.ClientPortOffset)
 	config.LocalAddress = fmt.Sprintf("%s:%d", config.LocalAddress, port)
+
 	listener, err := net.Listen("tcp", config.LocalAddress)
 	if err != nil {
 		return nil, err

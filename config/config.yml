@@ -9,3 +9,5 @@ ExpirationTime: 60000
 
 #以下配置需要开启config才有效
 Test: true  #测试模式下 membership list里的ip不会被删除。并且会发送额外的信息到固定的服务端进行调试
+#多少秒同步一次其他节点的状态
+PushPullInterval: 60
