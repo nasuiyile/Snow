@@ -13,6 +13,8 @@ import (
 	"syscall"
 )
 
+var stopCh = make(chan struct{})
+
 // NewServer 创建并启动一个 TCP 服务器
 func NewServer(port int, configPath string, clientList []string, action Action) (*Server, error) {
 	config, err := LoadConfig(configPath)
@@ -44,6 +46,7 @@ func NewServer(port int, configPath string, clientList []string, action Action) 
 		Action: action,
 		client: net.Dialer{
 			LocalAddr: clientAddress,
+			Timeout:   config.TCPTimeout,
 			Control: func(network, address string, c syscall.RawConn) error {
 				return c.Control(func(fd uintptr) {
 					// 设置 SO_REUSEADDR
@@ -61,9 +64,16 @@ func NewServer(port int, configPath string, clientList []string, action Action) 
 	for _, addr := range clientList {
 		go server.connectToClient(addr)
 	}
-
+	server.schedule()
 	log.Printf("Server is running on port %d...\n\n", port)
 	return server, nil
+
+}
+
+func (s *Server) schedule() {
+	// Create the stop tick channel, a blocking channel. We close this
+	// when we should stop the tickers.
+	s.pushTrigger(stopCh)
 
 }
 
@@ -206,15 +216,18 @@ func (s *Server) SendMessage(ip string, msg []byte) {
 		//写入消息包的大小
 		_, err := c.Write(header)
 		if err != nil {
+			s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
 			log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
 			return
 		}
 		_, err = c.Write(msg)
 		if err != nil {
+			s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
 			log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
 			return
 		}
 		if s.Config.Test {
+			s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
 			tool.SendHttp(s.Config.LocalAddress, ip, msg)
 		}
 	}(conn, s.Config)

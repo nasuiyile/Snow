@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"snow/internal/broadcast"
+	"snow/tool"
 	"time"
 )
 
@@ -43,12 +44,14 @@ func main() {
 	//模拟每隔1秒向所有客户端发送一条消息
 	go func() {
 		for {
-			time.Sleep(5 * time.Second)
+			time.Sleep(3 * time.Second)
 			err := serverList[5].ReliableMessage([]byte("hello from server!"), 0, nil)
 			if err != nil {
 				log.Println("Error broadcasting message:", err)
 			}
-			serverList[5].PushState()
+			time.Sleep(2 * time.Second)
+			serverList[5].Member.RemoveMember(tool.IPv4To6Bytes("127.0.0.1:5000"))
+			serverList[5].ReportLeave(tool.IPv4To6Bytes("127.0.0.1:5000"))
 		}
 	}()
 

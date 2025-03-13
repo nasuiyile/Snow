@@ -13,12 +13,12 @@ import (
 	"time"
 )
 
-// pushPullScale is the minimum number of nodes
+// pushScale is the minimum number of nodes
 // before we start scaling the push/pull timing. The scale
-// effect is the log2(Nodes) - log2(pushPullScale). This means
+// effect is the log2(Nodes) - log2(pushScale). This means
 // that the 33rd node will cause us to double the interval,
 // while the 65th will triple it.
-const pushPullScaleThreshold = 32
+const pushScaleThreshold = 32
 
 func SendHttp(from string, target string, data []byte) {
 	values := url.Values{}
@@ -127,14 +127,14 @@ func ByteToIPv4Port(data []byte) string {
 	return fmt.Sprintf("%s:%d", ip.String(), port)
 }
 
-// pushPushScale is used to scale the time interval at which push/pull
+// PushScale is used to scale the time interval at which push/pull
 // syncs take place. It is used to prevent network saturation as the
 // cluster size grows
-func PushPullScale(interval time.Duration, n int) time.Duration {
+func PushScale(interval time.Duration, n int) time.Duration {
 	// Don't scale until we cross the threshold
-	if n <= pushPullScaleThreshold {
+	if n <= pushScaleThreshold {
 		return interval
 	}
-	multiplier := math.Ceil(math.Log2(float64(n))-math.Log2(pushPullScaleThreshold)) + 1.0
+	multiplier := math.Ceil(math.Log2(float64(n))-math.Log2(pushScaleThreshold)) + 1.0
 	return time.Duration(multiplier) * interval
 }

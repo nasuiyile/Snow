@@ -174,7 +174,6 @@ func (s *Server) ApplyJoin(ip string) {
 func (s *Server) ApplyLeave() {
 	f := func(isSuccess bool) {
 		//如果成功了，当前节点下线。如果不成功，在发起一次请求
-
 		if isSuccess {
 			//进行下线操作
 			s.Close()
@@ -185,6 +184,9 @@ func (s *Server) ApplyLeave() {
 		}
 	}
 	s.ReliableMessage(s.Config.IPBytes(), nodeLeave, &f)
+}
+func (s *Server) ReportLeave(ip []byte) {
+	s.ColoringMessage(ip, reportLeave)
 }
 
 func (s *Server) exportState() []byte {

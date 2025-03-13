@@ -122,7 +122,7 @@ func (s *Server) pushTrigger(stop <-chan struct{}) {
 	// Tick using a dynamic timer
 	for {
 
-		tickTime := tool.PushPullScale(time.Duration(interval), s.Member.MemberLen())
+		tickTime := tool.PushScale(time.Duration(interval), s.Member.MemberLen())
 		select {
 		case <-time.After(tickTime):
 			s.PushState()

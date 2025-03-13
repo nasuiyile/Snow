@@ -35,7 +35,8 @@ const (
 	applyJoin
 	joinStateSync
 	nodeJoin
-	nodeLeave
+	nodeLeave   //这是自己请求离开的方法
+	reportLeave //这是被别人上报的节点离开方法
 	regularStateSync
 )
 
@@ -47,6 +48,7 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 	msgType := msg[0]
 	//消息要进行的动作
 	msgAction := msg[1]
+	NodeChange(msg[1:], parentIP, s, conn)
 	switch msgType {
 	case regularMsg:
 		body := s.Config.CutBytes(msg)
@@ -62,6 +64,8 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 		if msgAction == nodeJoin {
 			//如果不存在
 			s.Member.AddMember(s.Config.CutTimestamp(body))
+		} else if msgAction == reportLeave {
+			s.Member.RemoveMember(s.Config.CutTimestamp(body))
 		}
 		forward(msg, s, parentIP)
 	case reliableMsg:
@@ -94,7 +98,7 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 		if !isFirst(msg[1:], msgAction, s) {
 			return
 		}
-		NodeChange(msg[1:], parentIP, s, conn)
+
 	default:
 		log.Printf("Received non type message from %v: %s\n", conn.RemoteAddr(), string(msg))
 	}
