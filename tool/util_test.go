@@ -6,6 +6,6 @@ import (
 )
 
 func TestGetRandomExcluding(t *testing.T) {
-	excluding := GetRandomExcluding(0, 10, 4, 10)
+	excluding := KRandomNodes(0, 10, 4, 10)
 	fmt.Println(excluding)
 }

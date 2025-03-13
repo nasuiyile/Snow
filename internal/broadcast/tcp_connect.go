@@ -17,14 +17,8 @@ var stopCh = make(chan struct{})
 
 // NewServer 创建并启动一个 TCP 服务器
 func NewServer(port int, configPath string, clientList []string, action Action) (*Server, error) {
-	config, err := LoadConfig(configPath)
-	if err != nil {
-		panic(err)
-	}
-	config.ClientAddress = fmt.Sprintf("%s:%d", config.LocalAddress, port+config.ClientPortOffset)
-	config.LocalAddress = fmt.Sprintf("%s:%d", config.LocalAddress, port)
-
-	listener, err := net.Listen("tcp", config.LocalAddress)
+	config, err := NewConfig(configPath, port)
+	listener, err := net.Listen("tcp", config.ServerAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +96,6 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 		addr := conn.RemoteAddr().String()
 		s.Member.Lock()
 		if !isServer {
-
 			addr = s.Config.GetServerIp(addr)
 		}
 		s.Member.RemoveMember(tool.IPv4To6Bytes(addr))
@@ -196,7 +189,7 @@ func (s *Server) SendMessage(ip string, msg []byte) {
 		//先建立一次链接进行尝试
 		newConn, err := s.connectToPeer(ip)
 		if err != nil {
-			log.Println(s.Config.LocalAddress, "can't connect to ", ip)
+			log.Println(s.Config.ServerAddress, "can't connect to ", ip)
 			return
 		} else {
 			metaData = membership.NewEmptyMetaData()
@@ -227,7 +220,7 @@ func (s *Server) SendMessage(ip string, msg []byte) {
 			return
 		}
 		if s.Config.Test {
-			tool.SendHttp(s.Config.LocalAddress, ip, msg)
+			tool.SendHttp(s.Config.ServerAddress, ip, msg)
 		}
 	}(conn, s.Config)
 }
@@ -251,7 +244,7 @@ func replayMessage(conn net.Conn, config *Config, msg []byte) {
 			return
 		}
 		if config.Test {
-			tool.SendHttp(config.LocalAddress, conn.RemoteAddr().String(), msg)
+			tool.SendHttp(config.ServerAddress, conn.RemoteAddr().String(), msg)
 		}
 	}(conn, config)
 }

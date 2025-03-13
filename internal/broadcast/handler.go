@@ -2,7 +2,6 @@ package broadcast
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"net"
 	"snow/tool"
@@ -157,9 +156,7 @@ func forward(msg []byte, s *Server, parentIp string) {
 		}
 
 	}
-	if s.Config.LocalAddress == "127.0.0.1:5008" {
-		fmt.Print()
-	}
+
 	s.ForwardMessage(msg, member)
 
 }

@@ -15,6 +15,7 @@ const TagLen = 2
 const HashLen = 32
 
 type Config struct {
+	port             int           `yaml:"Ipv6"`
 	Ipv6             bool          `yaml:"Ipv6"`
 	FanOut           int           `yaml:"FanOut"`
 	LocalAddress     string        `yaml:"LocalAddress"`
@@ -23,6 +24,7 @@ type Config struct {
 	ExpirationTime   time.Duration `yaml:"ExpirationTime"`
 	ClientPortOffset int           `yaml:"ClientPortOffset"`
 	ClientAddress    string
+	ServerAddress    string
 	PushPullInterval time.Duration `yaml:"PushPullInterval"`
 	TCPTimeout       time.Duration `yaml:"TCPTimeout"`
 }
@@ -54,9 +56,25 @@ func (c *Config) IpLen() int {
 }
 func (c *Config) IPBytes() []byte {
 	if !c.Ipv6 {
-		return tool.IPv4To6Bytes(c.LocalAddress)
+		return tool.IPv4To6Bytes(c.ServerAddress)
 	}
 	return nil
+}
+
+type ConfigOption func(*Config)
+
+func NewConfig(filename string, port int, opts ...ConfigOption) (*Config, error) {
+	config, err := LoadConfig(filename)
+	if err != nil {
+		return nil, err
+	}
+	config.port = port
+	if err != nil {
+		panic(err)
+	}
+	config.ClientAddress = fmt.Sprintf("%s:%d", config.LocalAddress, port+config.ClientPortOffset)
+	config.ServerAddress = fmt.Sprintf("%s:%d", config.LocalAddress, port)
+	return config, nil
 }
 
 func LoadConfig(filename string) (*Config, error) {
@@ -64,13 +82,10 @@ func LoadConfig(filename string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	var config Config
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, err
 	}
-	//秒转换成毫秒
-
 	return &config, nil
 }
 
