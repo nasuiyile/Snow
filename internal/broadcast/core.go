@@ -1,7 +1,10 @@
 package broadcast
 
 import (
+	"bytes"
 	"encoding/binary"
+	"encoding/gob"
+	"fmt"
 	"net"
 	"snow/internal/membership"
 	"snow/internal/state"
@@ -182,4 +185,26 @@ func (s *Server) ApplyLeave() {
 		}
 	}
 	s.ReliableMessage(s.Config.IPBytes(), nodeLeave, &f)
+}
+
+func (s *Server) exportState() []byte {
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+	err := encoder.Encode(s.Member.MetaData)
+	if err != nil {
+		fmt.Println("GOB Serialization failed:", err)
+		return nil
+	}
+	return buffer.Bytes()
+}
+func (s *Server) importState(msg []byte) {
+	buffer := bytes.NewBuffer(msg)
+	var MetaData map[string]*membership.MetaData
+	decoder := gob.NewDecoder(buffer)
+	err := decoder.Decode(&MetaData)
+	if err != nil {
+		fmt.Println("GOB Desialization failed:", err)
+		return
+	}
+	s.Member.InitState(MetaData, s.Config.IPBytes())
 }

@@ -23,7 +23,7 @@ func NewTimeoutMap() *TimeoutMap {
 }
 
 // 设置键值对，并指定过期时间（秒）
-func (tm *TimeoutMap) Set(key string, value string, timeout int64) bool {
+func (tm *TimeoutMap) Set(key string, value string, timeout time.Duration) bool {
 	res := false
 	tm.mutex.Lock()
 	defer tm.mutex.Unlock()
@@ -35,7 +35,7 @@ func (tm *TimeoutMap) Set(key string, value string, timeout int64) bool {
 			res = true
 		}
 	}
-	expireTime := time.Now().Unix() + timeout
+	expireTime := time.Now().Unix() + int64(timeout)
 	tm.m[key] = value
 	tm.expMap[key] = expireTime
 	return res
@@ -80,6 +80,6 @@ func (tm *TimeoutMap) cleanUp() {
 }
 
 // Add 判断是否被写入过
-func (t *TimeoutMap) Add(msg []byte, timeout int64) bool {
+func (t *TimeoutMap) Add(msg []byte, timeout time.Duration) bool {
 	return t.Set(tool.Hash(msg), "", timeout)
 }

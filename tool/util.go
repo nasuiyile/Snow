@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/zeebo/blake3"
+	"math"
 	"math/rand"
 	"net"
 	"net/http"
@@ -11,6 +12,13 @@ import (
 	"strconv"
 	"time"
 )
+
+// pushPullScale is the minimum number of nodes
+// before we start scaling the push/pull timing. The scale
+// effect is the log2(Nodes) - log2(pushPullScale). This means
+// that the 33rd node will cause us to double the interval,
+// while the 65th will triple it.
+const pushPullScaleThreshold = 32
 
 func SendHttp(from string, target string, data []byte) {
 	values := url.Values{}
@@ -31,8 +39,8 @@ func SendHttp(from string, target string, data []byte) {
 	http.Get(fullURL)
 }
 
-// GetRandomExcluding 定义一个函数，生成指定范围内的随机数，如果取到特定值则重新生成
-func GetRandomExcluding(min, max, exclude int, k int) []int {
+// KRandomNodes 定义一个函数，生成指定范围内的随机数，如果取到特定值则重新生成
+func KRandomNodes(min, max, exclude int, k int) []int {
 	res := make([]int, 0)
 	if max-min+1 <= k+1 {
 		for ; min <= max; min++ {
@@ -117,4 +125,16 @@ func ByteToIPv4Port(data []byte) string {
 
 	// 构造 IP:Port 字符串
 	return fmt.Sprintf("%s:%d", ip.String(), port)
+}
+
+// pushPushScale is used to scale the time interval at which push/pull
+// syncs take place. It is used to prevent network saturation as the
+// cluster size grows
+func PushPullScale(interval time.Duration, n int) time.Duration {
+	// Don't scale until we cross the threshold
+	if n <= pushPullScaleThreshold {
+		return interval
+	}
+	multiplier := math.Ceil(math.Log2(float64(n))-math.Log2(pushPullScaleThreshold)) + 1.0
+	return time.Duration(multiplier) * interval
 }

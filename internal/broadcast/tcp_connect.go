@@ -55,7 +55,7 @@ func NewServer(port int, configPath string, clientList []string, action Action) 
 			},
 		},
 	}
-	server.Member.FindOrInsert(tool.IPv4To6Bytes(config.LocalAddress))
+	server.Member.FindOrInsert(config.IPBytes())
 	go server.startAcceptingConnections() // 启动接受连接的协程
 	// 主动连接到其他客户端
 	for _, addr := range clientList {
@@ -64,6 +64,7 @@ func NewServer(port int, configPath string, clientList []string, action Action) 
 
 	log.Printf("Server is running on port %d...\n\n", port)
 	return server, nil
+
 }
 
 // startAcceptingConnections 不断接受新的客户端连接

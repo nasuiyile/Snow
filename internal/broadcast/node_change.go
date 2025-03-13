@@ -1,11 +1,7 @@
 package broadcast
 
 import (
-	"bytes"
-	"encoding/gob"
-	"fmt"
 	"net"
-	"snow/internal/membership"
 	"snow/tool"
 )
 
@@ -23,22 +19,14 @@ func NodeChange(msg []byte, ip string, s *Server, conn net.Conn) {
 		applyJoining(s, conn)
 	case joinStateSync:
 		joinStateSynchronizing(ip, data, s)
-	case nodeJoin:
-		joinStateSynchronizing(ip, data, s)
+	case regularStateSync:
+		regularStateSynchronizing(msg, s)
 	default:
 	}
 }
 func applyJoining(s *Server, conn net.Conn) {
 	//接收到消息然后推送
-	var buffer bytes.Buffer
-	encoder := gob.NewEncoder(&buffer)
-	err := encoder.Encode(s.Member.MetaData)
-	if err != nil {
-		fmt.Println("GOB Serialization failed:", err)
-		return
-	}
-	fmt.Println(conn.RemoteAddr())
-	state := buffer.Bytes()
+	state := s.exportState()
 	data := PackTagToHead(nodeChange, joinStateSync, state)
 	replayMessage(conn, s.Config, data)
 }
@@ -46,15 +34,7 @@ func applyJoining(s *Server, conn net.Conn) {
 // 接收到同步消息
 func joinStateSynchronizing(ip string, msg []byte, s *Server) {
 	//同步节点的信息，同步完毕之后请求加入节点
-	buffer := bytes.NewBuffer(msg)
-	var MetaData map[string]*membership.MetaData
-	decoder := gob.NewDecoder(buffer)
-	err := decoder.Decode(&MetaData)
-	if err != nil {
-		fmt.Println("GOB Desialization failed:", err)
-		return
-	}
-	s.Member.InitState(MetaData, s.Config.IPBytes())
+	s.importState(msg)
 	//使用标准消息广播自己需要加入
 	s.ColoringMessage(s.Config.IPBytes(), nodeJoin)
 }
@@ -76,6 +56,6 @@ func PackTag(msgType MsgType, changeType MsgAction) []byte {
 	copy(data[TagLen:], timeBytes)
 	return data
 }
-func nodeJoining(ip []byte) {
-
+func regularStateSynchronizing(msg []byte, s *Server) {
+	s.importState(msg[TimeLen:])
 }

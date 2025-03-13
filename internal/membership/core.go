@@ -36,7 +36,17 @@ func (m *MemberShipList) InitState(metaDataMap map[string]*MetaData, currentIp [
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	m.MetaData = metaDataMap
+	for k, v := range metaDataMap {
+		node, ok := m.MetaData[k]
+		if ok {
+			if node.Version > v.Version {
+				//所有的元数据都要写这里
+				node.Version = v.Version
+			}
+		} else {
+			m.MetaData[k] = v
+		}
+	}
 	ipTable := make([][]byte, 0)
 	for _, v := range keys {
 		ipTable = append(ipTable, tool.IPv4To6Bytes(v))

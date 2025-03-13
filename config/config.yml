@@ -5,9 +5,10 @@ Coloring: false  #是否优先使用染色算法,这个暂时不用管，因为�
 SyncSend: true #现在都是异步的，也就是说为了避免乱序是要进行复制。待开发，消息可以分为同步和异步进行发送，小的消息用异步，大的消息用同步
 ClientPortOffset: 1000  #TCP需要俩个端口才能通讯,保证这个设置全局一致
 #每个消息在内存中维护以进行去重，只能精确到秒，如不需要幂等性可以设置为0,会有一秒左右的浮动. 如果设置为0，必须要在同步消息显式处理
-ExpirationTime: 60000
-
+ExpirationTime: 60s
+#多少秒同步一次其他节点的状态
+PushPullInterval: 60s
+# tcp超时时间单位秒，和memberlist里不同。
+TCPTimeout: 10s
 #以下配置需要开启config才有效
 Test: true  #测试模式下 membership list里的ip不会被删除。并且会发送额外的信息到固定的服务端进行调试
-#多少秒同步一次其他节点的状态
-PushPullInterval: 60

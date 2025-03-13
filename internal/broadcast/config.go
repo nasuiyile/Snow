@@ -15,15 +15,16 @@ const TagLen = 2
 const HashLen = 32
 
 type Config struct {
-	Ipv6             bool   `yaml:"Ipv6"`
-	FanOut           int    `yaml:"FanOut"`
-	LocalAddress     string `yaml:"LocalAddress"`
-	Coloring         bool   `yaml:"Coloring"`
-	Test             bool   `yaml:"Test"`
-	ExpirationTime   int64  `yaml:"ExpirationTime"`
-	ClientPortOffset int    `yaml:"ClientPortOffset"`
+	Ipv6             bool          `yaml:"Ipv6"`
+	FanOut           int           `yaml:"FanOut"`
+	LocalAddress     string        `yaml:"LocalAddress"`
+	Coloring         bool          `yaml:"Coloring"`
+	Test             bool          `yaml:"Test"`
+	ExpirationTime   time.Duration `yaml:"ExpirationTime"`
+	ClientPortOffset int           `yaml:"ClientPortOffset"`
 	ClientAddress    string
-	PushPullInterval int64 `yaml:"PushPullInterval"`
+	PushPullInterval time.Duration `yaml:"PushPullInterval"`
+	TCPTimeout       time.Duration `yaml:"TCPTimeout"`
 }
 
 // CutBytes 这个方法会留下时间戳
@@ -68,8 +69,8 @@ func LoadConfig(filename string) (*Config, error) {
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, err
 	}
-	config.ExpirationTime = config.ExpirationTime * int64(time.Second)
-	config.PushPullInterval = config.PushPullInterval * int64(time.Second)
+	//秒转换成毫秒
+
 	return &config, nil
 }
 

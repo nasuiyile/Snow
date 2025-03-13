@@ -2,6 +2,7 @@ package broadcast
 
 import (
 	"encoding/binary"
+	"math/rand"
 	"snow/tool"
 	"time"
 )
@@ -45,10 +46,9 @@ func (s *Server) GossipMessage(msg string, msgAction MsgAction) error {
 }
 
 func (s *Server) SendGossip(msg []byte) error {
-	idx, _ := s.Member.FindOrInsert(s.Config.IPBytes())
-	randomNodes := tool.GetRandomExcluding(0, s.Member.MemberLen()-1, idx, s.Config.FanOut)
-	for _, v := range randomNodes {
-		s.SendMessage(tool.ByteToIPv4Port(s.Member.IPTable[v]), msg)
+	nodes := s.KRandomNodes(s.Config.FanOut)
+	for _, v := range nodes {
+		s.SendMessage(v, msg)
 	}
 	return nil
 }
@@ -96,4 +96,56 @@ func (s *Server) ReliableMessage(message []byte, msgAction MsgAction, action *fu
 		s.SendMessage(ip, newMsg)
 	}
 	return nil
+}
+
+func (s *Server) KRandomNodes(k int) []string {
+	s.Member.Lock()
+	ip := make([]string, 0)
+	idx, _ := s.Member.FindOrInsert(s.Config.IPBytes())
+	randomNodes := tool.KRandomNodes(0, s.Member.MemberLen()-1, idx, k)
+	for _, v := range randomNodes {
+		ip = append(ip, tool.ByteToIPv4Port(s.Member.IPTable[v]))
+	}
+	s.Member.Unlock()
+	return ip
+}
+
+func (s *Server) pushTrigger(stop <-chan struct{}) {
+	interval := s.Config.PushPullInterval
+	// Use a random stagger to avoid syncronizing
+	randStagger := time.Duration(uint64(rand.Int63()) % uint64(interval))
+	select {
+	case <-time.After(randStagger):
+	case <-stop:
+		return
+	}
+	// Tick using a dynamic timer
+	for {
+
+		tickTime := tool.PushPullScale(time.Duration(interval), s.Member.MemberLen())
+		select {
+		case <-time.After(tickTime):
+			s.PushState()
+		case <-stop:
+			return
+		}
+	}
+}
+
+// pushPull is invoked periodically to randomly perform a complete state
+// exchange. Used to ensure a high level of convergence, but is also
+// reasonably expensive as the entire state of this node is exchanged
+// with the other node.
+func (s *Server) PushState() {
+	// Get a random live node
+	nodes := s.KRandomNodes(1)
+	// If no nodes, bail
+	if len(nodes) == 0 {
+		return
+	}
+	node := nodes[0]
+	// Attempt a push pull
+	state := s.exportState()
+	msg := PackTagToHead(nodeChange, regularStateSync, state)
+	s.SendMessage(node, msg)
 }
