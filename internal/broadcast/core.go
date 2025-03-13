@@ -20,6 +20,7 @@ type Server struct {
 	State    state.State
 	Action   Action
 	client   net.Dialer //客户端连接器
+	isClosed bool       //是否关闭了
 }
 
 type area struct {
@@ -65,12 +66,12 @@ func (s *Server) ReduceReliableTimeout(msg []byte, configAction *func(isConverge
 		}
 		newMsg := make([]byte, len(msg))
 		copy(newMsg, msg)
-		copy(newMsg[prefix:prefix+s.Config.IpLen()], msg[prefix:prefix+s.Config.IpLen()])
+		copy(newMsg[prefix:prefix+s.Config.IpLen()], s.Config.IPBytes())
 		s.SendMessage(tool.ByteToIPv4Port(r.Ip), newMsg)
 		//断开连接
-		time.Sleep(3 * time.Second)
 		if msgAction == nodeLeave {
-			s.Member.RemoveMember(msg[:s.Config.IpLen()])
+			time.Sleep(3 * time.Second)
+			s.Member.RemoveMember(msg[len(msg)-s.Config.IpLen():])
 		}
 	}
 
@@ -176,8 +177,11 @@ func (s *Server) ApplyLeave() {
 		//如果成功了，当前节点下线。如果不成功，在发起一次请求
 		if isSuccess {
 			//进行下线操作
+			stop := struct{}{}
+			stopCh <- stop
 			s.Close()
 			s.Member.Clean()
+			s.isClosed = true
 		} else {
 			//失败就再发一次
 			s.ApplyLeave()

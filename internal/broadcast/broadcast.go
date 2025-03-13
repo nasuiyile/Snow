@@ -64,7 +64,7 @@ func (s *Server) ForwardMessage(msg []byte, member map[string][]byte) error {
 	return nil
 }
 
-// 在成功时，每个节点都会回调这个方法，在失败时只有根节点和部分成功的节点会重新调用这个方法
+// ReliableMessage 在成功时，每个节点都会回调这个方法，在失败时只有根节点和部分成功的节点会重新调用这个方法
 func (s *Server) ReliableMessage(message []byte, msgAction MsgAction, action *func(isSuccess bool)) error {
 	s.Member.Lock()
 	defer s.Member.Unlock()

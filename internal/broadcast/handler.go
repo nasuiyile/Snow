@@ -2,6 +2,7 @@ package broadcast
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"net"
 	"snow/tool"
@@ -73,6 +74,9 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 			return
 		}
 		//如果自己是叶子节点发送ack给父节点	并删除ack的map
+		if s.Config.LocalAddress == "127.0.0.1:5002" {
+			fmt.Println()
+		}
 		forward(msg, s, parentIP)
 	case reliableMsgAck:
 		//ack不需要ActionType
@@ -82,6 +86,9 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 			return
 		}
 		//减少计数器
+		if s.Config.ServerAddress == "127.0.0.1:5007" {
+			fmt.Println()
+		}
 		s.ReduceReliableTimeout(msg, s.Action.ReliableCallback)
 	case gossipMsg:
 		//gossip不需要和Snow算法一样携带俩个ip
@@ -142,10 +149,10 @@ func forward(msg []byte, s *Server, parentIp string) {
 			newMsg = append(newMsg, msgAction)
 			newMsg = append(newMsg, tool.TimeBytes()...)
 			newMsg = append(newMsg, hash...)
-			//父节点ip
+			// 叶子节点ip
 			newMsg = append(newMsg, s.Config.IPBytes()...)
 			//根节点ip
-			newMsg = append(newMsg, s.Config.IPBytes()...)
+			newMsg = append(newMsg, msg[len(msg)-s.Config.IpLen():]...)
 			s.SendMessage(parentIp, newMsg)
 		} else {
 			//不是发送节点的化，不需要任何回调

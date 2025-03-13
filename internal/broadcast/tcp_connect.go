@@ -51,7 +51,9 @@ func NewServer(port int, configPath string, clientList []string, action Action) 
 				})
 			},
 		},
+		isClosed: false,
 	}
+
 	server.Member.FindOrInsert(config.IPBytes())
 	go server.startAcceptingConnections() // 启动接受连接的协程
 	// 主动连接到其他客户端
@@ -74,12 +76,20 @@ func (s *Server) schedule() {
 // startAcceptingConnections 不断接受新的客户端连接
 func (s *Server) startAcceptingConnections() {
 	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+		}
 		//其实是由netpoller 来触发的
 		conn, err := s.listener.Accept()
 		if err != nil {
 			log.Println("Error accepting connection:", err)
 			continue
 		}
+		tcpConn := conn.(*net.TCPConn)
+		tcpConn.SetLinger(0)
+		conn = tcpConn
 		serverIp := s.Config.GetServerIp(conn.RemoteAddr().String())
 		metaData := membership.NewEmptyMetaData()
 		metaData.SetServer(conn)
@@ -104,6 +114,12 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 
 	reader := bufio.NewReader(conn)
 	for {
+		select {
+		case <-stopCh:
+			return
+		default:
+		}
+
 		// 读取消息头 (4字节表示消息长度)
 		header := make([]byte, 4)
 		_, err := io.ReadFull(reader, header)
@@ -172,6 +188,9 @@ func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 	return conn, nil
 }
 func (s *Server) SendMessage(ip string, msg []byte) {
+	if s.isClosed {
+		return
+	}
 	metaData := s.Member.GetMember(ip)
 	var conn net.Conn
 	var err error
