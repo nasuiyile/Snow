@@ -73,7 +73,7 @@ func NewServer(port int, configPath string, clientList []string, action Action) 
 func (s *Server) schedule() {
 	// Create the stop tick channel, a blocking channel. We close this
 	// when we should stop the tickers.
-	s.pushTrigger(stopCh)
+	go s.pushTrigger(stopCh)
 
 }
 
@@ -227,7 +227,6 @@ func (s *Server) SendMessage(ip string, msg []byte) {
 			return
 		}
 		if s.Config.Test {
-			s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
 			tool.SendHttp(s.Config.LocalAddress, ip, msg)
 		}
 	}(conn, s.Config)

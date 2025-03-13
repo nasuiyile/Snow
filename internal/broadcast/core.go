@@ -186,6 +186,7 @@ func (s *Server) ApplyLeave() {
 	s.ReliableMessage(s.Config.IPBytes(), nodeLeave, &f)
 }
 func (s *Server) ReportLeave(ip []byte) {
+	s.Member.RemoveMember(ip)
 	s.ColoringMessage(ip, reportLeave)
 }
 

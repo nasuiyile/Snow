@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	configPath := "C:\\code\\go\\snow\\config\\config.yml"
+	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
 	n := 10
 	clientAddresses := initAddress(n)
 	serverList := make([]*broadcast.Server, 0)
