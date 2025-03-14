@@ -165,6 +165,9 @@ func (s *Server) ApplyJoin(ip string) {
 	if err != nil {
 		return
 	}
+	if ip == s.Config.ServerAddress {
+		return
+	}
 	s.SendMessage(ip, []byte{}, PackTag(nodeChange, applyJoin))
 }
 

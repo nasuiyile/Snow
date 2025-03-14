@@ -11,5 +11,8 @@ ExpirationTime: 60s
 PushPullInterval: 60s
 # tcp超时时间单位秒，和memberlist里不同。
 TCPTimeout: 10s
+#最开始要连接的那个服务器（用来通知加入集群）
+InitialServer: "127.0.0.1:6000"
+DefaultAddress: "127.0.0.1:5000,127.0.0.1:5001,127.0.0.1:5002,127.0.0.1:5003,127.0.0.1:5004"
 #以下配置需要开启config才有效
 Test: true  #测试模式下 membership list里的ip不会被删除。并且会发送额外的信息到固定的服务端进行调试

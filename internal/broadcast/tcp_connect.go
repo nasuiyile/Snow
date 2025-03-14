@@ -16,8 +16,7 @@ import (
 var stopCh = make(chan struct{})
 
 // NewServer 创建并启动一个 TCP 服务器
-func NewServer(port int, configPath string, clientList []string, action Action) (*Server, error) {
-	config, err := NewConfig(configPath, port)
+func NewServer(config *Config, action Action) (*Server, error) {
 	listener, err := net.Listen("tcp", config.ServerAddress)
 	if err != nil {
 		return nil, err
@@ -57,11 +56,12 @@ func NewServer(port int, configPath string, clientList []string, action Action) 
 	server.Member.FindOrInsert(config.IPBytes())
 	go server.startAcceptingConnections() // 启动接受连接的协程
 	// 主动连接到其他客户端
-	for _, addr := range clientList {
-		go server.connectToClient(addr)
-	}
+	//for _, addr := range clientList {
+	//	go server.connectToClient(addr)
+	//}
 	server.schedule()
-	log.Printf("Server is running on port %d...\n\n", port)
+	server.ApplyJoin(config.InitialServer)
+	log.Printf("Server is running on port %d...\n\n", config.Port)
 	return server, nil
 
 }
@@ -213,8 +213,8 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 		} else {
 			metaData = membership.NewEmptyMetaData()
 			metaData.SetServer(conn)
+			metaData.SetClient(newConn)
 			s.Member.PutMemberIfNil(ip, metaData)
-			s.Member.MetaData[ip].SetClient(newConn)
 			conn = newConn
 		}
 	}

@@ -15,7 +15,7 @@ const TagLen = 2
 const HashLen = 32
 
 type Config struct {
-	port             int           `yaml:"Ipv6"`
+	Port             int           `yaml:"Port"`
 	Ipv6             bool          `yaml:"Ipv6"`
 	FanOut           int           `yaml:"FanOut"`
 	LocalAddress     string        `yaml:"LocalAddress"`
@@ -27,6 +27,9 @@ type Config struct {
 	ServerAddress    string
 	PushPullInterval time.Duration `yaml:"PushPullInterval"`
 	TCPTimeout       time.Duration `yaml:"TCPTimeout"`
+	InitialServer    string        `yaml:"InitialServer"`
+	DefaultServer    []string
+	DefaultAddress   string `yaml:"DefaultAddress"`
 }
 
 // CutBytes 这个方法会留下时间戳
@@ -61,19 +64,23 @@ func (c *Config) IPBytes() []byte {
 	return nil
 }
 
-type ConfigOption func(*Config)
+type ConfigOption func(c *Config)
 
-func NewConfig(filename string, port int, opts ...ConfigOption) (*Config, error) {
+func NewConfig(filename string, opts ...ConfigOption) (*Config, error) {
 	config, err := LoadConfig(filename)
 	if err != nil {
 		return nil, err
 	}
-	config.port = port
 	if err != nil {
 		panic(err)
 	}
-	config.ClientAddress = fmt.Sprintf("%s:%d", config.LocalAddress, port+config.ClientPortOffset)
-	config.ServerAddress = fmt.Sprintf("%s:%d", config.LocalAddress, port)
+	for _, action := range opts {
+		action(config)
+	}
+	config.DefaultServer = strings.Split(config.DefaultAddress, ",")
+	config.ClientAddress = fmt.Sprintf("%s:%d", config.LocalAddress, config.Port+config.ClientPortOffset)
+	config.ServerAddress = fmt.Sprintf("%s:%d", config.LocalAddress, config.Port)
+
 	return config, nil
 }
 
