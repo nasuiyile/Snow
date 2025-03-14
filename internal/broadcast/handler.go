@@ -86,13 +86,10 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 			return
 		}
 		//减少计数器
-		if s.Config.ServerAddress == "127.0.0.1:5007" {
-			fmt.Println()
-		}
 		s.ReduceReliableTimeout(msg, s.Action.ReliableCallback)
 	case gossipMsg:
 		//gossip不需要和Snow算法一样携带俩个ip
-		body := msg[1:]
+		body := msg[TagLen:]
 		if !isFirst(body, msgAction, s) {
 			return
 		}
@@ -147,7 +144,7 @@ func forward(msg []byte, s *Server, parentIp string) {
 			newMsg := make([]byte, 0)
 			newMsg = append(newMsg, reliableMsgAck)
 			newMsg = append(newMsg, msgAction)
-			newMsg = append(newMsg, tool.TimeBytes()...)
+			newMsg = append(newMsg, tool.RandomNumber()...)
 			newMsg = append(newMsg, hash...)
 			// 叶子节点ip
 			newMsg = append(newMsg, s.Config.IPBytes()...)

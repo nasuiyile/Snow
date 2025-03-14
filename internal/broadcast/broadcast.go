@@ -1,46 +1,41 @@
 package broadcast
 
 import (
-	"encoding/binary"
 	"math/rand"
 	"snow/tool"
 	"time"
 )
 
 func (s *Server) RegularMessage(message []byte, msgAction MsgAction) error {
-	s.Member.Lock()
-	defer s.Member.Unlock()
 	member, _ := s.InitMessage(regularMsg, msgAction)
 	for ip, payload := range member {
 		length := uint32(len(message) + s.Config.Placeholder())
 		newMsg := make([]byte, length)
-		copy(newMsg, payload)
 		copy(newMsg[s.Config.Placeholder():], message)
+		copy(newMsg, payload)
 		s.SendMessage(ip, newMsg)
 	}
 	return nil
 }
 
 func (s *Server) ColoringMessage(message []byte, msgAction MsgAction) error {
-	s.Member.Lock()
-	defer s.Member.Unlock()
 	member, _ := s.InitMessage(coloringMsg, msgAction)
 	for ip, payload := range member {
 		length := uint32(len(message) + s.Config.Placeholder())
 		newMsg := make([]byte, length)
-		copy(newMsg, payload)
 		copy(newMsg[s.Config.Placeholder():], message)
+		copy(newMsg, payload)
 		s.SendMessage(ip, newMsg)
 	}
 	return nil
 }
 
 // GossipMessage gossip协议是有可能广播给发送给自己的节点的= =
-func (s *Server) GossipMessage(msg string, msgAction MsgAction) error {
+func (s *Server) GossipMessage(msg []byte, msgAction MsgAction) error {
 	bytes := make([]byte, len(msg)+TimeLen+TagLen)
 	bytes[0] = gossipMsg
 	bytes[1] = msgAction
-	copy(bytes[TagLen:], tool.TimeBytes())
+	copy(bytes[TagLen:], tool.RandomNumber())
 	copy(bytes[TagLen+TimeLen:], msg)
 	return s.SendGossip(bytes)
 }
@@ -66,14 +61,11 @@ func (s *Server) ForwardMessage(msg []byte, member map[string][]byte) error {
 
 // ReliableMessage 在成功时，每个节点都会回调这个方法，在失败时只有根节点和部分成功的节点会重新调用这个方法
 func (s *Server) ReliableMessage(message []byte, msgAction MsgAction, action *func(isSuccess bool)) error {
-	s.Member.Lock()
-	defer s.Member.Unlock()
 
-	member, unix := s.InitMessage(reliableMsg, msgAction)
-	timeBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(timeBytes, uint64(unix))
-	timeBytes = append(timeBytes, message...)
-	hash := []byte(tool.Hash(timeBytes))
+	member, randomNum := s.InitMessage(reliableMsg, msgAction)
+
+	data := append(randomNum, message...)
+	hash := []byte(tool.Hash(data))
 	s.State.AddReliableTimeout(hash, true, len(member), nil, action)
 	timeout := s.Config.GetReliableTimeOut()
 	time.AfterFunc(time.Duration(timeout)*time.Second, func() {
@@ -100,13 +92,13 @@ func (s *Server) ReliableMessage(message []byte, msgAction MsgAction, action *fu
 
 func (s *Server) KRandomNodes(k int) []string {
 	s.Member.Lock()
+	defer s.Member.Unlock()
 	ip := make([]string, 0)
 	idx, _ := s.Member.FindOrInsert(s.Config.IPBytes())
 	randomNodes := tool.KRandomNodes(0, s.Member.MemberLen()-1, idx, k)
 	for _, v := range randomNodes {
 		ip = append(ip, tool.ByteToIPv4Port(s.Member.IPTable[v]))
 	}
-	s.Member.Unlock()
 	return ip
 }
 

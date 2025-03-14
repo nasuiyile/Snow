@@ -42,7 +42,7 @@ func PackTagToHead(msgType MsgType, changeType MsgAction, msg []byte) []byte {
 	data := make([]byte, len(msg)+TimeLen+TagLen)
 	data[0] = msgType
 	data[1] = changeType
-	timeBytes := tool.TimeBytes()
+	timeBytes := tool.RandomNumber()
 	copy(data[TagLen:], timeBytes)
 	copy(data[TimeLen+TagLen:], msg)
 	return data
@@ -52,7 +52,7 @@ func PackTag(msgType MsgType, changeType MsgAction) []byte {
 	data := make([]byte, TimeLen+TagLen)
 	data[0] = msgType
 	data[1] = changeType
-	timeBytes := tool.TimeBytes()
+	timeBytes := tool.RandomNumber()
 	copy(data[TagLen:], timeBytes)
 	return data
 }

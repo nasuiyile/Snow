@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"snow/internal/broadcast"
 	"time"
 )
@@ -35,20 +36,20 @@ func main() {
 		}
 		serverList = append(serverList, server)
 	}
-
+	time.Sleep(3 * time.Second)
 	//模拟每隔1秒向所有客户端发送一条消息
-	//go func() {
-	//	for {
-	//		time.Sleep(3 * time.Second)
-	//		err := serverList[5].ReliableMessage([]byte("hello from server!"), 0, nil)
-	//		if err != nil {
-	//			log.Println("Error broadcasting message:", err)
-	//		}
-	//		time.Sleep(2 * time.Second)
-	//	}
-	//}()
-	time.Sleep(5 * time.Second)
-	serverList[0].ApplyLeave()
+	go func() {
+		for i := 0; i < 5; i++ {
+			time.Sleep(3 * time.Nanosecond)
+			err := serverList[5].ColoringMessage([]byte("hello from server!"), 0)
+			if err != nil {
+				log.Println("Error broadcasting message:", err)
+			}
+			//time.Sleep(2 * time.Second)
+		}
+	}()
+	//time.Sleep(5 * time.Second)
+	//serverList[0].ApplyLeave()
 
 	// 主线程保持运行
 	select {}

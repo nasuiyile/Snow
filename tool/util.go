@@ -76,12 +76,12 @@ func Hash(msg []byte) string {
 	return sum
 }
 
-func TimeBytes() []byte {
-	unix := time.Now().Unix()
-	timestamp := make([]byte, 8)
-	binary.BigEndian.PutUint64(timestamp, uint64(unix))
-	return timestamp
-}
+//	func TimeBytes() []byte {
+//		unix := time.Now().Unix()
+//		timestamp := make([]byte, 8)
+//		binary.BigEndian.PutUint64(timestamp, uint64(unix))
+//		return timestamp
+//	}
 func BytesToTime(data []byte) int64 {
 	return int64(binary.BigEndian.Uint64(data))
 }
@@ -137,4 +137,16 @@ func PushScale(interval time.Duration, n int) time.Duration {
 	}
 	multiplier := math.Ceil(math.Log2(float64(n))-math.Log2(pushScaleThreshold)) + 1.0
 	return time.Duration(multiplier) * interval
+}
+
+// 获取8个随机的byte值
+func RandomNumber() []byte {
+	// 生成一个随机的 int64（可能包含负数）
+	randomInt64 := rand.Uint64()
+
+	// 将 int64 转换为 8 个字节的切片
+	bytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(bytes, uint64(randomInt64))
+
+	return bytes
 }

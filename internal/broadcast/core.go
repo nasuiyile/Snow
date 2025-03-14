@@ -2,7 +2,6 @@ package broadcast
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/gob"
 	"fmt"
 	"net"
@@ -96,11 +95,11 @@ func ObtainOnIPRing(current int, offset int, n int) int {
 }
 
 // InitMessage 发消息
-func (s *Server) InitMessage(msgType MsgType, action MsgAction) (map[string][]byte, int64) {
+func (s *Server) InitMessage(msgType MsgType, action MsgAction) (map[string][]byte, []byte) {
 	s.Member.Lock()
 	defer s.Member.Unlock()
 	if s.Member.MemberLen() == 1 {
-		return make(map[string][]byte), 0
+		return make(map[string][]byte), nil
 	}
 	current, _ := s.Member.FindOrInsert(s.Config.IPBytes())
 	//当前的索引往左偏移
@@ -113,13 +112,13 @@ func (s *Server) InitMessage(msgType MsgType, action MsgAction) (map[string][]by
 	return s.NextHopMember(msgType, action, leftIP, rightIP, true)
 }
 
-func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []byte, rightIP []byte, isRoot bool) (map[string][]byte, int64) {
+func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []byte, rightIP []byte, isRoot bool) (map[string][]byte, []byte) {
 	coloring := msgType == coloringMsg
 	//todo 这里可以优化读写锁
 	s.Member.Lock()
 	defer s.Member.Unlock()
 	if s.Member.MemberLen() == 1 {
-		return make(map[string][]byte), 0
+		return make(map[string][]byte), nil
 	}
 	forwardList := make(map[string][]byte)
 	//要转发的所有节点
@@ -144,7 +143,7 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 		secondaryRoot := ObtainOnIPRing(currentIndex, -1, s.Member.MemberLen())
 		next = append(next, &area{left: leftIndex, right: rightIndex, current: secondaryRoot})
 	}
-	unix := time.Now().Unix()
+	randomNumber := tool.RandomNumber()
 	for _, v := range next {
 		payload := make([]byte, 0)
 		payload = append(payload, msgType)
@@ -152,15 +151,13 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 		payload = append(payload, IPTable[v.left]...)
 		payload = append(payload, IPTable[v.right]...)
 		if isRoot {
-			timestamp := make([]byte, 8)
-			binary.BigEndian.PutUint64(timestamp, uint64(unix))
-			payload = append(payload, timestamp...)
+			payload = append(payload, randomNumber...)
 		}
 		forwardList[tool.ByteToIPv4Port(IPTable[v.current])] = payload
 
 	}
 
-	return forwardList, unix
+	return forwardList, randomNumber
 }
 
 // 加入的时候要和一个节点进行交互，离开则不用
