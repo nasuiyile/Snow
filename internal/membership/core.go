@@ -5,6 +5,7 @@ import (
 	"net"
 	"snow/tool"
 	"sort"
+	"time"
 )
 
 type MetaData struct {
@@ -162,10 +163,14 @@ func (m *MemberShipList) RemoveMember(ip []byte) {
 	data, ok := m.MetaData[address]
 	if ok {
 		if data.client != nil {
-			data.client.Close()
+			time.AfterFunc(2*time.Second, func() {
+				data.client.Close()
+			})
 		}
 		if data.server != nil {
-			data.server.Close()
+			time.AfterFunc(2*time.Second, func() {
+				data.server.Close()
+			})
 		}
 		delete(m.MetaData, tool.ByteToIPv4Port(ip))
 	}

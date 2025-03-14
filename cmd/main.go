@@ -36,11 +36,10 @@ func main() {
 		}
 		serverList = append(serverList, server)
 	}
-	time.Sleep(3 * time.Second)
 	//模拟每隔1秒向所有客户端发送一条消息
 	go func() {
 		for i := 0; i < 5; i++ {
-			//time.Sleep(3 * time.Nanosecond)
+			time.Sleep(2 * time.Second)
 			err := serverList[5].ReliableMessage([]byte("hello from server!"), 0, nil)
 			if err != nil {
 				log.Println("Error broadcasting message:", err)
@@ -48,8 +47,8 @@ func main() {
 			//time.Sleep(2 * time.Second)
 		}
 	}()
-	//time.Sleep(5 * time.Second)
-	//serverList[0].ApplyLeave()
+	time.Sleep(3 * time.Second)
+	serverList[0].ApplyLeave()
 
 	// 主线程保持运行
 	select {}

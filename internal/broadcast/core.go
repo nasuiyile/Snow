@@ -8,7 +8,6 @@ import (
 	"snow/internal/membership"
 	"snow/internal/state"
 	"snow/tool"
-	"time"
 )
 
 // Server 定义服务器结构体
@@ -69,7 +68,7 @@ func (s *Server) ReduceReliableTimeout(msg []byte, configAction *func(isConverge
 		s.SendMessage(tool.ByteToIPv4Port(r.Ip), []byte{}, newMsg)
 		//断开连接
 		if msgAction == nodeLeave {
-			time.Sleep(3 * time.Second)
+
 			s.Member.RemoveMember(msg[len(msg)-s.Config.IpLen():])
 		}
 	}

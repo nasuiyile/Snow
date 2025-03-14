@@ -2,7 +2,6 @@ package broadcast
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"net"
 	"snow/tool"
@@ -74,9 +73,6 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 			return
 		}
 		//如果自己是叶子节点发送ack给父节点	并删除ack的map
-		if s.Config.LocalAddress == "127.0.0.1:5002" {
-			fmt.Println()
-		}
 		forward(msg, s, parentIP)
 	case reliableMsgAck:
 		//ack不需要ActionType
@@ -85,6 +81,7 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 		if !isFirst(body, msgType, msgAction, s) {
 			return
 		}
+
 		//减少计数器
 		s.ReduceReliableTimeout(msg, s.Action.ReliableCallback)
 	case gossipMsg:
@@ -110,9 +107,6 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 func isFirst(body []byte, msgType MsgType, action MsgAction, s *Server) bool {
 	if s.IsReceived(body) && s.Config.ExpirationTime > 0 {
 		return false
-	}
-	if body[8] != 104 {
-		fmt.Println()
 	}
 	if action == userMsg && msgType != reliableMsgAck {
 		//如果第二个byte的类型是userMsg才让用户进行处理
@@ -153,6 +147,9 @@ func forward(msg []byte, s *Server, parentIp string) {
 			newMsg = append(newMsg, s.Config.IPBytes()...)
 			//根节点ip
 			newMsg = append(newMsg, msg[len(msg)-s.Config.IpLen():]...)
+			if msgAction == nodeLeave {
+				s.Member.RemoveMember(msg[len(msg)-s.Config.IpLen():])
+			}
 			s.SendMessage(parentIp, []byte{}, newMsg)
 		} else {
 			//不是发送节点的化，不需要任何回调
