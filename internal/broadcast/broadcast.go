@@ -8,24 +8,18 @@ import (
 
 func (s *Server) RegularMessage(message []byte, msgAction MsgAction) error {
 	member, _ := s.InitMessage(regularMsg, msgAction)
+	newMsg := tool.CopyMsg(message)
 	for ip, payload := range member {
-		length := uint32(len(message) + s.Config.Placeholder())
-		newMsg := make([]byte, length)
-		copy(newMsg[s.Config.Placeholder():], message)
-		copy(newMsg, payload)
-		s.SendMessage(ip, newMsg)
+		s.SendMessage(ip, payload, newMsg)
 	}
 	return nil
 }
 
 func (s *Server) ColoringMessage(message []byte, msgAction MsgAction) error {
 	member, _ := s.InitMessage(coloringMsg, msgAction)
+	newMsg := tool.CopyMsg(message)
 	for ip, payload := range member {
-		length := uint32(len(message) + s.Config.Placeholder())
-		newMsg := make([]byte, length)
-		copy(newMsg[s.Config.Placeholder():], message)
-		copy(newMsg, payload)
-		s.SendMessage(ip, newMsg)
+		s.SendMessage(ip, payload, newMsg)
 	}
 	return nil
 }
@@ -43,18 +37,16 @@ func (s *Server) GossipMessage(msg []byte, msgAction MsgAction) error {
 func (s *Server) SendGossip(msg []byte) error {
 	nodes := s.KRandomNodes(s.Config.FanOut)
 	for _, v := range nodes {
-		s.SendMessage(v, msg)
+		s.SendMessage(v, []byte{}, msg)
 	}
 	return nil
 }
 
 // ForwardMessage 转发消息
 func (s *Server) ForwardMessage(msg []byte, member map[string][]byte) error {
+	newMsg := tool.CopyMsg(msg)
 	for ip, payload := range member {
-		msgCopy := make([]byte, len(msg))
-		copy(msgCopy, msg)
-		copy(msgCopy, payload)
-		s.SendMessage(ip, msgCopy)
+		s.SendMessage(ip, payload, newMsg[len(payload):])
 	}
 	return nil
 }
@@ -80,12 +72,9 @@ func (s *Server) ReliableMessage(message []byte, msgAction MsgAction, action *fu
 			}
 		}
 	})
+	msg := tool.CopyMsg(message)
 	for ip, payload := range member {
-		length := uint32(len(message) + s.Config.Placeholder())
-		newMsg := make([]byte, length)
-		copy(newMsg, payload)
-		copy(newMsg[s.Config.Placeholder():], message)
-		s.SendMessage(ip, newMsg)
+		s.SendMessage(ip, payload, msg)
 	}
 	return nil
 }
@@ -139,5 +128,5 @@ func (s *Server) PushState() {
 	// Attempt a push pull
 	state := s.exportState()
 	msg := PackTagToHead(nodeChange, regularStateSync, state)
-	s.SendMessage(node, msg)
+	s.SendMessage(node, []byte{}, msg)
 }

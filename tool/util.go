@@ -150,3 +150,9 @@ func RandomNumber() []byte {
 
 	return bytes
 }
+
+func CopyMsg(msg []byte) []byte {
+	res := make([]byte, len(msg))
+	copy(res, msg)
+	return res
+}

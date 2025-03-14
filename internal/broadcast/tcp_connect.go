@@ -187,7 +187,7 @@ func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 	s.Member.AddNode(conn, true)
 	return conn, nil
 }
-func (s *Server) SendMessage(ip string, msg []byte) {
+func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 	if s.isClosed {
 		return
 	}
@@ -219,7 +219,7 @@ func (s *Server) SendMessage(ip string, msg []byte) {
 		}
 	}
 	// 创建消息头，存储消息长度 (4字节大端序)
-	length := uint32(len(msg))
+	length := uint32(len(payload) + len(msg))
 
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, length)
@@ -227,6 +227,12 @@ func (s *Server) SendMessage(ip string, msg []byte) {
 	go func(c net.Conn, config *Config) {
 		//写入消息包的大小
 		_, err := c.Write(header)
+		if err != nil {
+			s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
+			log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
+			return
+		}
+		_, err = c.Write(payload)
 		if err != nil {
 			s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
 			log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)

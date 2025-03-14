@@ -66,7 +66,7 @@ func (s *Server) ReduceReliableTimeout(msg []byte, configAction *func(isConverge
 		newMsg := make([]byte, len(msg))
 		copy(newMsg, msg)
 		copy(newMsg[prefix:prefix+s.Config.IpLen()], s.Config.IPBytes())
-		s.SendMessage(tool.ByteToIPv4Port(r.Ip), newMsg)
+		s.SendMessage(tool.ByteToIPv4Port(r.Ip), []byte{}, newMsg)
 		//断开连接
 		if msgAction == nodeLeave {
 			time.Sleep(3 * time.Second)
@@ -166,7 +166,7 @@ func (s *Server) ApplyJoin(ip string) {
 	if err != nil {
 		return
 	}
-	s.SendMessage(ip, PackTag(nodeChange, applyJoin))
+	s.SendMessage(ip, []byte{}, PackTag(nodeChange, applyJoin))
 }
 
 func (s *Server) ApplyLeave() {
