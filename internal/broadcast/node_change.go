@@ -28,7 +28,7 @@ func applyJoining(s *Server, conn net.Conn) {
 	//接收到消息然后推送
 	state := s.exportState()
 	data := PackTagToHead(nodeChange, joinStateSync, state)
-	replayMessage(conn, s.Config, data)
+	s.replayMessage(conn, s.Config, data)
 }
 
 // 接收到同步消息

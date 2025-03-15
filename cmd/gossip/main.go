@@ -22,25 +22,6 @@ func main() {
 	select {}
 }
 
-func s(port string) {
-	listener, err := net.Listen("tcp", port)
-	if err != nil {
-		fmt.Println("监听失败:", err)
-		return
-	}
-	defer listener.Close()
-	fmt.Println("服务器启动，监听端口", port)
-
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			fmt.Println("接受连接失败:", err)
-			continue
-		}
-		go handleConnection(conn) // 使用 goroutine 处理每个客户端
-	}
-}
-
 func main2() {
 	// 指定本地地址
 	localAddr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:9000")
@@ -95,4 +76,22 @@ func main2() {
 	}
 	fmt.Println("连接成功:", conn2.LocalAddr())
 	defer conn2.Close()
+}
+func s(port string) {
+	listener, err := net.Listen("tcp", port)
+	if err != nil {
+		fmt.Println("监听失败:", err)
+		return
+	}
+	defer listener.Close()
+	fmt.Println("服务器启动，监听端口", port)
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println("接受连接失败:", err)
+			continue
+		}
+		go handleConnection(conn) // 使用 goroutine 处理每个客户端
+	}
 }

@@ -19,6 +19,10 @@ type Server struct {
 	Action   Action
 	client   net.Dialer //客户端连接器
 	isClosed bool       //是否关闭了
+
+	stopCh           chan struct{}
+	sendChan         chan *SendData
+	clientWorkerPool *tool.WorkerPool
 }
 
 type area struct {
@@ -177,7 +181,7 @@ func (s *Server) ApplyLeave() {
 		if isSuccess {
 			//进行下线操作
 			stop := struct{}{}
-			stopCh <- stop
+			s.stopCh <- stop
 			s.Close()
 			s.Member.Clean()
 			s.isClosed = true

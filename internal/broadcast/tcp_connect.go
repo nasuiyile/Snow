@@ -21,8 +21,9 @@ type SendData struct {
 	Msg     []byte
 }
 
-var stopCh = make(chan struct{})
-var sendChan = make(chan *SendData)
+//var stopCh = make(chan struct{})
+//var sendChan = make(chan *SendData)
+//var clientWorkerPool = tool.NewWorkerPool(1)
 
 // NewServer 创建并启动一个 TCP 服务器
 func NewServer(config *Config, action Action) (*Server, error) {
@@ -45,9 +46,12 @@ func NewServer(config *Config, action Action) (*Server, error) {
 			State:           state.NewTimeoutMap(),
 			ReliableTimeout: make(map[string]*state.ReliableInfo),
 		},
-		Action:   action,
-		client:   dialer.Dialer(clientAddress, config.TCPTimeout),
-		isClosed: false,
+		Action:           action,
+		client:           dialer.Dialer(clientAddress, config.TCPTimeout),
+		isClosed:         false,
+		stopCh:           make(chan struct{}),
+		sendChan:         make(chan *SendData),
+		clientWorkerPool: tool.NewWorkerPool(1),
 	}
 
 	server.Member.FindOrInsert(config.IPBytes())
@@ -66,7 +70,7 @@ func NewServer(config *Config, action Action) (*Server, error) {
 func (s *Server) schedule() {
 	// Create the stop tick channel, a blocking channel. We close this
 	// when we should stop the tickers.
-	go s.pushTrigger(stopCh)
+	go s.pushTrigger(s.stopCh)
 	go s.Sender()
 
 }
@@ -75,7 +79,7 @@ func (s *Server) schedule() {
 func (s *Server) startAcceptingConnections() {
 	for {
 		select {
-		case <-stopCh:
+		case <-s.stopCh:
 			return
 		default:
 		}
@@ -93,8 +97,8 @@ func (s *Server) startAcceptingConnections() {
 		metaData.SetServer(conn)
 		s.Member.PutMemberIfNil(serverIp, metaData)
 		// todo 后期优化成只能保持k个连接
-		//s.Member.AddNode(conn, false)
 		go s.handleConnection(conn, false) // 处理客户端连接
+
 	}
 }
 
@@ -113,7 +117,7 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 	reader := bufio.NewReader(conn)
 	for {
 		select {
-		case <-stopCh:
+		case <-s.stopCh:
 			return
 		default:
 		}
@@ -227,69 +231,28 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, length)
 
-	//go func(c net.Conn, config *Config) {
-	//	//写入消息包的大小
-	//	_, err := c.Write(header)
-	//	if err != nil {
-	//		s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
-	//		log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-	//		return
-	//	}
-	//	_, err = c.Write(payload)
-	//	if err != nil {
-	//		s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
-	//		log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-	//		return
-	//	}
-	//	_, err = c.Write(msg)
-	//	if err != nil {
-	//		s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
-	//		log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-	//		return
-	//	}
-	//	if s.Config.Test {
-	//		tool.SendHttp(s.Config.ServerAddress, ip, msg)
-	//	}
-	//}(conn, s.Config)
-
 	data := &SendData{
 		Conn:    conn,
 		Header:  header,
 		Payload: payload,
 		Msg:     msg,
 	}
-	sendChan <- data
+	s.sendChan <- data
 }
 
 // 这个方法只能用来回复消息
-func replayMessage(conn net.Conn, config *Config, msg []byte) {
+func (s *Server) replayMessage(conn net.Conn, config *Config, msg []byte) {
 	// 创建消息头，存储消息长度 (4字节大端序)
 	length := uint32(len(msg))
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, length)
-	//go func(c net.Conn, config *Config) {
-	//	//写入消息包的大小
-	//	_, err := c.Write(header)
-	//	if err != nil {
-	//		log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-	//		return
-	//	}
-	//	_, err = c.Write(msg)
-	//	if err != nil {
-	//		log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-	//		return
-	//	}
-	//	if config.Test {
-	//		tool.SendHttp(config.ServerAddress, conn.RemoteAddr().String(), msg)
-	//	}
-	//}(conn, config)
 	data := &SendData{
 		Conn:    conn,
 		Header:  header,
 		Payload: []byte{},
 		Msg:     msg,
 	}
-	sendChan <- data
+	s.sendChan <- data
 }
 
 // Close 关闭服务器
@@ -305,7 +268,7 @@ func (s *Server) Close() {
 }
 
 func (s *Server) Sender() {
-	for data := range sendChan {
+	for data := range s.sendChan {
 		_, err := data.Conn.Write(data.Header)
 		if err != nil {
 			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
