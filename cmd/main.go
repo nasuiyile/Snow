@@ -9,18 +9,18 @@ import (
 
 func main() {
 	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
-	n := 50
-	initPort := 50000
+	n := 500
+	initPort := 40000
 	serverList := make([]*broadcast.Server, 0)
 	//serversAddresses := initAddress(n)
 	action := createAction()
 
-	for i := 0; i < n; i++ {
+	for i2 := 0; i2 < n; i2++ {
 		f := func(config *broadcast.Config) {
-			config.Port = initPort + i
+			config.Port = initPort + i2
 		}
 		config, err := broadcast.NewConfig(configPath, f)
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 		server, err := broadcast.NewServer(config, action)
 		if err != nil {
 			return
@@ -30,9 +30,8 @@ func main() {
 	//模拟每隔1秒向所有客户端发送一条消息
 	go func() {
 		for i := 0; i < 50000000000000; i++ {
-
-			time.Sleep(2 * time.Second)
-			err := serverList[5].RegularMessage([]byte("hello from server!"), 0)
+			time.Sleep(1 * time.Second)
+			err := serverList[0].RegularMessage([]byte("hello from server!"), 0)
 			if err != nil {
 				log.Println("Error broadcasting message:", err)
 			}

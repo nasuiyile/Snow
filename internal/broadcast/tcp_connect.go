@@ -3,6 +3,7 @@ package broadcast
 import (
 	"bufio"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -11,6 +12,7 @@ import (
 	"snow/internal/membership"
 	"snow/internal/state"
 	"snow/tool"
+	"time"
 )
 
 // 定义一个结构体来封装发送的数据
@@ -113,8 +115,8 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 		s.Member.RemoveMember(tool.IPv4To6Bytes(addr))
 		s.Member.Unlock()
 	}()
-
 	reader := bufio.NewReader(conn)
+
 	for {
 		select {
 		case <-s.stopCh:
@@ -123,9 +125,12 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 		}
 
 		// 读取消息头 (4字节表示消息长度)
+		conn.SetReadDeadline(time.Now().Add(300 * time.Second))
+		conn.SetDeadline(time.Now().Add(300 * time.Second))
 		header := make([]byte, 4)
 		_, err := io.ReadFull(reader, header)
 		if err != nil {
+			fmt.Println(errors.Is(err, io.EOF))
 			log.Printf("Read header error from %v: %v\n", conn.RemoteAddr(), err)
 			if err == io.EOF {
 				fmt.Println("Normal EOF: connection closed by client")
@@ -262,6 +267,7 @@ func (s *Server) Close() {
 	for _, v := range s.Member.MetaData {
 
 		v.GetClient().Close()
+		v.GetServer().Close()
 	}
 
 	s.Member.Unlock()
