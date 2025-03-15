@@ -13,7 +13,7 @@ func Test_boardcast(t *testing.T) {
 
 	// 节点数量
 	n := 10
-	initPort := 6000
+	initPort := 50000
 	serverList := make([]*broadcast.Server, 0)
 	//serversAddresses := initAddress(n)
 	action := createAction()
