@@ -112,10 +112,10 @@ func (s *Server) InitMessage(msgType MsgType, action MsgAction) (map[string][]by
 }
 
 func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []byte, rightIP []byte, isRoot bool) (map[string][]byte, []byte) {
-	coloring := msgType == coloringMsg
 	//todo 这里可以优化读写锁
 	s.Member.Lock()
 	defer s.Member.Unlock()
+	coloring := msgType == coloringMsg
 	if s.Member.MemberLen() == 1 {
 		return make(map[string][]byte), nil
 	}

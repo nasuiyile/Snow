@@ -164,12 +164,17 @@ func (m *MemberShipList) RemoveMember(ip []byte) {
 	if ok {
 		if data.client != nil {
 			time.AfterFunc(2*time.Second, func() {
+				tcpConn := (data.client).(*net.TCPConn)
+				tcpConn.SetLinger(0)
 				data.client.Close()
 			})
 		}
 		if data.server != nil {
 			time.AfterFunc(2*time.Second, func() {
-				data.server.Close()
+				tcpConn := (data.server).(*net.TCPConn)
+				tcpConn.SetLinger(0)
+				data.client.Close()
+
 			})
 		}
 		delete(m.MetaData, tool.ByteToIPv4Port(ip))

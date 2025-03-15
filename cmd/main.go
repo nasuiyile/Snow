@@ -9,8 +9,8 @@ import (
 
 func main() {
 	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
-	n := 50
-	initPort := 6000
+	n := 200
+	initPort := 50000
 	serverList := make([]*broadcast.Server, 0)
 	//serversAddresses := initAddress(n)
 	action := createAction()
@@ -20,6 +20,7 @@ func main() {
 			config.Port = initPort + i
 		}
 		config, err := broadcast.NewConfig(configPath, f)
+		time.Sleep(20 * time.Millisecond)
 		server, err := broadcast.NewServer(config, action)
 		if err != nil {
 			return
@@ -28,7 +29,7 @@ func main() {
 	}
 	//模拟每隔1秒向所有客户端发送一条消息
 	go func() {
-		for i := 0; i < 500; i++ {
+		for i := 0; i < 50000000000000; i++ {
 
 			time.Sleep(2 * time.Second)
 			err := serverList[5].RegularMessage([]byte("hello from server!"), 0)
@@ -54,12 +55,15 @@ func initAddress(n int, port int) []string {
 func createAction() broadcast.Action {
 	syncAction := func(bytes []byte) bool {
 		s := string(bytes)
+		if s != "hello from server!" {
+			fmt.Println()
+		}
 		fmt.Println("这里是同步处理消息的逻辑：", s)
 		return true
 	}
 	asyncAction := func(bytes []byte) {
-		s := string(bytes)
-		fmt.Println("这里是异步处理消息的逻辑：", s)
+		//s := string(bytes)
+		//fmt.Println("这里是异步处理消息的逻辑：", s)
 	}
 	reliableCallback := func(isConverged bool) {
 		fmt.Println("这里是：可靠消息回调------------------------------", isConverged)

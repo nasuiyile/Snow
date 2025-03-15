@@ -7,13 +7,22 @@ import (
 	"io"
 	"log"
 	"net"
+	"snow/internal/broadcast/dialer"
 	"snow/internal/membership"
 	"snow/internal/state"
 	"snow/tool"
-	"syscall"
 )
 
+// 定义一个结构体来封装发送的数据
+type SendData struct {
+	Conn    net.Conn
+	Header  []byte
+	Payload []byte
+	Msg     []byte
+}
+
 var stopCh = make(chan struct{})
+var sendChan = make(chan *SendData)
 
 // NewServer 创建并启动一个 TCP 服务器
 func NewServer(config *Config, action Action) (*Server, error) {
@@ -36,20 +45,8 @@ func NewServer(config *Config, action Action) (*Server, error) {
 			State:           state.NewTimeoutMap(),
 			ReliableTimeout: make(map[string]*state.ReliableInfo),
 		},
-		Action: action,
-		client: net.Dialer{
-			LocalAddr: clientAddress,
-			Timeout:   config.TCPTimeout,
-			Control: func(network, address string, c syscall.RawConn) error {
-				return c.Control(func(fd uintptr) {
-					// 设置 SO_REUSEADDR
-					err := syscall.SetsockoptInt(syscall.Handle(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-					if err != nil {
-						fmt.Println("设置 SO_REUSEADDR 失败:", err)
-					}
-				})
-			},
-		},
+		Action:   action,
+		client:   dialer.Dialer(clientAddress, config.TCPTimeout),
 		isClosed: false,
 	}
 
@@ -70,6 +67,7 @@ func (s *Server) schedule() {
 	// Create the stop tick channel, a blocking channel. We close this
 	// when we should stop the tickers.
 	go s.pushTrigger(stopCh)
+	go s.Sender()
 
 }
 
@@ -125,6 +123,10 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 		_, err := io.ReadFull(reader, header)
 		if err != nil {
 			log.Printf("Read header error from %v: %v\n", conn.RemoteAddr(), err)
+			if err == io.EOF {
+				fmt.Println("Normal EOF: connection closed by client")
+			}
+			fmt.Println(conn.RemoteAddr().String())
 			return
 		}
 
@@ -183,6 +185,7 @@ func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 		log.Printf("Failed to connect to %s: %v\n", addr, err)
 		return nil, err
 	}
+
 	log.Printf("Connected to %s\n", addr)
 	s.Member.AddNode(conn, true)
 	return conn, nil
@@ -224,30 +227,38 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, length)
 
-	go func(c net.Conn, config *Config) {
-		//写入消息包的大小
-		_, err := c.Write(header)
-		if err != nil {
-			s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
-			log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-			return
-		}
-		_, err = c.Write(payload)
-		if err != nil {
-			s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
-			log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-			return
-		}
-		_, err = c.Write(msg)
-		if err != nil {
-			s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
-			log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-			return
-		}
-		if s.Config.Test {
-			tool.SendHttp(s.Config.ServerAddress, ip, msg)
-		}
-	}(conn, s.Config)
+	//go func(c net.Conn, config *Config) {
+	//	//写入消息包的大小
+	//	_, err := c.Write(header)
+	//	if err != nil {
+	//		s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
+	//		log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
+	//		return
+	//	}
+	//	_, err = c.Write(payload)
+	//	if err != nil {
+	//		s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
+	//		log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
+	//		return
+	//	}
+	//	_, err = c.Write(msg)
+	//	if err != nil {
+	//		s.ReportLeave(tool.IPv4To6Bytes(c.RemoteAddr().String()))
+	//		log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
+	//		return
+	//	}
+	//	if s.Config.Test {
+	//		tool.SendHttp(s.Config.ServerAddress, ip, msg)
+	//	}
+	//}(conn, s.Config)
+
+	data := &SendData{
+		Conn:    conn,
+		Header:  header,
+		Payload: payload,
+		Msg:     msg,
+	}
+	sendChan <- data
 }
 
 // 这个方法只能用来回复消息
@@ -256,22 +267,29 @@ func replayMessage(conn net.Conn, config *Config, msg []byte) {
 	length := uint32(len(msg))
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, length)
-	go func(c net.Conn, config *Config) {
-		//写入消息包的大小
-		_, err := c.Write(header)
-		if err != nil {
-			log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-			return
-		}
-		_, err = c.Write(msg)
-		if err != nil {
-			log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
-			return
-		}
-		if config.Test {
-			tool.SendHttp(config.ServerAddress, conn.RemoteAddr().String(), msg)
-		}
-	}(conn, config)
+	//go func(c net.Conn, config *Config) {
+	//	//写入消息包的大小
+	//	_, err := c.Write(header)
+	//	if err != nil {
+	//		log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
+	//		return
+	//	}
+	//	_, err = c.Write(msg)
+	//	if err != nil {
+	//		log.Printf("Error sending header to %v: %v", c.RemoteAddr(), err)
+	//		return
+	//	}
+	//	if config.Test {
+	//		tool.SendHttp(config.ServerAddress, conn.RemoteAddr().String(), msg)
+	//	}
+	//}(conn, config)
+	data := &SendData{
+		Conn:    conn,
+		Header:  header,
+		Payload: []byte{},
+		Msg:     msg,
+	}
+	sendChan <- data
 }
 
 // Close 关闭服务器
@@ -279,8 +297,35 @@ func (s *Server) Close() {
 	s.listener.Close()
 	s.Member.Lock()
 	for _, v := range s.Member.MetaData {
+
 		v.GetClient().Close()
 	}
 
 	s.Member.Unlock()
+}
+
+func (s *Server) Sender() {
+	for data := range sendChan {
+		_, err := data.Conn.Write(data.Header)
+		if err != nil {
+			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+			log.Printf("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
+			continue
+		}
+		_, err = data.Conn.Write(data.Payload)
+		if err != nil {
+			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+			log.Printf("Error sending payload to %v: %v", data.Conn.RemoteAddr(), err)
+			continue
+		}
+		_, err = data.Conn.Write(data.Msg)
+		if err != nil {
+			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+			log.Printf("Error sending message to %v: %v", data.Conn.RemoteAddr(), err)
+			continue
+		}
+		if s.Config.Test {
+			tool.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), data.Msg)
+		}
+	}
 }
