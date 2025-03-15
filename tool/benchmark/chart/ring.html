@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="./echarts.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script> -->
+</head>
+
+<body>
+    <div id="echartsMain" style="width: 80%; height: 1000px;"></div>
+    <button id="clean" onclick="clean()">clean</button>
+</body>
+
+</html>
+
+<script type="text/javascript">
+    function clean() {
+        let request = new XMLHttpRequest()
+        request.open("GET", "http://localhost:8111/clean")
+        request.onreadystatechange = function () {
+            if (request.readyState === 4 && request.status == 200) {
+                console.log("clean over")
+            }
+        }
+        request.send()
+    }
+
+    function draw(dataArr) {
+        let myChart = echarts.init(document.getElementById('echartsMain'));
+        let nodeSet = new Set()
+        let nodeLinkArr = new Array()
+        dataArr.forEach(element => {
+            nodeSet.add(element.From)
+            nodeSet.add(element.Target)
+            nodeLinkArr.push({ source: element.From, target: element.Target })
+        });
+
+        let nodeArr = new Array()
+        nodeSet.forEach(e => {
+            nodeArr.push(e)
+        })
+        nodeArr = nodeArr.sort()
+
+        let nodeDataArr = new Array()
+        let ang = 2 * Math.PI / nodeArr.length
+        let scal = 200
+        for (let i = 0; i < nodeArr.length; i++) {
+            nodeDataArr.push({ name: nodeArr[i], symbol: "circle", fixed: true, x: scal * Math.cos(ang * i), y: scal * Math.sin(ang * i) })
+        }
+        console.log(nodeLinkArr)
+
+        let option = {
+            series: [
+                {
+                    type: 'graph',
+                    layout: 'none',  // 使用自定义布局，以便固定节点位置生效
+                    data: nodeDataArr,
+                    links: nodeLinkArr,
+                    symbolSize: function (val) { // 使用函数来自定义节点大小，这里以椭圆为例，可以自定义大小和形状
+                        return [80, 80]; // [宽度, 高度]
+                    },
+                    itemStyle: {
+                        normal: {
+                            color: '#ffffff', // 设置背景颜色为橙色，使其看起来像是椭圆的填充色
+                            borderColor: '#000', // 设置边框颜色为黑色（可选）
+                            borderWidth: 1 // 设置边框宽度（可选）
+                        }
+                    },
+
+                    roam: true,  // 允许拖拽和缩放图表
+                    label: {
+                        show: true
+                    },
+                    autoCurveness: 0.01,
+                    edgeSymbol: ["", "arrow"], //边两边的类型
+                    label: {
+                        show: true,
+                        position: "inside",
+                        distance: 50,
+                        fontSize: 10,
+                        align: "center",
+                    },
+                }
+            ]
+        };
+
+        myChart.setOption(option);
+    }
+
+    async function getData() {
+        let request = new XMLHttpRequest()
+        request.open("GET", "http://localhost:8111/getRing")
+        request.onreadystatechange = function () {
+            if (request.readyState === 4 && request.status == 200) {
+                let response = JSON.parse(request.responseText)
+                draw(response)
+            }
+        }
+        request.send()
+    }
+
+    getData()
+</script>
