@@ -8,7 +8,7 @@ import (
 	"io"
 	"log"
 	"net"
-	"snow/internal/broadcast/dialer"
+	"snow/internal/dialer"
 	"snow/internal/membership"
 	"snow/internal/state"
 	"snow/tool"
