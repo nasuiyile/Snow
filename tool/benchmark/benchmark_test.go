@@ -106,21 +106,17 @@ func clean(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type Statistics struct {
-	Duration map[string]int
-	Avg      float64
-	S        float64
-}
-
 func getNodeStatistics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
+	// 获取全部轮次每个节点的消息量
 	nodeArr := make([]*MessageNode, 0)
 	for _, v := range cacheMap {
 		nodeArr = append(nodeArr, v.getNodes()...)
 	}
 
 	nodeMap := make(map[string][]MessageNode, 0)
+	// 将全部轮次的节点按节点分组
 	for _, node := range nodeArr {
 		if _, e := nodeMap[node.Node]; !e {
 			nodeMap[node.Node] = make([]MessageNode, 0)
@@ -128,6 +124,7 @@ func getNodeStatistics(w http.ResponseWriter, r *http.Request) {
 		nodeMap[node.Node] = append(nodeMap[node.Node], *node)
 	}
 
+	// 统计每个节点在多个轮次下的信息
 	nodeStatistic := make(map[string]MessageNode)
 	for k, v := range nodeMap {
 		fanInCount := 0
@@ -153,6 +150,7 @@ func getNodeStatistics(w http.ResponseWriter, r *http.Request) {
 		flowInS = flowInS / float64(len(v))
 		flowOutS = flowOutS / float64(len(v))
 		nodeStatistic[k] = MessageNode{
+			Node:  k,
 			FanIn: fanInCount, FanOut: fanOutCount,
 			FlowIn: flowInSum, FlowOut: flowOutSum,
 			FlowInAvg: flowInAvg, FlowOutAvg: flowOutAvg,
@@ -167,36 +165,83 @@ func getNodeStatistics(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(builder.String()))
 }
 
-// 计算扇入扇出方差
-func getStatistics(w http.ResponseWriter, r *http.Request) {
+func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	durationMap := make(map[string]int)
-	sum := 0.0
-	avg := 0.0
-	s := 0.0
+	// 统计每个轮次的消息信息
+	cycleMap := make(map[string]MessageCycle)
 	for k, v := range cacheMap {
-		sub := v.endTime - v.startTime
-		durationMap[k] = sub
-		sum += float64(sub)
-	}
+		cycle := MessageCycle{}
+		cycle.Id = k
+		cycle.BroadcastCount = len(v.getMessages())
+		// 广播产生的总流量
+		cycle.FlowSum = v.totalSize
+		// 广播总时间
+		cycle.LDT = v.endTime - v.startTime
 
-	if len(durationMap) > 0 {
-		avg = sum / float64(len(durationMap))
-		for _, v := range durationMap {
-			s += math.Pow(float64(v)-avg, 2)
+		m := 0
+		for _, message := range v.getMessages() {
+			m += message.Size
 		}
-		s = s / float64(len(durationMap))
+		n := len(v.getNodes())
+		cycle.RMR = (float64(m) / (float64(n) - 1)) - 1
+
+		// 统计有多少节点收到消息
+		set := make(map[string]int)
+		for _, m := range v.getMessages() {
+			if _, e := set[m.From]; !e {
+				set[m.From] = 0
+			}
+			set[m.From]++
+		}
+		cycle.Reliability = len(set)
+
+		// 统计节点的扇入扇出流量方差
+		nodeSet := make(map[string]*MessageNode)
+		for _, m := range v.getMessages() {
+			if _, e := nodeSet[m.From]; !e {
+				nodeSet[m.From] = &MessageNode{Node: m.From, FlowIn: 0, FlowOut: m.Size}
+			} else {
+				nodeSet[m.From].FlowOut += m.Size
+			}
+			if _, e := nodeSet[m.Target]; !e {
+				nodeSet[m.Target] = &MessageNode{Node: m.Target, FlowIn: m.Size, FlowOut: 0}
+			} else {
+				nodeSet[m.Target].FlowIn += m.Size
+			}
+		}
+
+		if len(nodeSet) > 0 {
+			flowInSum := 0
+			flowOutSum := 0
+			flowInAvg := 0.0
+			flowOutAvg := 0.0
+			flowInS := 0.0
+			flowOutS := 0.0
+			for _, v := range nodeSet {
+				flowInSum += v.FlowIn
+				flowOutSum += v.FlowOut
+			}
+			flowInAvg = float64(flowInSum) / float64(len(nodeSet))
+			flowOutAvg = float64(flowOutSum) / float64(len(nodeSet))
+			for _, v := range nodeSet {
+				flowInS += math.Pow(float64(v.FlowIn)-flowInAvg, 2)
+				flowOutS += math.Pow(float64(v.FlowOut)-flowOutAvg, 2)
+			}
+			flowInS = float64(flowInS) / float64(len(nodeSet))
+			flowOutS = float64(flowOutS) / float64(len(nodeSet))
+			cycle.FlowInS = flowInS
+			cycle.FlowOutS = flowOutS
+		}
+
+		cycleMap[k] = cycle
 	}
 
-	v := Statistics{Duration: durationMap, Avg: avg, S: s}
-	jsonData, err := json.Marshal(v)
-	if err != nil {
-		fmt.Println("Error converting to JSON:", jsonData)
-		return
-	}
+	var builder strings.Builder
+	marshal, _ := json.Marshal(cycleMap)
+	builder.WriteString(string(marshal))
 	w.WriteHeader(http.StatusOK)
-	w.Write(jsonData)
+	w.Write([]byte(builder.String()))
 }
 
 func Test_server(t *testing.T) {
@@ -210,8 +255,8 @@ func Test_server(t *testing.T) {
 	http.HandleFunc("/clean", clean)
 	http.HandleFunc("/getAllMessage", getAllMessage)
 	http.HandleFunc("/getAllNode", getAllNode)
-	http.HandleFunc("/getStatistics", getStatistics)
 	http.HandleFunc("/getNodeStatistics", getNodeStatistics)
+	http.HandleFunc("/getCycleStatistics", getCycleStatistics)
 
 	// 启动HTTP服务器
 	fmt.Println("Server is running on http://localhost:8111")

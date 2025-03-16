@@ -11,47 +11,40 @@ import (
 func Test_boardcast(t *testing.T) {
 	configPath := "..\\..\\config\\config.yml"
 
-	// 节点数量
 	n := 10
-	initPort := 50000
+	initPort := 40000
 	serverList := make([]*broadcast.Server, 0)
-	//serversAddresses := initAddress(n)
+	//serversAddresses := initAddress(n, initPort)
 	action := createAction()
 
-	for i := 0; i < n; i++ {
+	for i2 := 0; i2 < n; i2++ {
 		f := func(config *broadcast.Config) {
-			config.Port = initPort + i
+			config.Port = initPort + i2
+			config.DefaultServer = make([]string, 0)
 		}
 		config, err := broadcast.NewConfig(configPath, f)
 		if err != nil {
 			return
 		}
+		//time.Sleep(50 * time.Millisecond)
 		server, err := broadcast.NewServer(config, action)
 		if err != nil {
 			return
 		}
 		serverList = append(serverList, server)
 	}
-
-	defer func() {
-		for _, v := range serverList {
-			v.Close()
+	//模拟每隔1秒向所有客户端发送一条消息
+	go func() {
+		for i := 0; i < 5; i++ {
+			time.Sleep(1 * time.Second)
+			err := serverList[0].RegularMessage([]byte("hello from server!"), 0)
+			if err != nil {
+				log.Println("Error broadcasting message:", err)
+			}
+			//time.Sleep(2 * time.Second)
+			fmt.Printf("=== %d =====\n", i)
 		}
 	}()
-
-	// 测试轮数
-	for i := range 5 {
-		err := serverList[5].RegularMessage([]byte("hello from server!"), 0)
-		if err != nil {
-			log.Println("Error broadcasting message:", err)
-		}
-		// 1秒一轮
-		time.Sleep(1 * time.Second)
-		fmt.Printf("=== %d =====\n", i)
-	}
-
-	time.Sleep(10 * time.Second)
-
 	// 主线程保持运行
 	select {}
 }

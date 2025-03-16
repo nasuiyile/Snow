@@ -3,12 +3,11 @@ package benchmark
 import (
 	"math"
 	"sync"
-	"sync/atomic"
 )
 
 type MessageCache struct {
 	mu        sync.RWMutex
-	totalSize int64
+	totalSize int
 	startTime int
 	endTime   int
 	messages  []Message
@@ -27,12 +26,13 @@ func (cache *MessageCache) put(message Message) {
 	}
 
 	cache.messages = append(cache.messages, message)
-	atomic.AddInt64(&cache.totalSize, int64(message.Size))
+	cache.totalSize += message.Size
 }
 
 func (cache *MessageCache) getNodes() []*MessageNode {
 	nodeMap := make(map[string]*MessageNode, 0)
 	nodeArr := make([]*MessageNode, 0)
+	// 统计每个节点的消息量
 	for _, message := range cache.getMessages() {
 		if v, e := nodeMap[message.From]; e {
 			v.FanOut++
