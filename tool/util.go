@@ -34,7 +34,7 @@ func SendHttp(from string, target string, data []byte) {
 	//
 	//}
 	// 构建完整的URL，包括查询参数
-	baseURL := "http://+" + RemoteHttp + "+/putRing"
+	baseURL := "http://" + RemoteHttp + "/putRing"
 	fullURL := fmt.Sprintf("%s?%s", baseURL, values.Encode())
 
 	// 发送HTTP GET请求

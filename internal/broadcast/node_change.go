@@ -16,7 +16,7 @@ func NodeChange(msg []byte, ip string, s *Server, conn net.Conn) {
 	msg = msg[1:]
 	switch changeType {
 	case applyJoin:
-		applyJoining(s, conn)
+		applyJoining(s, ip, conn)
 	case joinStateSync:
 		joinStateSynchronizing(ip, data, s)
 	case regularStateSync:
@@ -24,11 +24,12 @@ func NodeChange(msg []byte, ip string, s *Server, conn net.Conn) {
 	default:
 	}
 }
-func applyJoining(s *Server, conn net.Conn) {
+func applyJoining(s *Server, ip string, conn net.Conn) {
 	//接收到消息然后推送
 	state := s.exportState()
 	data := PackTagToHead(nodeChange, joinStateSync, state)
-	s.replayMessage(conn, s.Config, data)
+	s.SendMessage(ip, []byte{}, data)
+	//s.replayMessage(conn, s.Config, data)
 }
 
 // 接收到同步消息
@@ -36,7 +37,7 @@ func joinStateSynchronizing(ip string, msg []byte, s *Server) {
 	//同步节点的信息，同步完毕之后请求加入节点
 	s.importState(msg)
 	//使用标准消息广播自己需要加入
-	s.ColoringMessage(s.Config.IPBytes(), nodeJoin)
+	s.RegularMessage(s.Config.IPBytes(), nodeJoin)
 }
 func PackTagToHead(msgType MsgType, changeType MsgAction, msg []byte) []byte {
 	data := make([]byte, len(msg)+TimeLen+TagLen)

@@ -12,7 +12,6 @@ import (
 	"snow/internal/membership"
 	"snow/internal/state"
 	"snow/tool"
-	"time"
 )
 
 // 定义一个结构体来封装发送的数据
@@ -59,9 +58,9 @@ func NewServer(config *Config, action Action) (*Server, error) {
 	server.Member.FindOrInsert(config.IPBytes())
 	go server.startAcceptingConnections() // 启动接受连接的协程
 	// 主动连接到其他客户端
-	//for _, addr := range clientList {
-	//	go server.connectToClient(addr)
-	//}
+	for _, addr := range config.DefaultServer {
+		server.Member.AddMember(tool.IPv4To6Bytes(addr))
+	}
 	server.schedule()
 	server.ApplyJoin(config.InitialServer)
 	log.Printf("Server is running on port %d...\n\n", config.Port)
@@ -98,6 +97,7 @@ func (s *Server) startAcceptingConnections() {
 		metaData := membership.NewEmptyMetaData()
 		metaData.SetServer(conn)
 		s.Member.PutMemberIfNil(serverIp, metaData)
+
 		// todo 后期优化成只能保持k个连接
 		go s.handleConnection(conn, false) // 处理客户端连接
 
@@ -125,8 +125,7 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 		}
 
 		// 读取消息头 (4字节表示消息长度)
-		conn.SetReadDeadline(time.Now().Add(300 * time.Second))
-		conn.SetDeadline(time.Now().Add(300 * time.Second))
+
 		header := make([]byte, 4)
 		_, err := io.ReadFull(reader, header)
 		if err != nil {
@@ -181,12 +180,8 @@ func (s *Server) connectToClient(addr string) error {
 	return nil
 }
 func (s *Server) connectToPeer(addr string) (net.Conn, error) {
-	if s.Config.Test {
-		s.Member.Lock()
-		defer s.Member.Unlock()
-		s.Member.PutMemberIfNil(addr, membership.NewEmptyMetaData())
-		s.Member.FindOrInsert(tool.IPv4To6Bytes(addr))
-	}
+	s.Member.Lock()
+	defer s.Member.Unlock()
 
 	// 赋值给 Dialer 的 LocalAddr
 	conn, err := s.client.Dial("tcp", addr)
@@ -194,9 +189,11 @@ func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 		log.Printf("Failed to connect to %s: %v\n", addr, err)
 		return nil, err
 	}
+	metaData := membership.NewEmptyMetaData()
+	metaData.SetClient(conn)
+	s.Member.PutMemberIfNil(addr, metaData)
 
 	log.Printf("Connected to %s\n", addr)
-	s.Member.AddNode(conn, true)
 	return conn, nil
 }
 func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
@@ -207,10 +204,10 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 	var conn net.Conn
 	var err error
 	if metaData == nil {
+		conn, err = s.connectToPeer(ip)
 		//建立临时连接
-		conn, err = s.client.Dial("tcp", ip)
 		if err != nil {
-			log.Printf("Failed to connect to %s: %v\n", ip, err)
+			log.Println(s.Config.ServerAddress, "can't connect to ", ip)
 			return
 		}
 	} else {
@@ -223,10 +220,6 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 			log.Println(s.Config.ServerAddress, "can't connect to ", ip)
 			return
 		} else {
-			metaData = membership.NewEmptyMetaData()
-			metaData.SetServer(conn)
-			metaData.SetClient(newConn)
-			s.Member.PutMemberIfNil(ip, metaData)
 			conn = newConn
 		}
 	}
@@ -251,6 +244,7 @@ func (s *Server) replayMessage(conn net.Conn, config *Config, msg []byte) {
 	length := uint32(len(msg))
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, length)
+	fmt.Println(conn.RemoteAddr().String())
 	data := &SendData{
 		Conn:    conn,
 		Header:  header,

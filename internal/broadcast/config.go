@@ -75,13 +75,15 @@ func NewConfig(filename string, opts ...ConfigOption) (*Config, error) {
 	if err != nil {
 		panic(err)
 	}
+
+	config.DefaultServer = strings.Split(config.DefaultAddress, ",")
+
+	tool.RemoteHttp = config.RemoteHttp
 	for _, action := range opts {
 		action(config)
 	}
-	config.DefaultServer = strings.Split(config.DefaultAddress, ",")
 	config.ClientAddress = fmt.Sprintf("%s:%d", config.LocalAddress, config.Port+config.ClientPortOffset)
 	config.ServerAddress = fmt.Sprintf("%s:%d", config.LocalAddress, config.Port)
-	tool.RemoteHttp = config.RemoteHttp
 	return config, nil
 }
 
