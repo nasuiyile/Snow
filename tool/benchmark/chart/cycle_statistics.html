@@ -17,17 +17,23 @@
 
         let xData = []
 
-        let MessageCount = []
+        let BroadcastCount = []
         let FlowSum = []
         let LDT = []
         let RMR = []
+        let Reliability = []
+        let FlowInS = []
+        let FlowOutS = []
 
         Object.entries(dataArr).forEach(([k, v]) => {
             xData.push(k)
-            MessageCount.push(v.MessageCount)
+            BroadcastCount.push(v.BroadcastCount)
             FlowSum.push(v.FlowSum)
             LDT.push(v.LDT)
             RMR.push(v.RMR)
+            Reliability.push(v.Reliability)
+            FlowInS.push(v.FlowInS)
+            FlowOutS.push(v.FlowOutS)
         });
 
         var option = {
@@ -48,13 +54,13 @@
                 max: 'dataMax'
             },
             legend: {
-                data: ['消息数量', '总流量', 'LDT', 'RMR']
+                data: ['广播次数', '总流量', 'LDT', 'RMR', 'Reliability', '扇入流量方差', '扇出流量方差']
             },
             series: [
                 {
-                    name: '消息数量',
+                    name: '广播次数',
                     type: 'line',
-                    data: MessageCount
+                    data: BroadcastCount
                 },
                 {
                     name: '总流量',
@@ -70,6 +76,21 @@
                     name: 'RMR',
                     type: 'line',
                     data: RMR
+                },
+                {
+                    name: 'Reliability',
+                    type: 'line',
+                    data: Reliability
+                },
+                {
+                    name: '扇入流量方差',
+                    type: 'line',
+                    data: FlowInS
+                },
+                {
+                    name: '扇出流量方差',
+                    type: 'line',
+                    data: FlowOutS
                 }
             ]
         };

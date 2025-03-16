@@ -24,9 +24,12 @@ type MessageNode struct {
 
 // 每个轮次统计统计信息
 type MessageCycle struct {
-	Id           string
-	MessageCount int
-	FlowSum      int
-	LDT          int
-	RMR          float64
+	Id             string
+	BroadcastCount int
+	FlowSum        int
+	Reliability    int
+	LDT            int
+	RMR            float64
+	FlowInS        float64
+	FlowOutS       float64
 }
