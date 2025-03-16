@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="./echarts.js"></script>
+</head>
+
+<body>
+    <div id="echartsMain" style="width: 90%; height: 500px;"></div>
+</body>
+
+</html>
+
+<script type="text/javascript">
+    function draw(dataArr) {
+        let myChart = echarts.init(document.getElementById('echartsMain'));
+
+        let xData = []
+
+        let MessageCount = []
+        let FlowSum = []
+        let LDT = []
+        let RMR = []
+
+        Object.entries(dataArr).forEach(([k, v]) => {
+            xData.push(k)
+            MessageCount.push(v.MessageCount)
+            FlowSum.push(v.FlowSum)
+            LDT.push(v.LDT)
+            RMR.push(v.RMR)
+        });
+
+        var option = {
+            title: {
+                text: '消息广播信息统计'
+            },
+            tooltip: {
+                trigger: 'axis'
+            },
+            xAxis: {
+                type: 'category',
+                interval: 0,
+                data: xData
+            },
+            yAxis: {
+                type: 'value',
+                min: "dataMin",
+                max: 'dataMax'
+            },
+            legend: {
+                data: ['消息数量', '总流量', 'LDT', 'RMR']
+            },
+            series: [
+                {
+                    name: '消息数量',
+                    type: 'line',
+                    data: MessageCount
+                },
+                {
+                    name: '总流量',
+                    type: 'line',
+                    data: FlowSum
+                },
+                {
+                    name: 'LDT',
+                    type: 'line',
+                    data: LDT
+                },
+                {
+                    name: 'RMR',
+                    type: 'line',
+                    data: RMR
+                }
+            ]
+        };
+        myChart.setOption(option);
+    }
+
+    async function getData() {
+        let request = new XMLHttpRequest()
+        request.open("GET", "http://localhost:8111/getCycleStatistics")
+        request.onreadystatechange = function () {
+            if (request.readyState === 4 && request.status == 200) {
+                let response = JSON.parse(request.responseText)
+                console.log(response)
+                draw(response)
+            }
+        }
+        request.send()
+    }
+
+    getData()
+</script>

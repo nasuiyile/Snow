@@ -106,21 +106,17 @@ func clean(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type Statistics struct {
-	Duration map[string]int
-	Avg      float64
-	S        float64
-}
-
 func getNodeStatistics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
+	// 获取全部轮次每个节点的消息量
 	nodeArr := make([]*MessageNode, 0)
 	for _, v := range cacheMap {
 		nodeArr = append(nodeArr, v.getNodes()...)
 	}
 
 	nodeMap := make(map[string][]MessageNode, 0)
+	// 将全部轮次的节点按节点分组
 	for _, node := range nodeArr {
 		if _, e := nodeMap[node.Node]; !e {
 			nodeMap[node.Node] = make([]MessageNode, 0)
@@ -128,6 +124,7 @@ func getNodeStatistics(w http.ResponseWriter, r *http.Request) {
 		nodeMap[node.Node] = append(nodeMap[node.Node], *node)
 	}
 
+	// 统计每个节点在多个轮次下的信息
 	nodeStatistic := make(map[string]MessageNode)
 	for k, v := range nodeMap {
 		fanInCount := 0
@@ -153,6 +150,7 @@ func getNodeStatistics(w http.ResponseWriter, r *http.Request) {
 		flowInS = flowInS / float64(len(v))
 		flowOutS = flowOutS / float64(len(v))
 		nodeStatistic[k] = MessageNode{
+			Node:  k,
 			FanIn: fanInCount, FanOut: fanOutCount,
 			FlowIn: flowInSum, FlowOut: flowOutSum,
 			FlowInAvg: flowInAvg, FlowOutAvg: flowOutAvg,
@@ -167,36 +165,30 @@ func getNodeStatistics(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(builder.String()))
 }
 
-// 计算扇入扇出方差
-func getStatistics(w http.ResponseWriter, r *http.Request) {
+func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	durationMap := make(map[string]int)
-	sum := 0.0
-	avg := 0.0
-	s := 0.0
+	// 统计每个轮次的消息信息
+	cycleMap := make(map[string]MessageCycle)
 	for k, v := range cacheMap {
-		sub := v.endTime - v.startTime
-		durationMap[k] = sub
-		sum += float64(sub)
+		cycle := MessageCycle{}
+		cycle.Id = k
+		cycle.MessageCount = len(v.getMessages())
+		cycle.FlowSum = v.totalSize
+		cycle.LDT = v.endTime - v.startTime
+
+		m := len(v.getMessages())
+		n := len(v.getNodes())
+		cycle.RMR = (float64(m) / (float64(n) - 1)) - 1
+
+		cycleMap[k] = cycle
 	}
 
-	if len(durationMap) > 0 {
-		avg = sum / float64(len(durationMap))
-		for _, v := range durationMap {
-			s += math.Pow(float64(v)-avg, 2)
-		}
-		s = s / float64(len(durationMap))
-	}
-
-	v := Statistics{Duration: durationMap, Avg: avg, S: s}
-	jsonData, err := json.Marshal(v)
-	if err != nil {
-		fmt.Println("Error converting to JSON:", jsonData)
-		return
-	}
+	var builder strings.Builder
+	marshal, _ := json.Marshal(cycleMap)
+	builder.WriteString(string(marshal))
 	w.WriteHeader(http.StatusOK)
-	w.Write(jsonData)
+	w.Write([]byte(builder.String()))
 }
 
 func Test_server(t *testing.T) {
@@ -210,8 +202,8 @@ func Test_server(t *testing.T) {
 	http.HandleFunc("/clean", clean)
 	http.HandleFunc("/getAllMessage", getAllMessage)
 	http.HandleFunc("/getAllNode", getAllNode)
-	http.HandleFunc("/getStatistics", getStatistics)
 	http.HandleFunc("/getNodeStatistics", getNodeStatistics)
+	http.HandleFunc("/getCycleStatistics", getCycleStatistics)
 
 	// 启动HTTP服务器
 	fmt.Println("Server is running on http://localhost:8111")

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="./echarts.js"></script>
+</head>
+
+<body>
+    <div id="echartsMain" style="width: 90%; height: 500px;"></div>
+</body>
+
+</html>
+
+<script type="text/javascript">
+    function draw(dataArr) {
+        let myChart = echarts.init(document.getElementById('echartsMain'));
+
+        let xData = []
+
+        let flowInS = []
+        let flowOutS = []
+
+        Object.entries(dataArr).forEach(([k, v]) => {
+            xData.push(k.split(":")[1])
+
+            flowInS.push(v.FlowInS)
+            flowOutS.push(v.FlowOutS)
+        });
+
+        var option = {
+            title: {
+                text: '扇入扇出流量方差'
+            },
+            tooltip: {
+                trigger: 'axis'
+            },
+            xAxis: {
+                type: 'category',
+                interval: 0,
+                data: xData
+            },
+            yAxis: {
+                type: 'value',
+                min: "dataMin",
+                max: 'dataMax'
+            },
+            legend: {
+                data: ['扇入方差', '扇出方差']
+            },
+            series: [
+                {
+                    name: '扇入方差',
+                    type: 'line',
+                    data: flowInS
+                },
+                {
+                    name: '扇出方差',
+                    type: 'line',
+                    data: flowOutS
+                }
+            ]
+        };
+        myChart.setOption(option);
+    }
+
+    async function getData() {
+        let request = new XMLHttpRequest()
+        request.open("GET", "http://localhost:8111/getNodeStatistics")
+        request.onreadystatechange = function () {
+            if (request.readyState === 4 && request.status == 200) {
+                let response = JSON.parse(request.responseText)
+                console.log(response)
+                draw(response)
+            }
+        }
+        request.send()
+    }
+
+    getData()
+</script>
