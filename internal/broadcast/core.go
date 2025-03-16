@@ -198,6 +198,8 @@ func (s *Server) ReportLeave(ip []byte) {
 }
 
 func (s *Server) exportState() []byte {
+	s.Member.Lock()
+	defer s.Member.Unlock()
 	var buffer bytes.Buffer
 	encoder := gob.NewEncoder(&buffer)
 	err := encoder.Encode(s.Member.MetaData)

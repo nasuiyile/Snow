@@ -1,7 +1,6 @@
 package membership
 
 import (
-	"fmt"
 	"net"
 	"snow/tool"
 	"sort"
@@ -47,13 +46,8 @@ func (m *MemberShipList) InitState(metaDataMap map[string]*MetaData, currentIp [
 		} else {
 			m.MetaData[k] = v
 		}
+		m.FindOrInsert(tool.IPv4To6Bytes(k))
 	}
-	ipTable := make([][]byte, 0)
-	for _, v := range keys {
-		ipTable = append(ipTable, tool.IPv4To6Bytes(v))
-	}
-	m.IPTable = ipTable
-	m.FindOrInsert(currentIp)
 }
 
 func (m *MetaData) GetServer() net.Conn {
@@ -95,7 +89,8 @@ func (m *MemberShipList) FindOrInsert(target []byte) (int, bool) {
 	copy(m.IPTable[index+1:], m.IPTable[index:])
 	m.IPTable[index] = append([]byte{}, target...) // 插入新元素
 
-	fmt.Println("Inserted at index:", index)
+	//fmt.Println("Inserted at index:", index)
+
 	return index, true
 
 }
@@ -117,32 +112,10 @@ func BytesCompare(a, b []byte) int {
 	return 0
 }
 
-func NewMetaData(conn net.Conn) *MetaData {
-	return &MetaData{
-		Version: 0,
-		client:  conn,
-	}
-}
 func NewEmptyMetaData() *MetaData {
 	return &MetaData{
 		Version: 0,
 		client:  nil,
-	}
-}
-
-func (m *MemberShipList) AddNode(conn net.Conn, joinRing bool) {
-	m.Lock()
-	defer m.Unlock()
-	addr := conn.RemoteAddr().String()
-	v, ok := m.MetaData[addr]
-	if ok {
-		v.client = conn
-	} else {
-		m.MetaData[addr] = NewMetaData(conn)
-	}
-	if joinRing {
-		bytes := tool.IPv4To6Bytes(addr)
-		m.FindOrInsert(bytes)
 	}
 }
 
@@ -201,4 +174,5 @@ func (m *MemberShipList) PutMemberIfNil(key string, value *MetaData) {
 	if data.server == nil && value.server != nil {
 		data.server = value.server
 	}
+	m.FindOrInsert(tool.IPv4To6Bytes(key))
 }

@@ -54,16 +54,17 @@ func handler(msg []byte, s *Server, conn net.Conn) {
 		if !isFirst(body, msgType, msgAction, s) {
 			return
 		}
+		if msgAction == nodeJoin {
+			//如果不存在
+			s.Member.AddMember(s.Config.CutTimestamp(body))
+		}
 		forward(msg, s, parentIP)
 	case coloringMsg:
 		body := s.Config.CutBytes(msg)
 		if !isFirst(body, msgType, msgAction, s) {
 			return
 		}
-		if msgAction == nodeJoin {
-			//如果不存在
-			s.Member.AddMember(s.Config.CutTimestamp(body))
-		} else if msgAction == reportLeave {
+		if msgAction == reportLeave {
 			s.Member.RemoveMember(s.Config.CutTimestamp(body))
 		}
 		forward(msg, s, parentIP)

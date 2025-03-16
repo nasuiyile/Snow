@@ -9,18 +9,19 @@ import (
 
 func main() {
 	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
-	n := 50
-	initPort := 50000
+	n := 1000
+	initPort := 40000
 	serverList := make([]*broadcast.Server, 0)
-	//serversAddresses := initAddress(n)
+	//serversAddresses := initAddress(n, initPort)
 	action := createAction()
 
-	for i := 0; i < n; i++ {
+	for i2 := 0; i2 < n; i2++ {
 		f := func(config *broadcast.Config) {
-			config.Port = initPort + i
+			config.Port = initPort + i2
+			config.DefaultServer = make([]string, 0)
 		}
 		config, err := broadcast.NewConfig(configPath, f)
-		time.Sleep(20 * time.Millisecond)
+		//time.Sleep(50 * time.Millisecond)
 		server, err := broadcast.NewServer(config, action)
 		if err != nil {
 			return
@@ -30,9 +31,8 @@ func main() {
 	//模拟每隔1秒向所有客户端发送一条消息
 	go func() {
 		for i := 0; i < 50000000000000; i++ {
-
-			time.Sleep(2 * time.Second)
-			err := serverList[5].RegularMessage([]byte("hello from server!"), 0)
+			time.Sleep(5 * time.Second)
+			err := serverList[0].RegularMessage([]byte("hello from server!"), 0)
 			if err != nil {
 				log.Println("Error broadcasting message:", err)
 			}
@@ -46,7 +46,7 @@ func main() {
 func initAddress(n int, port int) []string {
 	strings := make([]string, 0)
 	for i := 0; i < n; i++ {
-		addr := fmt.Sprintf("127.0.0.1:%d", port)
+		addr := fmt.Sprintf("127.0.0.1:%d", port+i)
 		strings = append(strings, addr)
 	}
 	return strings
@@ -55,9 +55,7 @@ func initAddress(n int, port int) []string {
 func createAction() broadcast.Action {
 	syncAction := func(bytes []byte) bool {
 		s := string(bytes)
-		if s != "hello from server!" {
-			fmt.Println()
-		}
+
 		fmt.Println("这里是同步处理消息的逻辑：", s)
 		return true
 	}

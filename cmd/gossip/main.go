@@ -35,27 +35,19 @@ func main2() {
 		LocalAddr: localAddr,
 		Control: func(network, address string, c syscall.RawConn) error {
 			return c.Control(func(fd uintptr) {
-				// 设置 SO_REUSEADDR
-				//err := syscall.SetsockoptInt(syscall.Handle(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-				//if err != nil {
-				//	fmt.Println("设置 SO_REUSEADDR 失败:", err)
-				//}
-				linger := syscall.Linger{
-					Onoff:  1,
-					Linger: 0,
-				}
-				err := syscall.SetsockoptLinger(syscall.Handle(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, &linger)
+				//设置 SO_REUSEADDR
+				err := syscall.SetsockoptInt(syscall.Handle(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
 				if err != nil {
 					fmt.Println("设置 SO_REUSEADDR 失败:", err)
 				}
+
 			})
 		},
 	}
-
 	// 连接到第二个服务器
 	conn2, err := dialer.Dial("tcp", "127.0.0.1:9071")
-	//tcpConn := conn2.(*net.TCPConn)
-	//tcpConn.SetLinger(0)
+	tcpConn := conn2.(*net.TCPConn)
+	tcpConn.SetLinger(0)
 	if err != nil {
 		fmt.Println("连接失败:", err)
 		return
@@ -68,8 +60,8 @@ func main2() {
 
 	// 断开之后重连
 	conn2, err = dialer.Dial("tcp", "127.0.0.1:9071")
-	//tcpConn = conn2.(*net.TCPConn)
-	//tcpConn.SetLinger(0)
+	tcpConn = conn2.(*net.TCPConn)
+	tcpConn.SetLinger(0)
 	if err != nil {
 		fmt.Println("连接失败:", err)
 		return
@@ -77,6 +69,7 @@ func main2() {
 	fmt.Println("连接成功:", conn2.LocalAddr())
 	defer conn2.Close()
 }
+
 func s(port string) {
 	listener, err := net.Listen("tcp", port)
 	if err != nil {

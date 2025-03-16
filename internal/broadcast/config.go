@@ -30,6 +30,7 @@ type Config struct {
 	InitialServer    string        `yaml:"InitialServer"`
 	DefaultServer    []string
 	DefaultAddress   string `yaml:"DefaultAddress"`
+	RemoteHttp       string `yaml:"RemoteHttp"`
 }
 
 // CutBytes 这个方法会留下时间戳
@@ -74,13 +75,15 @@ func NewConfig(filename string, opts ...ConfigOption) (*Config, error) {
 	if err != nil {
 		panic(err)
 	}
+
+	config.DefaultServer = strings.Split(config.DefaultAddress, ",")
+
+	tool.RemoteHttp = config.RemoteHttp
 	for _, action := range opts {
 		action(config)
 	}
-	config.DefaultServer = strings.Split(config.DefaultAddress, ",")
 	config.ClientAddress = fmt.Sprintf("%s:%d", config.LocalAddress, config.Port+config.ClientPortOffset)
 	config.ServerAddress = fmt.Sprintf("%s:%d", config.LocalAddress, config.Port)
-
 	return config, nil
 }
 
@@ -103,5 +106,5 @@ func (c *Config) GetReliableTimeOut() int64 {
 func (c *Config) GetServerIp(clientIp string) string {
 	split := strings.Split(clientIp, ":")
 	port, _ := strconv.Atoi(split[1])
-	return fmt.Sprintf("127.0.0.1:%d", port-c.ClientPortOffset)
+	return fmt.Sprintf("%s:%d", split[0], port-c.ClientPortOffset)
 }
