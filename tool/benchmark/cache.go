@@ -58,19 +58,18 @@ func (cache *MessageCache) getMessages() []Message {
 	return values
 }
 
-func (cache *MessageCache) getMessagesGroupByMsgType() map[byte][]Message {
+func (cache *MessageCache) getMessagesByGroup(msgType byte) []Message {
 	values := make([]Message, 0)
 	values = append(values, cache.messages...)
 
-	msgTypeMap := make(map[byte][]Message)
+	msgTypeArr := make([]Message, 0)
 	for _, m := range values {
-		if _, e := msgTypeMap[m.MsgType]; !e {
-			msgTypeMap[m.MsgType] = make([]Message, 0)
+		if m.MsgType == msgType {
+			msgTypeArr = append(msgTypeArr, m)
 		}
-		msgTypeMap[m.MsgType] = append(msgTypeMap[m.MsgType], m)
 	}
 
-	return msgTypeMap
+	return msgTypeArr
 }
 
 func (cache *MessageCache) clearAll() {
