@@ -38,7 +38,7 @@ func SendHttp(from string, target string, data []byte, k int) {
 			values.Add("Id", string(data[TagLen+IpLen*2:TagLen+IpLen*2+TimeLen]))
 		}
 		values.Add("FanOut", strconv.Itoa(k))
-		values.Add("Num", Num)
+		values.Add("Num", strconv.Itoa(Num))
 
 		values.Add("MsgType", strconv.Itoa(int(data[0])))
 		values.Add("Size", fmt.Sprintf("%d", len(data)))
