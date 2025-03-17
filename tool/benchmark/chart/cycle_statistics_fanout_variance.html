@@ -17,23 +17,11 @@
 
         let xData = []
 
-        let BroadcastCount = []
-        let FlowSum = []
-        let LDT = []
-        let RMR = []
-        let Reliability = []
-        let FlowInS = []
-        let FlowOutS = []
+        let FlowOutS_8 = []
 
-        Object.entries(dataArr).forEach(([k, v]) => {
+        Object.entries(dataArr['8']).forEach(([k, v]) => {
             xData.push(k)
-            BroadcastCount.push(v.BroadcastCount)
-            FlowSum.push(v.FlowSum)
-            LDT.push(v.LDT)
-            RMR.push(v.RMR)
-            Reliability.push(v.Reliability)
-            FlowInS.push(v.FlowInS)
-            FlowOutS.push(v.FlowOutS)
+            FlowOutS_8.push(v.FlowInS)
         });
 
         var option = {
@@ -63,7 +51,7 @@
                 {
                     name: 'Fanout Traffic Variance',
                     type: 'line',
-                    data: FlowOutS
+                    data: FlowOutS_8
                 }
             ]
         };

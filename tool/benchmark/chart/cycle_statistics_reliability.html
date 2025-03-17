@@ -17,11 +17,11 @@
 
         let xData = []
 
-        let Reliability = []
+        let Reliability_8 = []
 
-        Object.entries(dataArr).forEach(([k, v]) => {
+        Object.entries(dataArr['8']).forEach(([k, v]) => {
             xData.push(k)
-            Reliability.push(v.Reliability)
+            Reliability_8.push(v.Reliability)
         });
 
         var option = {
@@ -51,7 +51,7 @@
                 {
                     name: 'Fanin Traffic Reliability',
                     type: 'line',
-                    data: Reliability
+                    data: Reliability_8
                 },
             ]
         };

@@ -174,78 +174,20 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	// 统计每个轮次的消息信息
+	cycleTypeMap := make(map[byte]map[string]MessageCycle)
 	cycleMap := make(map[string]MessageCycle)
-	for k, v := range cacheMap {
-		nodeCount := len(v.getMessages())
-		staticticsCycle(v.getMessages(), nodeCount)
-		cycle := MessageCycle{}
-		cycle.Id = k
-		// cycle.BroadcastCount = nodeCount
-		// 广播产生的总流量
-		cycle.FlowSum = v.totalSize
-		// 广播总时间
-		cycle.LDT = v.endTime - v.startTime
-
-		m := 0
-		for _, message := range v.getMessages() {
-			m += message.Size
+	for msgType, _ := range msgIdMap {
+		for k, v := range cacheMap {
+			messageGroup := v.getMessagesByGroup(msgType)
+			nodeCount := len(v.getMessages())
+			cycle := staticticsCycle(messageGroup, nodeCount)
+			cycleMap[k] = cycle
 		}
-		n := len(v.getNodes())
-		cycle.RMR = (float64(m) / (float64(n) - 1)) - 1
-
-		// 统计有多少节点收到消息
-		set := make(map[string]int)
-		for _, m := range v.getMessages() {
-			if _, e := set[m.From]; !e {
-				set[m.From] = 0
-			}
-			set[m.From]++
-		}
-		cycle.Reliability = len(set)
-
-		// 统计节点的扇入扇出流量方差
-		nodeSet := make(map[string]*MessageNode)
-		for _, m := range v.getMessages() {
-			if _, e := nodeSet[m.From]; !e {
-				nodeSet[m.From] = &MessageNode{Node: m.From, FlowIn: 0, FlowOut: m.Size}
-			} else {
-				nodeSet[m.From].FlowOut += m.Size
-			}
-			if _, e := nodeSet[m.Target]; !e {
-				nodeSet[m.Target] = &MessageNode{Node: m.Target, FlowIn: m.Size, FlowOut: 0}
-			} else {
-				nodeSet[m.Target].FlowIn += m.Size
-			}
-		}
-
-		if len(nodeSet) > 0 {
-			flowInSum := 0
-			flowOutSum := 0
-			flowInAvg := 0.0
-			flowOutAvg := 0.0
-			flowInS := 0.0
-			flowOutS := 0.0
-			for _, v := range nodeSet {
-				flowInSum += v.FlowIn
-				flowOutSum += v.FlowOut
-			}
-			flowInAvg = float64(flowInSum) / float64(len(nodeSet))
-			flowOutAvg = float64(flowOutSum) / float64(len(nodeSet))
-			for _, v := range nodeSet {
-				flowInS += math.Pow(float64(v.FlowIn)-flowInAvg, 2)
-				flowOutS += math.Pow(float64(v.FlowOut)-flowOutAvg, 2)
-			}
-			flowInS = float64(flowInS) / float64(len(nodeSet))
-			flowOutS = float64(flowOutS) / float64(len(nodeSet))
-			cycle.FlowInS = flowInS
-			cycle.FlowOutS = flowOutS
-		}
-
-		cycleMap[k] = cycle
+		cycleTypeMap[msgType] = cycleMap
 	}
 
 	var builder strings.Builder
-	marshal, _ := json.Marshal(cycleMap)
+	marshal, _ := json.Marshal(cycleTypeMap)
 	builder.WriteString(string(marshal))
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(builder.String()))
