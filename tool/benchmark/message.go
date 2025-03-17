@@ -10,6 +10,8 @@ type Message struct {
 	Timestamp int
 	Primary   bool
 	MsgType   byte
+	Num       int
+	FanOut    int
 }
 
 // 每个节点统计信息
