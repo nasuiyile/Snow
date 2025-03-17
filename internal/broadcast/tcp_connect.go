@@ -137,6 +137,7 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 				fmt.Println("Normal EOF: connection closed by client")
 			}
 			fmt.Println(conn.RemoteAddr().String())
+			s.Member.RemoveMember(tool.IPv4To6Bytes(conn.RemoteAddr().String()))
 			return
 		}
 
@@ -271,7 +272,7 @@ func (s *Server) Sender() {
 		}
 		if s.Config.Test {
 			bytes := append(data.Payload, data.Msg...)
-			tool.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), bytes)
+			tool.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), bytes, s.Config.FanOut)
 		}
 	}
 }

@@ -14,10 +14,15 @@ func main() {
 
 	// 节点数量
 	n := 200
-	initPort := 40000
+	//扇出大小
+	k := 2
+
+	//消息大小
+	strLen := 100
 	//测试轮数
 	rounds := 50
-	strLen := 100
+	initPort := 40000
+
 	msg := randomByteArray(strLen)
 	serverList := make([]*broadcast.Server, 0)
 	//serversAddresses := initAddress(n)
@@ -25,6 +30,7 @@ func main() {
 		action := createAction(i + 1)
 		f := func(config *broadcast.Config) {
 			config.Port = initPort + i
+			config.FanOut = k
 		}
 		config, err := broadcast.NewConfig(configPath, f)
 		if err != nil {
@@ -46,6 +52,7 @@ func main() {
 	}()
 	//节点启动完之后再跑
 	time.Sleep(time.Duration(n/20) * time.Second)
+	tool.Num = n
 	// 测试轮数
 	//for i := range rounds {
 	//	// 1秒一轮
@@ -87,7 +94,7 @@ func main() {
 func createAction(num int) broadcast.Action {
 	syncAction := func(bytes []byte) bool {
 		s := string(bytes)
-		//随机睡眠时间，
+		//随机睡眠时间，百分之5的节点是掉队者节点
 		if num%20 == 0 {
 			time.Sleep(1 * time.Second)
 		} else {
