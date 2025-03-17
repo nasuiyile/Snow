@@ -52,6 +52,7 @@ func main() {
 	}()
 	//节点启动完之后再跑
 	time.Sleep(time.Duration(n/20) * time.Second)
+	tool.Num = n
 	// 测试轮数
 	//for i := range rounds {
 	//	// 1秒一轮

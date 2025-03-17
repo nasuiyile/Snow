@@ -24,8 +24,9 @@ var RemoteHttp = "127.0.0.1:8111"
 var IpLen = 6
 var TagLen = 6
 var TimeLen = 6
+var Num = 100
 
-func SendHttp(from string, target string, data []byte) {
+func SendHttp(from string, target string, data []byte, k int) {
 	if data[1] == 0 {
 		values := url.Values{}
 		values.Add("From", from)
@@ -36,7 +37,11 @@ func SendHttp(from string, target string, data []byte) {
 		} else {
 			values.Add("Id", string(data[TagLen+IpLen*2:TagLen+IpLen*2+TimeLen]))
 		}
+		values.Add("FanOut", strconv.Itoa(k))
+		values.Add("Num", Num)
+
 		values.Add("MsgType", strconv.Itoa(int(data[0])))
+		values.Add("Size", fmt.Sprintf("%d", len(data)))
 
 		baseURL := "http://" + RemoteHttp + "/putRing"
 		fullURL := fmt.Sprintf("%s?%s", baseURL, values.Encode())
