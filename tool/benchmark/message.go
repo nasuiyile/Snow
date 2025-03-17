@@ -10,8 +10,10 @@ type Message struct {
 	Timestamp int
 	Primary   bool
 	MsgType   byte
-	Num       int
-	FanOut    int
+
+	Num       int `json:"Num"`
+	FanOut    int `json:"FanOut"`
+
 }
 
 // 每个节点统计信息
