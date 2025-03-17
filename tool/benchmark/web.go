@@ -7,22 +7,27 @@ import (
 	"math"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/schema"
 )
 
 var cacheMap map[string]*MessageCache
+var msgIdMap map[byte]map[string]int
+var rm sync.RWMutex
 
-var num = 0
-var startTime = time.Now()
+func getMessageId(m Message) string {
+	rm.Lock()
+	defer rm.Unlock()
 
-func getMessageId() string {
-	now := time.Now()
-	if now.Sub(startTime).Milliseconds() > 500 {
-		num++
+	if _, e := msgIdMap[m.MsgType]; !e {
+		msgIdMap[m.MsgType] = make(map[string]int)
 	}
-	startTime = now
+	if _, e := msgIdMap[m.MsgType][m.Id]; !e {
+		msgIdMap[m.MsgType][m.Id] = len(msgIdMap[m.MsgType]) + 1
+	}
+	num := msgIdMap[m.MsgType][m.Id]
 	return fmt.Sprintf("%d", num)
 }
 
@@ -37,7 +42,7 @@ func putRing(w http.ResponseWriter, r *http.Request) {
 	}
 	fmt.Println(message)
 	message.Timestamp = int(time.Now().UnixMilli())
-	//message.Id = getMessageId()
+	message.Id = getMessageId(message)
 
 	if _, exisit := cacheMap[message.Id]; !exisit {
 		cacheMap[message.Id] = CreateMessageCache()
@@ -103,6 +108,7 @@ func totalCount(w http.ResponseWriter, r *http.Request) {
 
 func clean(w http.ResponseWriter, r *http.Request) {
 	cacheMap = make(map[string]*MessageCache)
+	msgIdMap = make(map[byte]map[string]int)
 }
 
 func getNodeStatistics(w http.ResponseWriter, r *http.Request) {
@@ -244,6 +250,7 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 }
 func CreateWeb() {
 	cacheMap = make(map[string]*MessageCache)
+	msgIdMap = make(map[byte]map[string]int)
 	// 注册路由和处理函数
 	http.HandleFunc("/putRing", putRing)
 	http.HandleFunc("/getRing", getRing)
