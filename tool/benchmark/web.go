@@ -242,8 +242,7 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(builder.String()))
 }
-
-func main() {
+func CreateWeb() {
 	cacheMap = make(map[string]*MessageCache)
 	// 注册路由和处理函数
 	http.HandleFunc("/putRing", putRing)
@@ -260,4 +259,8 @@ func main() {
 	if err := http.ListenAndServe(":8111", nil); err != nil {
 		fmt.Printf("Error starting server: %s\n", err)
 	}
+}
+
+func main() {
+	CreateWeb()
 }
