@@ -9,7 +9,7 @@ import (
 
 func main() {
 	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
-	n := 1000
+	n := 600
 	initPort := 40000
 	serverList := make([]*broadcast.Server, 0)
 	//serversAddresses := initAddress(n, initPort)

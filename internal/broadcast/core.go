@@ -142,7 +142,6 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 	next, areaLen := CreateSubTree(leftIndex, rightIndex, currentIndex, s.Member.MemberLen(), k, coloring)
 	//构建 secondary tree,注意这里的左边界和右边界要和根节点保持一致
 	if isRoot && areaLen > (1+k) && coloring {
-		//next = make([]*area, 0)
 		secondaryRoot := ObtainOnIPRing(currentIndex, -1, s.Member.MemberLen())
 		next = append(next, &area{left: leftIndex, right: rightIndex, current: secondaryRoot})
 	}
@@ -165,10 +164,6 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 
 // 加入的时候要和一个节点进行交互，离开则不用
 func (s *Server) ApplyJoin(ip string) {
-	err := s.connectToClient(ip)
-	if err != nil {
-		return
-	}
 	if ip == s.Config.ServerAddress {
 		return
 	}

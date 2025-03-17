@@ -6,7 +6,7 @@
 </head>
 
 <body>
-    <div id="echartsMain" style="width: 100%; height: 500px;"></div>
+<div id="echartsMain" style="width: 100%; height: 500px;"></div>
 </body>
 
 </html>
@@ -38,7 +38,7 @@
 
         var option = {
             title: {
-                text: 'LDT'
+                text: 'Fanout Traffic Variance'
             },
             tooltip: {
                 trigger: 'axis'
@@ -51,47 +51,20 @@
             yAxis: {
                 type: 'value',
                 min: 0,
-                max: 'dataMax'
+                max: 'dataMax',
+                axisLabel: {
+                    formatter: value => value.toFixed(0) // 保留两位小数
+                }
             },
             legend: {
-                data: ['LDT']
+                data: ['Fanout Traffic Variance']
             },
             series: [
-                // {
-                //     name: '广播次数',
-                //     type: 'line',
-                //     data: BroadcastCount
-                // },
-                // {
-                //     name: '总流量',
-                //     type: 'line',
-                //     data: FlowSum
-                // },
                 {
-                    name: 'LDT',
+                    name: 'Fanout Traffic Variance',
                     type: 'line',
-                    data: LDT
-                },
-                // {
-                //     name: 'RMR',
-                //     type: 'line',
-                //     data: RMR
-                // },
-                // {
-                //     name: 'Reliability',
-                //     type: 'line',
-                //     data: Reliability
-                // },
-                // {
-                //     name: '扇入流量方差',
-                //     type: 'line',
-                //     data: FlowInS
-                // },
-                // {
-                //     name: '扇出流量方差',
-                //     type: 'line',
-                //     data: FlowOutS
-                // }
+                    data: FlowOutS
+                }
             ]
         };
         myChart.setOption(option);

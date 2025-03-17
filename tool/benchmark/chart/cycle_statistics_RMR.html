@@ -6,7 +6,7 @@
 </head>
 
 <body>
-<div id="echartsMain" style="width: 90%; height: 500px;"></div>
+<div id="echartsMain" style="width: 100%; height: 500px;"></div>
 </body>
 
 </html>
@@ -38,7 +38,7 @@
 
         var option = {
             title: {
-                text: '消息广播信息统计'
+                text: 'RMR'
             },
             tooltip: {
                 trigger: 'axis'
@@ -50,7 +50,8 @@
             },
             yAxis: {
                 type: 'value',
-                min: "dataMin",
+                // min: "dataMin",
+                min: 0,
                 max: 'dataMax',
                 axisLabel: {
                     formatter: value => value.toFixed(0) // 保留两位小数

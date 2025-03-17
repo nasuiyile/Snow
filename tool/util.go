@@ -31,7 +31,11 @@ func SendHttp(from string, target string, data []byte) {
 		values.Add("From", from)
 		values.Add("Target", target)
 		values.Add("Size", fmt.Sprintf("%d", len(data)))
-		values.Add("Id", string(data[TagLen+IpLen*2:TagLen+IpLen*2+TimeLen]))
+		if data[0] == 11 {
+			values.Add("Id", string(data[TagLen:TagLen+TimeLen]))
+		} else {
+			values.Add("Id", string(data[TagLen+IpLen*2:TagLen+IpLen*2+TimeLen]))
+		}
 		values.Add("MsgType", strconv.Itoa(int(data[0])))
 
 		baseURL := "http://" + RemoteHttp + "/putRing"

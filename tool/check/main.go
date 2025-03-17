@@ -26,4 +26,5 @@ func main() {
 			fmt.Printf("Port %d is in use.\n", port)
 		}
 	}
+	fmt.Println("completed")
 }

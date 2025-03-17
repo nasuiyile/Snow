@@ -29,6 +29,7 @@ type SendData struct {
 // NewServer 创建并启动一个 TCP 服务器
 func NewServer(config *Config, action Action) (*Server, error) {
 	listener, err := net.Listen("tcp", config.ServerAddress)
+
 	if err != nil {
 		return nil, err
 	}
@@ -57,10 +58,10 @@ func NewServer(config *Config, action Action) (*Server, error) {
 
 	server.Member.FindOrInsert(config.IPBytes())
 	go server.startAcceptingConnections() // 启动接受连接的协程
-	// 主动连接到其他客户端
-	for _, addr := range config.DefaultServer {
-		server.Member.AddMember(tool.IPv4To6Bytes(addr))
-	}
+
+	//for _, addr := range config.DefaultServer {
+	//	server.Member.AddMember(tool.IPv4To6Bytes(addr))
+	//}
 	server.schedule()
 	server.ApplyJoin(config.InitialServer)
 	log.Printf("Server is running on port %d...\n\n", config.Port)
@@ -90,6 +91,7 @@ func (s *Server) startAcceptingConnections() {
 			log.Println("Error accepting connection:", err)
 			continue
 		}
+		log.Printf("get connect from %s", conn.RemoteAddr().String())
 		tcpConn := conn.(*net.TCPConn)
 		tcpConn.SetLinger(0)
 		conn = tcpConn
@@ -154,49 +156,30 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 
 		handler(msg, s, conn)
 
-		// 打印接收到的消息
-		//fmt.Printf("Received message from %v: %s\n", conn.RemoteAddr(), string(body))
-
-		//// 回复客户端
-		//response := "Message received"
-		//responseBytes := []byte(response)
-		//
-		//length := uint32(len(responseBytes))
-		//binary.BigEndian.PutUint32(header, length)
-		//
-		//conn.Write(header)
-		//conn.Write(responseBytes)
 	}
 }
 
-// connectToClient 主动连接到其他客户端
-func (s *Server) connectToClient(addr string) error {
-	conn, err := s.connectToPeer(addr)
-	if err != nil {
-		log.Println("Error connection:", err)
-		return err
-	}
-	go s.handleConnection(conn, true) // 处理客户端连接
-	return nil
-}
 func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 	s.Member.Lock()
 	defer s.Member.Unlock()
-
+	member := s.Member.GetMember(addr)
+	if member != nil && member.GetClient() != nil {
+		return member.GetClient(), nil
+	}
 	// 赋值给 Dialer 的 LocalAddr
 	conn, err := s.client.Dial("tcp", addr)
 	if err != nil {
 		log.Printf("Failed to connect to %s: %v\n", addr, err)
 		return nil, err
 	}
+	log.Printf("%sConnected to %s\n", s.Config.ServerAddress, addr)
 	metaData := membership.NewEmptyMetaData()
 	metaData.SetClient(conn)
 	s.Member.PutMemberIfNil(addr, metaData)
-
-	log.Printf("Connected to %s\n", addr)
 	return conn, nil
 }
 func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
+
 	if s.isClosed {
 		return
 	}
@@ -205,7 +188,6 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 	var err error
 	if metaData == nil {
 		conn, err = s.connectToPeer(ip)
-		//建立临时连接
 		if err != nil {
 			log.Println(s.Config.ServerAddress, "can't connect to ", ip)
 			return
