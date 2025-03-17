@@ -176,9 +176,11 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 	// 统计每个轮次的消息信息
 	cycleMap := make(map[string]MessageCycle)
 	for k, v := range cacheMap {
+		nodeCount := len(v.getMessages())
+		staticticsCycle(v.getMessages(), nodeCount)
 		cycle := MessageCycle{}
 		cycle.Id = k
-		cycle.BroadcastCount = len(v.getMessages())
+		// cycle.BroadcastCount = nodeCount
 		// 广播产生的总流量
 		cycle.FlowSum = v.totalSize
 		// 广播总时间
