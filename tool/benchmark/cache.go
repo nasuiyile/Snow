@@ -1,4 +1,4 @@
-package benchmark
+package main
 
 import (
 	"math"
@@ -59,8 +59,6 @@ func (cache *MessageCache) getMessages() []Message {
 }
 
 func (cache *MessageCache) clearAll() {
-	cache.mu.Lock()
-	defer cache.mu.Unlock()
 
 	cache.messages = make([]Message, 0)
 }

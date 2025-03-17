@@ -5,13 +5,26 @@
 </head>
 
 <body>
-    <iframe src="./variance_statistics.html" style="width: 90%; height: 600px;"></iframe>
-    <iframe src="./node_statistics.html" style="width: 90%; height: 600px;"></iframe>
-    <iframe src="./cycle_statistics.html" style="width: 90%; height: 600px;"></iframe>
+<!--    <iframe src="./variance_statistics.html" style="width: 90%; height: 600px;"></iframe>-->
+<!--    <iframe src="./node_statistics.html" style="width: 90%; height: 600px;"></iframe>-->
+<iframe src="./cycle_statistics_LDT.html" style="width: 90%; height: 550px;"></iframe>
+<iframe src="./cycle_statistics_RMR.html" style="width: 90%; height: 550px;"></iframe>
+<iframe src="./cycle_statistics_variance.html" style="width: 90%; height: 550px;"></iframe>
+<button id="clean" onclick="clean()">clean</button>
+
 </body>
 
 </html>
 
 <script type="text/javascript">
-
+    function clean() {
+        let request = new XMLHttpRequest()
+        request.open("GET", "http://localhost:8111/clean")
+        request.onreadystatechange = function () {
+            if (request.readyState === 4 && request.status == 200) {
+                console.log("clean over")
+            }
+        }
+        request.send()
+    }
 </script>

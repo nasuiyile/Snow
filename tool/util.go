@@ -21,24 +21,25 @@ import (
 const pushScaleThreshold = 32
 
 var RemoteHttp = "127.0.0.1:8111"
+var IpLen = 6
+var TagLen = 6
+var TimeLen = 6
 
 func SendHttp(from string, target string, data []byte) {
-	values := url.Values{}
-	values.Add("From", from)
-	values.Add("Target", target)
-	values.Add("Size", fmt.Sprintf("%d", len(data)))
-	//if fanOut {
-	//	values.Add("FanOut", "true")
-	//} else {
-	//	values.Add("FanOut", "false")
-	//
-	//}
-	// 构建完整的URL，包括查询参数
-	baseURL := "http://" + RemoteHttp + "/putRing"
-	fullURL := fmt.Sprintf("%s?%s", baseURL, values.Encode())
+	if data[1] == 0 {
+		values := url.Values{}
+		values.Add("From", from)
+		values.Add("Target", target)
+		values.Add("Size", fmt.Sprintf("%d", len(data)))
+		values.Add("Id", string(data[TagLen+IpLen*2:TagLen+IpLen*2+TimeLen]))
+		values.Add("MsgType", strconv.Itoa(int(data[0])))
 
-	// 发送HTTP GET请求
-	http.Get(fullURL)
+		baseURL := "http://" + RemoteHttp + "/putRing"
+		fullURL := fmt.Sprintf("%s?%s", baseURL, values.Encode())
+		// 发送HTTP GET请求
+		http.Get(fullURL)
+	}
+
 }
 
 // KRandomNodes 定义一个函数，生成指定范围内的随机数，如果取到特定值则重新生成
@@ -157,4 +158,10 @@ func CopyMsg(msg []byte) []byte {
 	res := make([]byte, len(msg))
 	copy(res, msg)
 	return res
+}
+func RandInt(min, max int) int {
+	if min >= max {
+		panic("wrong starting value")
+	}
+	return rand.Intn(max-min) + min
 }

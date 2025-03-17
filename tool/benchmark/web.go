@@ -1,12 +1,12 @@
-package benchmark
+package main
 
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/gorilla/schema"
@@ -32,11 +32,12 @@ func putRing(w http.ResponseWriter, r *http.Request) {
 	message := Message{}
 	err := decoder.Decode(&message, r.URL.Query())
 	if err != nil {
+		log.Println(err)
 		return
 	}
 	fmt.Println(message)
 	message.Timestamp = int(time.Now().UnixMilli())
-	message.Id = getMessageId()
+	//message.Id = getMessageId()
 
 	if _, exisit := cacheMap[message.Id]; !exisit {
 		cacheMap[message.Id] = CreateMessageCache()
@@ -101,9 +102,7 @@ func totalCount(w http.ResponseWriter, r *http.Request) {
 }
 
 func clean(w http.ResponseWriter, r *http.Request) {
-	for _, v := range cacheMap {
-		v.clearAll()
-	}
+	cacheMap = make(map[string]*MessageCache)
 }
 
 func getNodeStatistics(w http.ResponseWriter, r *http.Request) {
@@ -244,10 +243,8 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(builder.String()))
 }
 
-func Test_server(t *testing.T) {
-	t.Helper()
+func main() {
 	cacheMap = make(map[string]*MessageCache)
-
 	// 注册路由和处理函数
 	http.HandleFunc("/putRing", putRing)
 	http.HandleFunc("/getRing", getRing)

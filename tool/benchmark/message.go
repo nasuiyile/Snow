@@ -1,4 +1,4 @@
-package benchmark
+package main
 
 type Message struct {
 	Id        string
@@ -7,6 +7,7 @@ type Message struct {
 	From      string
 	Timestamp int
 	Primary   bool
+	MsgType   byte
 }
 
 // 每个节点统计信息

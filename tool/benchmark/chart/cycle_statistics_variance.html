@@ -6,7 +6,7 @@
 </head>
 
 <body>
-    <div id="echartsMain" style="width: 90%; height: 500px;"></div>
+<div id="echartsMain" style="width: 90%; height: 500px;"></div>
 </body>
 
 </html>
@@ -51,44 +51,23 @@
             yAxis: {
                 type: 'value',
                 min: "dataMin",
-                max: 'dataMax'
+                max: 'dataMax',
+                axisLabel: {
+                    formatter: value => value.toFixed(0) // 保留两位小数
+                }
             },
             legend: {
-                data: ['广播次数', '总流量', 'LDT', 'RMR', 'Reliability', '扇入流量方差', '扇出流量方差']
+                data: ['Fanin Traffic Variance', 'Fanout Traffic Variance']
             },
             series: [
+
                 {
-                    name: '广播次数',
-                    type: 'line',
-                    data: BroadcastCount
-                },
-                {
-                    name: '总流量',
-                    type: 'line',
-                    data: FlowSum
-                },
-                {
-                    name: 'LDT',
-                    type: 'line',
-                    data: LDT
-                },
-                {
-                    name: 'RMR',
-                    type: 'line',
-                    data: RMR
-                },
-                {
-                    name: 'Reliability',
-                    type: 'line',
-                    data: Reliability
-                },
-                {
-                    name: '扇入流量方差',
+                    name: 'Fanin Traffic Variance',
                     type: 'line',
                     data: FlowInS
                 },
                 {
-                    name: '扇出流量方差',
+                    name: 'Fanout Traffic Variance',
                     type: 'line',
                     data: FlowOutS
                 }

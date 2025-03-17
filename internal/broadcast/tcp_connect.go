@@ -288,7 +288,8 @@ func (s *Server) Sender() {
 			continue
 		}
 		if s.Config.Test {
-			tool.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), data.Msg)
+			bytes := append(data.Payload, data.Msg...)
+			tool.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), bytes)
 		}
 	}
 }
