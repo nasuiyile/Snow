@@ -54,6 +54,7 @@ func NewServer(config *Config, action Action) (*Server, error) {
 		stopCh:           make(chan struct{}),
 		sendChan:         make(chan *SendData),
 		clientWorkerPool: tool.NewWorkerPool(1),
+		Handler:          Handler,
 	}
 
 	server.Member.FindOrInsert(config.IPBytes())
@@ -155,7 +156,7 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 			return
 		}
 
-		handler(msg, s, conn)
+		s.Handler(msg, s, conn)
 
 	}
 }

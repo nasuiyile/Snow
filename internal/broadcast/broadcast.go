@@ -2,12 +2,13 @@ package broadcast
 
 import (
 	"math/rand"
+	. "snow/common"
 	"snow/tool"
 	"time"
 )
 
 func (s *Server) RegularMessage(message []byte, msgAction MsgAction) error {
-	member, _ := s.InitMessage(regularMsg, msgAction)
+	member, _ := s.InitMessage(RegularMsg, msgAction)
 	newMsg := tool.CopyMsg(message)
 	for ip, payload := range member {
 		s.SendMessage(ip, payload, newMsg)
@@ -16,7 +17,7 @@ func (s *Server) RegularMessage(message []byte, msgAction MsgAction) error {
 }
 
 func (s *Server) ColoringMessage(message []byte, msgAction MsgAction) error {
-	member, _ := s.InitMessage(coloringMsg, msgAction)
+	member, _ := s.InitMessage(ColoringMsg, msgAction)
 	newMsg := tool.CopyMsg(message)
 	for ip, payload := range member {
 		s.SendMessage(ip, payload, newMsg)
@@ -27,7 +28,7 @@ func (s *Server) ColoringMessage(message []byte, msgAction MsgAction) error {
 // GossipMessage gossip协议是有可能广播给发送给自己的节点的= =
 func (s *Server) GossipMessage(msg []byte, msgAction MsgAction) error {
 	bytes := make([]byte, len(msg)+TimeLen+TagLen)
-	bytes[0] = gossipMsg
+	bytes[0] = GossipMsg
 	bytes[1] = msgAction
 	copy(bytes[TagLen:], tool.RandomNumber())
 	copy(bytes[TagLen+TimeLen:], msg)
@@ -54,7 +55,7 @@ func (s *Server) ForwardMessage(msg []byte, member map[string][]byte) error {
 // ReliableMessage 在成功时，每个节点都会回调这个方法，在失败时只有根节点和部分成功的节点会重新调用这个方法
 func (s *Server) ReliableMessage(message []byte, msgAction MsgAction, action *func(isSuccess bool)) error {
 
-	member, randomNum := s.InitMessage(reliableMsg, msgAction)
+	member, randomNum := s.InitMessage(ReliableMsg, msgAction)
 
 	data := append(randomNum, message...)
 	hash := []byte(tool.Hash(data))
@@ -127,6 +128,6 @@ func (s *Server) PushState() {
 	node := nodes[0]
 	// Attempt a push pull
 	state := s.exportState()
-	msg := PackTagToHead(nodeChange, regularStateSync, state)
+	msg := tool.PackTagToHead(NodeChange, RegularStateSync, state)
 	s.SendMessage(node, []byte{}, msg)
 }

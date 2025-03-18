@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"net"
+	. "snow/common"
 	"snow/internal/membership"
 	"snow/internal/state"
 	"snow/tool"
@@ -12,14 +13,14 @@ import (
 
 // Server 定义服务器结构体
 type Server struct {
-	listener net.Listener
-	Config   *Config
-	Member   membership.MemberShipList
-	State    state.State
-	Action   Action
-	client   net.Dialer //客户端连接器
-	isClosed bool       //是否关闭了
-
+	listener         net.Listener
+	Config           *Config
+	Member           membership.MemberShipList
+	State            state.State
+	Action           Action
+	client           net.Dialer //客户端连接器
+	isClosed         bool       //是否关闭了
+	Handler          func(msg []byte, s *Server, conn net.Conn)
 	stopCh           chan struct{}
 	sendChan         chan *SendData
 	clientWorkerPool *tool.WorkerPool
@@ -68,12 +69,12 @@ func (s *Server) ReduceReliableTimeout(msg []byte, configAction *func(isConverge
 		}
 		newMsg := make([]byte, len(msg))
 		copy(newMsg, msg)
-		copy(newMsg[prefix:prefix+s.Config.IpLen()], s.Config.IPBytes())
+		copy(newMsg[prefix:prefix+IpLen], s.Config.IPBytes())
 		s.SendMessage(tool.ByteToIPv4Port(r.Ip), []byte{}, newMsg)
 		//断开连接
-		if msgAction == nodeLeave {
+		if msgAction == NodeLeave {
 
-			s.Member.RemoveMember(msg[len(msg)-s.Config.IpLen():])
+			s.Member.RemoveMember(msg[len(msg)-IpLen:])
 		}
 	}
 
@@ -119,7 +120,7 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 	//todo 这里可以优化读写锁
 	s.Member.Lock()
 	defer s.Member.Unlock()
-	coloring := msgType == coloringMsg
+	coloring := msgType == ColoringMsg
 	if s.Member.MemberLen() == 1 {
 		return make(map[string][]byte), nil
 	}
@@ -167,7 +168,7 @@ func (s *Server) ApplyJoin(ip string) {
 	if ip == s.Config.ServerAddress {
 		return
 	}
-	s.SendMessage(ip, []byte{}, PackTag(nodeChange, applyJoin))
+	s.SendMessage(ip, []byte{}, tool.PackTag(NodeChange, ApplyJoin))
 }
 
 func (s *Server) ApplyLeave() {
@@ -185,11 +186,11 @@ func (s *Server) ApplyLeave() {
 			s.ApplyLeave()
 		}
 	}
-	s.ReliableMessage(s.Config.IPBytes(), nodeLeave, &f)
+	s.ReliableMessage(s.Config.IPBytes(), NodeLeave, &f)
 }
 func (s *Server) ReportLeave(ip []byte) {
 	s.Member.RemoveMember(ip)
-	s.ColoringMessage(ip, reportLeave)
+	s.ColoringMessage(ip, ReportLeave)
 }
 
 func (s *Server) exportState() []byte {

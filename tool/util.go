@@ -7,8 +7,7 @@ import (
 	"math"
 	"math/rand"
 	"net"
-	"net/http"
-	"net/url"
+	. "snow/common"
 	"strconv"
 	"time"
 )
@@ -19,37 +18,6 @@ import (
 // that the 33rd node will cause us to double the interval,
 // while the 65th will triple it.
 const pushScaleThreshold = 32
-
-var RemoteHttp = "127.0.0.1:8111"
-var IpLen = 6
-var TagLen = 6
-var TimeLen = 6
-var Num = 100
-
-func SendHttp(from string, target string, data []byte, k int) {
-	if data[1] == 0 {
-		values := url.Values{}
-		values.Add("From", from)
-		values.Add("Target", target)
-		values.Add("Size", fmt.Sprintf("%d", len(data)))
-		if data[0] == 11 {
-			values.Add("Id", string(data[TagLen:TagLen+TimeLen]))
-		} else {
-			values.Add("Id", string(data[TagLen+IpLen*2:TagLen+IpLen*2+TimeLen]))
-		}
-		values.Add("FanOut", strconv.Itoa(k))
-		values.Add("Num", strconv.Itoa(Num))
-
-		values.Add("MsgType", strconv.Itoa(int(data[0])))
-		values.Add("Size", fmt.Sprintf("%d", len(data)))
-
-		baseURL := "http://" + RemoteHttp + "/putRing"
-		fullURL := fmt.Sprintf("%s?%s", baseURL, values.Encode())
-		// 发送HTTP GET请求
-		http.Get(fullURL)
-	}
-
-}
 
 // KRandomNodes 定义一个函数，生成指定范围内的随机数，如果取到特定值则重新生成
 func KRandomNodes(min, max, exclude int, k int) []int {
@@ -88,12 +56,6 @@ func Hash(msg []byte) string {
 	return sum
 }
 
-//	func TimeBytes() []byte {
-//		unix := time.Now().Unix()
-//		timestamp := make([]byte, 8)
-//		binary.BigEndian.PutUint64(timestamp, uint64(unix))
-//		return timestamp
-//	}
 func BytesToTime(data []byte) int64 {
 	return int64(binary.BigEndian.Uint64(data))
 }
@@ -173,4 +135,30 @@ func RandInt(min, max int) int {
 		panic("wrong starting value")
 	}
 	return rand.Intn(max-min) + min
+}
+func PackTagToHead(msgType MsgType, changeType MsgAction, msg []byte) []byte {
+	data := make([]byte, len(msg)+TimeLen+TagLen)
+	data[0] = msgType
+	data[1] = changeType
+	timeBytes := RandomNumber()
+	copy(data[TagLen:], timeBytes)
+	copy(data[TimeLen+TagLen:], msg)
+	return data
+}
+
+func PackTag(msgType MsgType, changeType MsgAction) []byte {
+	data := make([]byte, TimeLen+TagLen)
+	data[0] = msgType
+	data[1] = changeType
+	timeBytes := RandomNumber()
+	copy(data[TagLen:], timeBytes)
+	return data
+}
+
+func CutBytes(bytes []byte) []byte {
+	return bytes[Placeholder-TimeLen:]
+}
+
+func CutTimestamp(bytes []byte) []byte {
+	return bytes[TimeLen:]
 }
