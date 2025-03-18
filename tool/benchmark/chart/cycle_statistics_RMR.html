@@ -18,16 +18,50 @@
         let xData = []
 
         let RMR_8 = []
+        let RMR_9 = []
+        let RMR_11 = []
 
-        Object.entries(dataArr['8']).forEach(([k, v]) => {
-            xData.push(k)
-            RMR_8.push(v.RMR)
-        });
+        let RMRSum_8 = 0
+        let RMRSum_9 = 0
+        let RMRSum_11 = 0
+
+        if (dataArr[8]) {
+            Object.entries(dataArr[8]).forEach(([k, v]) => {
+                xData.push(k)
+                RMR_8.push(v.RMR)
+                RMRSum_8 += v.RMR
+            });
+        }
+        if (dataArr[9]) {
+            Object.entries(dataArr[9]).forEach(([k, v]) => {
+                RMR_9.push(v.RMR)
+                RMRSum_9 += v.RMR
+            });
+        }
+        if (dataArr[11]) {
+            Object.entries(dataArr[11]).forEach(([k, v]) => {
+                RMR_11.push(v.RMR)
+                RMRSum_11 += v.RMR
+            });
+        }
 
         var option = {
-            title: {
-                text: 'RMR'
-            },
+            title: [{
+                    text: 'RMR',
+                },
+                {
+                    subtext: 'Regular Avg: ' + (RMRSum_8 / xData.length).toFixed(0),
+                    left: '0%',
+                    bottom: '0%'
+                }, {
+                    subtext: 'Reliable Avg: ' + (RMRSum_9 / xData.length).toFixed(0),
+                    left: '15%',
+                    bottom: '0%'
+                }, {
+                    subtext: 'Gossip Avg: ' + (RMRSum_11 / xData.length).toFixed(0),
+                    left: '30%',
+                    bottom: '0%'
+            }],
             tooltip: {
                 trigger: 'axis'
             },
@@ -46,13 +80,23 @@
                 }
             },
             legend: {
-                data: ['RMR']
+                data: ['Regular', 'Reliable', 'Gossip']
             },
             series: [
                 {
-                    name: 'RMR',
+                    name: 'Regular',
                     type: 'line',
                     data: RMR_8
+                },
+                {
+                    name: 'Reliable',
+                    type: 'line',
+                    data: RMR_9
+                },
+                {
+                    name: 'Gossip',
+                    type: 'line',
+                    data: RMR_11
                 },
             ]
         };
