@@ -49,11 +49,20 @@ func staticticsCycle(message []Message, nodeCount int) MessageCycle {
 	// cycle.FlowSum = v.totalSize
 	// 广播总时间
 	// cycle.LDT = v.endTime - v.startTime
-
+	startTime := math.MaxInt
+	endTime := math.MinInt
 	m := 0
 	for _, message := range message {
 		m += message.Size
+		if startTime > message.Timestamp {
+			startTime = message.Timestamp
+		}
+		if endTime < message.Timestamp {
+			endTime = message.Timestamp
+		}
 	}
+	cycle.LDT = endTime - startTime
+
 	n := nodeCount
 	cycle.RMR = (float64(m) / (float64(n) - 1)) - 1
 
