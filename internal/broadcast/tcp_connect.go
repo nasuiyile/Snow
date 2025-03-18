@@ -51,7 +51,7 @@ func NewServer(config *Config, action Action) (*Server, error) {
 		Action:           action,
 		client:           dialer.Dialer(clientAddress, config.TCPTimeout),
 		isClosed:         false,
-		stopCh:           make(chan struct{}),
+		StopCh:           make(chan struct{}),
 		sendChan:         make(chan *SendData),
 		clientWorkerPool: tool.NewWorkerPool(1),
 	}
@@ -73,7 +73,7 @@ func NewServer(config *Config, action Action) (*Server, error) {
 func (s *Server) schedule() {
 	// Create the stop tick channel, a blocking channel. We close this
 	// when we should stop the tickers.
-	go s.pushTrigger(s.stopCh)
+	go s.pushTrigger(s.StopCh)
 	go s.Sender()
 
 }
@@ -82,7 +82,7 @@ func (s *Server) schedule() {
 func (s *Server) startAcceptingConnections() {
 	for {
 		select {
-		case <-s.stopCh:
+		case <-s.StopCh:
 			return
 		default:
 		}
@@ -122,7 +122,7 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 
 	for {
 		select {
-		case <-s.stopCh:
+		case <-s.StopCh:
 			return
 		default:
 		}

@@ -22,10 +22,16 @@ var title = ""
 var rNode atomic.Int32
 
 type Message struct {
-	Size    int //多少个byte
-	Target  string
-	From    string
-	primary bool
+	Id        string
+	Size      int
+	Target    string
+	From      string
+	Timestamp int
+	Primary   bool
+	MsgType   byte
+
+	Num    int `json:"Num"`
+	FanOut int `json:"FanOut"`
 }
 
 func put(key string, value Message) {

@@ -50,8 +50,13 @@ START:
 	return res
 }
 
+func HashByte(msg []byte) []byte {
+	sum256 := blake3.Sum256(msg)
+	return sum256[:]
+
+}
 func Hash(msg []byte) string {
-	sum256 := blake3.Sum256([]byte(msg))
+	sum256 := blake3.Sum256(msg)
 	sum := string(sum256[:])
 	return sum
 }

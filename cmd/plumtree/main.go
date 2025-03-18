@@ -9,7 +9,7 @@ import (
 
 func main() {
 	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
-	n := 50
+	n := 10
 	initPort := 40000
 	serverList := make([]*plumtree.Server, 0)
 	//serversAddresses := initAddress(n, initPort)

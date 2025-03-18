@@ -34,7 +34,8 @@ func getMessageId(m Message) string {
 // 接收节点广播的消息
 func putRing(w http.ResponseWriter, r *http.Request) {
 	decoder := schema.NewDecoder()
-	message := Message{}
+	message :=
+		Message{}
 	err := decoder.Decode(&message, r.URL.Query())
 	if err != nil {
 		log.Println(err)

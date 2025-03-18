@@ -21,7 +21,7 @@ type Server struct {
 	client           net.Dialer //客户端连接器
 	isClosed         bool       //是否关闭了
 	H                HandlerFunc
-	stopCh           chan struct{}
+	StopCh           chan struct{}
 	sendChan         chan *SendData
 	clientWorkerPool *tool.WorkerPool
 }
@@ -177,7 +177,7 @@ func (s *Server) ApplyLeave() {
 		if isSuccess {
 			//进行下线操作
 			stop := struct{}{}
-			s.stopCh <- stop
+			s.StopCh <- stop
 			s.Close()
 			s.Member.Clean()
 			s.isClosed = true

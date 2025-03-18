@@ -13,15 +13,16 @@ var RemoteHttp = "127.0.0.1:8111"
 var Num = 100
 
 func SendHttp(from string, target string, data []byte, k int) {
-	if data[1] == 0 {
+	if data[1] == UserMsg {
 		values := url.Values{}
 		values.Add("From", from)
 		values.Add("Target", target)
 		values.Add("Size", fmt.Sprintf("%d", len(data)))
-		if data[0] == 11 {
-			values.Add("Id", string(data[TagLen:TagLen+TimeLen]))
-		} else {
+		if data[0] == ColoringMsg || data[0] == RegularMsg || data[0] == ReliableMsg {
 			values.Add("Id", string(data[TagLen+IpLen*2:TagLen+IpLen*2+TimeLen]))
+		} else {
+			//其他的消息都没有附带ip
+			values.Add("Id", string(data[TagLen:TagLen+TimeLen]))
 		}
 		values.Add("FanOut", strconv.Itoa(k))
 		values.Add("Num", strconv.Itoa(Num))

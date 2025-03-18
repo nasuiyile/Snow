@@ -35,6 +35,7 @@ const (
 	NodeLeave   //这是自己请求离开的方法
 	ReportLeave //这是被别人上报的节点离开方法
 	RegularStateSync
+	IHAVE //lazypush的发送内容
 )
 const TimeLen = 8
 const TagLen = 2
