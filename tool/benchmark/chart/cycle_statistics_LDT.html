@@ -18,16 +18,51 @@
         let xData = []
 
         let LDT_8 = []
+        let LDT_9 = []
+        let LDT_11 = []
 
-        Object.entries(dataArr['8']).forEach(([k, v]) => {
-            xData.push(k)
-            LDT_8.push(v.LDT)
-        });
+        let LDTSum_8 = 0
+        let LDTSum_9 = 0
+        let LDTSum_11 = 0
+
+        if (dataArr[8]) {
+            Object.entries(dataArr[8]).forEach(([k, v]) => {
+                xData.push(k)
+                LDT_8.push(v.LDT)
+                LDTSum_8 += v.LDT
+            });
+        }
+        if (dataArr[9]) {
+            Object.entries(dataArr[9]).forEach(([k, v]) => {
+                LDT_9.push(v.LDT)
+                LDTSum_9 += v.LDT
+
+            });
+        }
+        if (dataArr[11]) {
+            Object.entries(dataArr[11]).forEach(([k, v]) => {
+                LDT_11.push(v.LDT)
+                LDTSum_11 += v.LDT
+            });
+        }
 
         var option = {
-            title: {
-                text: 'LDT'
-            },
+            title: [{
+                    text: 'LDT',
+                },
+                {
+                    subtext: 'Regular Avg: ' + (LDTSum_8 / xData.length).toFixed(0),
+                    left: '0%',
+                    bottom: '0%'
+                }, {
+                    subtext: 'Reliable Avg: ' + (LDTSum_9 / xData.length).toFixed(0),
+                    left: '15%',
+                    bottom: '0%'
+                }, {
+                    subtext: 'Gossip Avg: ' + (LDTSum_11 / xData.length).toFixed(0),
+                    left: '30%',
+                    bottom: '0%'
+            }],
             tooltip: {
                 trigger: 'axis'
             },
@@ -42,13 +77,23 @@
                 max: 'dataMax'
             },
             legend: {
-                data: ['LDT']
+                data: ['Regular', 'Reliable', 'Gossip']
             },
             series: [
                 {
-                    name: 'LDT',
+                    name: 'Regular',
                     type: 'line',
                     data: LDT_8
+                },
+                {
+                    name: 'Reliable',
+                    type: 'line',
+                    data: LDT_9
+                },
+                {
+                    name: 'Gossip',
+                    type: 'line',
+                    data: LDT_11
                 },
             ]
         };
