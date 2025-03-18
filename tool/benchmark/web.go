@@ -176,11 +176,11 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 
 	// 统计每个轮次的消息信息
 	cycleTypeMap := make(map[byte]map[string]MessageCycle)
-	cycleMap := make(map[string]MessageCycle)
 	for msgType, _ := range msgIdMap {
+		cycleMap := make(map[string]MessageCycle)
 		for k, v := range cacheMap {
 			messageGroup := v.getMessagesByGroup(msgType)
-			nodeCount := len(v.getMessages())
+			nodeCount := len(v.getNodes())
 			cycle := staticticsCycle(messageGroup, nodeCount)
 			cycleMap[k] = cycle
 		}
