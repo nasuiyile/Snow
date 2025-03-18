@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"snow/internal/broadcast"
 	"snow/internal/plumtree"
 	"time"
@@ -33,11 +32,8 @@ func main() {
 	go func() {
 		for i := 0; i < 50000000000000; i++ {
 			time.Sleep(5 * time.Second)
-			err := serverList[0].Server.ReliableMessage([]byte("hello from server!"), 0, nil)
-			if err != nil {
-				log.Println("Error broadcasting message:", err)
-			}
-			//time.Sleep(2 * time.Second)
+			serverList[0].PlumTreeBroadcast([]byte("hello from server!"), 0)
+
 		}
 	}()
 	// 主线程保持运行

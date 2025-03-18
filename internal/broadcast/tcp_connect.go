@@ -54,9 +54,9 @@ func NewServer(config *Config, action Action) (*Server, error) {
 		stopCh:           make(chan struct{}),
 		sendChan:         make(chan *SendData),
 		clientWorkerPool: tool.NewWorkerPool(1),
-		Handler:          Handler,
 	}
 
+	server.H = server
 	server.Member.FindOrInsert(config.IPBytes())
 	go server.startAcceptingConnections() // 启动接受连接的协程
 
@@ -155,8 +155,7 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 			log.Printf("Read body error from %v: %v\n", conn.RemoteAddr(), err)
 			return
 		}
-
-		s.Handler(msg, s, conn)
+		s.H.Hand(msg, conn)
 
 	}
 }

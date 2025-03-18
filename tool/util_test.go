@@ -11,12 +11,35 @@ func TestGetRandomExcluding(t *testing.T) {
 	fmt.Println(excluding)
 }
 
+// Action 接收到消息后执行的操作，不允许对原byte进行修改。不需要的操作可以不进行设置
+type Action struct {
+}
+
+func (a *Action) init() {
+	//逻辑
+	a.func1()
+}
+func (a *Action) func1() {
+	//逻辑
+
+}
+
+type ActionSon struct {
+	Action
+}
+
+func (a *ActionSon) init() {
+	//逻辑
+	a.Action.init()
+}
+
+func (a *ActionSon) func1() {
+	//逻辑
+
+}
+
 func Test(t *testing.T) {
 
-	f := variance([]float64{20, 20, 20, 10, 10, 10, 0, 0, 0, 0})
-	fmt.Println("方差为", f)
-	f = variance([]float64{20, 20, 20, 0, 10, 0, 10, 10, 20, 10})
-	fmt.Println("coloring方差为", f)
 }
 
 // variance 计算一组数的方差

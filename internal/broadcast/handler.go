@@ -7,7 +7,7 @@ import (
 	"snow/tool"
 )
 
-func Handler(msg []byte, s *Server, conn net.Conn) {
+func (s *Server) Hand(msg []byte, conn net.Conn) {
 	parentIP := s.Config.GetServerIp(conn.RemoteAddr().String())
 	//判断消息类型
 	msgType := msg[0]
@@ -17,7 +17,7 @@ func Handler(msg []byte, s *Server, conn net.Conn) {
 	switch msgType {
 	case RegularMsg:
 		body := tool.CutBytes(msg)
-		if !isFirst(body, msgType, msgAction, s) {
+		if !IsFirst(body, msgType, msgAction, s) {
 			return
 		}
 		if msgAction == NodeJoin {
@@ -27,7 +27,7 @@ func Handler(msg []byte, s *Server, conn net.Conn) {
 		forward(msg, s, parentIP)
 	case ColoringMsg:
 		body := tool.CutBytes(msg)
-		if !isFirst(body, msgType, msgAction, s) {
+		if !IsFirst(body, msgType, msgAction, s) {
 			return
 		}
 		if msgAction == ReportLeave {
@@ -36,7 +36,7 @@ func Handler(msg []byte, s *Server, conn net.Conn) {
 		forward(msg, s, parentIP)
 	case ReliableMsg:
 		body := tool.CutBytes(msg)
-		if !isFirst(body, msgType, msgAction, s) {
+		if !IsFirst(body, msgType, msgAction, s) {
 			return
 		}
 		//如果自己是叶子节点发送ack给父节点	并删除ack的map
@@ -45,7 +45,7 @@ func Handler(msg []byte, s *Server, conn net.Conn) {
 		//ack不需要ActionType
 		body := msg[TagLen:]
 		//去重的消息可能会过滤掉相同的ack。在消息尾部追加ip来解决
-		if !isFirst(body, msgType, msgAction, s) {
+		if !IsFirst(body, msgType, msgAction, s) {
 			return
 		}
 
@@ -54,7 +54,7 @@ func Handler(msg []byte, s *Server, conn net.Conn) {
 	case GossipMsg:
 		//gossip不需要和Snow算法一样携带俩个ip
 		body := msg[TagLen:]
-		if !isFirst(body, msgType, msgAction, s) {
+		if !IsFirst(body, msgType, msgAction, s) {
 			return
 		}
 		data := make([]byte, len(msg))
@@ -62,14 +62,14 @@ func Handler(msg []byte, s *Server, conn net.Conn) {
 		s.SendGossip(data)
 	case NodeChange:
 		//分别是消息类型，消息时间戳，加入节点的ip
-		if !isFirst(msg[1:], msgType, msgAction, s) {
+		if !IsFirst(msg[1:], msgType, msgAction, s) {
 			return
 		}
 
 	}
 }
 
-func isFirst(body []byte, msgType MsgType, action MsgAction, s *Server) bool {
+func IsFirst(body []byte, msgType MsgType, action MsgAction, s *Server) bool {
 	if s.IsReceived(body) && s.Config.ExpirationTime > 0 {
 		return false
 	}

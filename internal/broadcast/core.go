@@ -20,7 +20,7 @@ type Server struct {
 	Action           Action
 	client           net.Dialer //客户端连接器
 	isClosed         bool       //是否关闭了
-	Handler          func(msg []byte, s *Server, conn net.Conn)
+	H                HandlerFunc
 	stopCh           chan struct{}
 	sendChan         chan *SendData
 	clientWorkerPool *tool.WorkerPool
