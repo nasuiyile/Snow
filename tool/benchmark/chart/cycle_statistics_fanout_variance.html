@@ -18,16 +18,51 @@
         let xData = []
 
         let FlowOutS_8 = []
+        let FlowOutS_9 = []
+        let FlowOutS_11 = []
 
-        Object.entries(dataArr['8']).forEach(([k, v]) => {
-            xData.push(k)
-            FlowOutS_8.push(v.FlowInS)
-        });
+        let FlowOutSSum_8 = 0
+        let FlowOutSSum_9 = 0
+        let FlowOutSSum_11 = 0
+
+        if (dataArr[8]) {
+            Object.entries(dataArr[8]).forEach(([k, v]) => {
+                xData.push(k)
+                FlowOutS_8.push(v.FlowOutS)
+                FlowOutSSum_8 += v.FlowOutS
+            });
+        }
+        if (dataArr[9]) {
+            Object.entries(dataArr[9]).forEach(([k, v]) => {
+                FlowOutS_9.push(v.FlowOutS)
+                FlowOutSSum_9 += v.FlowOutS
+
+            });
+        }
+        if (dataArr[11]) {
+            Object.entries(dataArr[11]).forEach(([k, v]) => {
+                FlowOutS_11.push(v.FlowOutS)
+                FlowOutSSum_11 += v.FlowOutS
+            });
+        }
 
         var option = {
-            title: {
-                text: 'Fanout Traffic Variance'
-            },
+            title: [{
+                    text: 'Fanout Traffic Variance',
+                },
+                {
+                    subtext: 'Regular Avg: ' + (FlowOutSSum_8 / xData.length).toFixed(0),
+                    left: '0%',
+                    bottom: '0%'
+                }, {
+                    subtext: 'Reliable Avg: ' + (FlowOutSSum_9 / xData.length).toFixed(0),
+                    left: '15%',
+                    bottom: '0%'
+                }, {
+                    subtext: 'Gossip Avg: ' + (FlowOutSSum_11 / xData.length).toFixed(0),
+                    left: '30%',
+                    bottom: '0%'
+            }],
             tooltip: {
                 trigger: 'axis'
             },
@@ -45,14 +80,24 @@
                 }
             },
             legend: {
-                data: ['Fanout Traffic Variance']
+                data: ['Regular', 'Reliable', 'Gossip']
             },
             series: [
                 {
-                    name: 'Fanout Traffic Variance',
+                    name: 'Regular',
                     type: 'line',
                     data: FlowOutS_8
-                }
+                },
+                {
+                    name: 'Reliable',
+                    type: 'line',
+                    data: FlowOutS_9
+                },
+                {
+                    name: 'Gossip',
+                    type: 'line',
+                    data: FlowOutS_11
+                },
             ]
         };
         myChart.setOption(option);

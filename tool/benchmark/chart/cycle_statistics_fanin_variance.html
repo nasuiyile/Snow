@@ -6,7 +6,7 @@
 </head>
 
 <body>
-<div id="echartsMain" style="width: 100%; height: 500px;"></div>
+    <div id="echartsMain" style="width: 100%; height: 500px;"></div>
 </body>
 
 </html>
@@ -18,16 +18,50 @@
         let xData = []
 
         let FlowInS_8 = []
+        let FlowInS_9 = []
+        let FlowInS_11 = []
 
-        Object.entries(dataArr['8']).forEach(([k, v]) => {
-            xData.push(k)
-            FlowInS_8.push(v.FlowInS)
-        });
+        let FlowInSSum_8 = 0
+        let FlowInSSum_9 = 0
+        let FlowInSSum_11 = 0
+
+        if (dataArr[8]) {
+            Object.entries(dataArr[8]).forEach(([k, v]) => {
+                xData.push(k)
+                FlowInS_8.push(v.FlowInS)
+                FlowInSSum_8 += v.FlowInS
+            });
+        }
+        if (dataArr[9]) {
+            Object.entries(dataArr[9]).forEach(([k, v]) => {
+                FlowInS_9.push(v.FlowInS)
+                FlowInSSum_9 += v.FlowInS
+            });
+        }
+        if (dataArr[11]) {
+            Object.entries(dataArr[11]).forEach(([k, v]) => {
+                FlowInS_11.push(v.FlowInS)
+                FlowInSSum_11 += v.FlowInS
+            });
+        }
 
         var option = {
-            title: {
-                text: 'Fanin Traffic Variance'
-            },
+            title: [{
+                    text: 'Fanin Traffic Variance',
+                },
+                {
+                    subtext: 'Regular Avg: ' + (FlowInSSum_8 / xData.length).toFixed(0),
+                    left: '0%',
+                    bottom: '0%'
+                }, {
+                    subtext: 'Reliable Avg: ' + (FlowInSSum_9 / xData.length).toFixed(0),
+                    left: '15%',
+                    bottom: '0%'
+                }, {
+                    subtext: 'Gossip Avg: ' + (FlowInSSum_11 / xData.length).toFixed(0),
+                    left: '30%',
+                    bottom: '0%'
+            }],
             tooltip: {
                 trigger: 'axis'
             },
@@ -45,13 +79,23 @@
                 }
             },
             legend: {
-                data: ['Fanin Traffic Variance']
+                data: ['Regular', 'Reliable', 'Gossip']
             },
             series: [
                 {
-                    name: 'Fanin Traffic Variance',
+                    name: 'Regular',
                     type: 'line',
                     data: FlowInS_8
+                },
+                {
+                    name: 'Reliable',
+                    type: 'line',
+                    data: FlowInS_9
+                },
+                {
+                    name: 'Gossip',
+                    type: 'line',
+                    data: FlowInS_11
                 },
             ]
         };
