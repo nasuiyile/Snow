@@ -18,11 +18,11 @@
         let xData = []
 
         let FlowInS_8 = []
-        let FlowInS_9 = []
+        let FlowInS_7 = []
         let FlowInS_11 = []
 
         let FlowInSSum_8 = 0
-        let FlowInSSum_9 = 0
+        let FlowInSSum_7 = 0
         let FlowInSSum_11 = 0
 
         if (dataArr[8]) {
@@ -32,10 +32,10 @@
                 FlowInSSum_8 += v.FlowInS
             });
         }
-        if (dataArr[9]) {
-            Object.entries(dataArr[9]).forEach(([k, v]) => {
-                FlowInS_9.push(v.FlowInS)
-                FlowInSSum_9 += v.FlowInS
+        if (dataArr[7]) {
+            Object.entries(dataArr[7]).forEach(([k, v]) => {
+                FlowInS_7.push(v.FlowInS)
+                FlowInSSum_7 += v.FlowInS
             });
         }
         if (dataArr[11]) {
@@ -54,7 +54,7 @@
                     left: '0%',
                     bottom: '0%'
                 }, {
-                    subtext: 'Reliable Avg: ' + (FlowInSSum_9 / xData.length).toFixed(0),
+                    subtext: 'Coloring Avg: ' + (FlowInSSum_7 / xData.length).toFixed(0),
                     left: '15%',
                     bottom: '0%'
                 }, {
@@ -79,7 +79,7 @@
                 }
             },
             legend: {
-                data: ['Regular', 'Reliable', 'Gossip']
+                data: ['Regular', 'Coloring', 'Gossip']
             },
             series: [
                 {
@@ -88,9 +88,9 @@
                     data: FlowInS_8
                 },
                 {
-                    name: 'Reliable',
+                    name: 'Coloring',
                     type: 'line',
-                    data: FlowInS_9
+                    data: FlowInS_7
                 },
                 {
                     name: 'Gossip',

@@ -63,26 +63,26 @@ func main() {
 			log.Println("Error broadcasting message:", err)
 		}
 	}
-	//for i := range rounds {
-	//	// 1秒一轮
-	//	time.Sleep(1 * time.Second)
-	//	fmt.Printf("=== %d =====\n", i)
-	//	err := serverList[5].GossipMessage(msg, 0)
-	//	//err := serverList[5].RegularMessage(msg, 0)
-	//
-	//	if err != nil {
-	//		log.Println("Error broadcasting message:", err)
-	//	}
-	//}
-	//for i := range rounds {
-	//	// 1秒一轮
-	//	time.Sleep(1 * time.Second)
-	//	fmt.Printf("=== %d =====\n", i)
-	//	err := serverList[5].GossipMessage([]byte("hello from server!"), 0)
-	//	if err != nil {
-	//		log.Println("Error broadcasting message:", err)
-	//	}
-	//}
+	for i := range rounds {
+		// 1秒一轮
+		time.Sleep(1 * time.Second)
+		fmt.Printf("=== %d =====\n", i)
+		err := serverList[5].ColoringMessage(msg, 0)
+		//err := serverList[5].RegularMessage(msg, 0)
+
+		if err != nil {
+			log.Println("Error broadcasting message:", err)
+		}
+	}
+	for i := range rounds {
+		// 1秒一轮
+		time.Sleep(1 * time.Second)
+		fmt.Printf("=== %d =====\n", i)
+		err := serverList[5].GossipMessage(msg, 0)
+		if err != nil {
+			log.Println("Error broadcasting message:", err)
+		}
+	}
 
 	time.Sleep(10 * time.Second)
 

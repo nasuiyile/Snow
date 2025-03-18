@@ -18,11 +18,11 @@
         let xData = []
 
         let RMR_8 = []
-        let RMR_9 = []
+        let RMR_7 = []
         let RMR_11 = []
 
         let RMRSum_8 = 0
-        let RMRSum_9 = 0
+        let RMRSum_7 = 0
         let RMRSum_11 = 0
 
         if (dataArr[8]) {
@@ -32,10 +32,10 @@
                 RMRSum_8 += v.RMR
             });
         }
-        if (dataArr[9]) {
-            Object.entries(dataArr[9]).forEach(([k, v]) => {
-                RMR_9.push(v.RMR)
-                RMRSum_9 += v.RMR
+        if (dataArr[7]) {
+            Object.entries(dataArr[7]).forEach(([k, v]) => {
+                RMR_7.push(v.RMR)
+                RMRSum_7 += v.RMR
             });
         }
         if (dataArr[11]) {
@@ -54,7 +54,7 @@
                     left: '0%',
                     bottom: '0%'
                 }, {
-                    subtext: 'Reliable Avg: ' + (RMRSum_9 / xData.length).toFixed(0),
+                    subtext: 'Coloring Avg: ' + (RMRSum_7 / xData.length).toFixed(0),
                     left: '15%',
                     bottom: '0%'
                 }, {
@@ -80,7 +80,7 @@
                 }
             },
             legend: {
-                data: ['Regular', 'Reliable', 'Gossip']
+                data: ['Regular', 'Coloring', 'Gossip']
             },
             series: [
                 {
@@ -89,9 +89,9 @@
                     data: RMR_8
                 },
                 {
-                    name: 'Reliable',
+                    name: 'Coloring',
                     type: 'line',
-                    data: RMR_9
+                    data: RMR_7
                 },
                 {
                     name: 'Gossip',

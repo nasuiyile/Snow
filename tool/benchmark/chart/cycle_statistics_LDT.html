@@ -6,7 +6,7 @@
 </head>
 
 <body>
-    <div id="echartsMain" style="width: 100%; height: 500px;"></div>
+<div id="echartsMain" style="width: 100%; height: 500px;"></div>
 </body>
 
 </html>
@@ -18,11 +18,11 @@
         let xData = []
 
         let LDT_8 = []
-        let LDT_9 = []
+        let LDT_7 = []
         let LDT_11 = []
 
         let LDTSum_8 = 0
-        let LDTSum_9 = 0
+        let LDTSum_7 = 0
         let LDTSum_11 = 0
 
         if (dataArr[8]) {
@@ -32,10 +32,10 @@
                 LDTSum_8 += v.LDT
             });
         }
-        if (dataArr[9]) {
-            Object.entries(dataArr[9]).forEach(([k, v]) => {
-                LDT_9.push(v.LDT)
-                LDTSum_9 += v.LDT
+        if (dataArr[7]) {
+            Object.entries(dataArr[7]).forEach(([k, v]) => {
+                LDT_7.push(v.LDT)
+                LDTSum_7 += v.LDT
 
             });
         }
@@ -48,21 +48,21 @@
 
         var option = {
             title: [{
-                    text: 'LDT',
-                },
+                text: 'LDT',
+            },
                 {
                     subtext: 'Regular Avg: ' + (LDTSum_8 / xData.length).toFixed(0),
                     left: '0%',
                     bottom: '0%'
                 }, {
-                    subtext: 'Reliable Avg: ' + (LDTSum_9 / xData.length).toFixed(0),
+                    subtext: 'Coloring Avg: ' + (LDTSum_7 / xData.length).toFixed(0),
                     left: '15%',
                     bottom: '0%'
                 }, {
                     subtext: 'Gossip Avg: ' + (LDTSum_11 / xData.length).toFixed(0),
                     left: '30%',
                     bottom: '0%'
-            }],
+                }],
             tooltip: {
                 trigger: 'axis'
             },
@@ -77,7 +77,7 @@
                 max: 'dataMax'
             },
             legend: {
-                data: ['Regular', 'Reliable', 'Gossip']
+                data: ['Regular', 'Coloring', 'Gossip']
             },
             series: [
                 {
@@ -86,9 +86,9 @@
                     data: LDT_8
                 },
                 {
-                    name: 'Reliable',
+                    name: 'Coloring',
                     type: 'line',
-                    data: LDT_9
+                    data: LDT_7
                 },
                 {
                     name: 'Gossip',

@@ -18,11 +18,11 @@
         let xData = []
 
         let FlowOutS_8 = []
-        let FlowOutS_9 = []
+        let FlowOutS_7 = []
         let FlowOutS_11 = []
 
         let FlowOutSSum_8 = 0
-        let FlowOutSSum_9 = 0
+        let FlowOutSSum_7 = 0
         let FlowOutSSum_11 = 0
 
         if (dataArr[8]) {
@@ -32,10 +32,10 @@
                 FlowOutSSum_8 += v.FlowOutS
             });
         }
-        if (dataArr[9]) {
-            Object.entries(dataArr[9]).forEach(([k, v]) => {
-                FlowOutS_9.push(v.FlowOutS)
-                FlowOutSSum_9 += v.FlowOutS
+        if (dataArr[7]) {
+            Object.entries(dataArr[7]).forEach(([k, v]) => {
+                FlowOutS_7.push(v.FlowOutS)
+                FlowOutSSum_7 += v.FlowOutS
 
             });
         }
@@ -48,21 +48,21 @@
 
         var option = {
             title: [{
-                    text: 'Fanout Traffic Variance',
-                },
+                text: 'Fanout Traffic Variance',
+            },
                 {
                     subtext: 'Regular Avg: ' + (FlowOutSSum_8 / xData.length).toFixed(0),
                     left: '0%',
                     bottom: '0%'
                 }, {
-                    subtext: 'Reliable Avg: ' + (FlowOutSSum_9 / xData.length).toFixed(0),
+                    subtext: 'Coloring Avg: ' + (FlowOutSSum_7 / xData.length).toFixed(0),
                     left: '15%',
                     bottom: '0%'
                 }, {
                     subtext: 'Gossip Avg: ' + (FlowOutSSum_11 / xData.length).toFixed(0),
                     left: '30%',
                     bottom: '0%'
-            }],
+                }],
             tooltip: {
                 trigger: 'axis'
             },
@@ -80,7 +80,7 @@
                 }
             },
             legend: {
-                data: ['Regular', 'Reliable', 'Gossip']
+                data: ['Regular', 'Coloring', 'Gossip']
             },
             series: [
                 {
@@ -89,9 +89,9 @@
                     data: FlowOutS_8
                 },
                 {
-                    name: 'Reliable',
+                    name: 'Coloring',
                     type: 'line',
-                    data: FlowOutS_9
+                    data: FlowOutS_7
                 },
                 {
                     name: 'Gossip',
