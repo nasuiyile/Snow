@@ -4,16 +4,17 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"snow/common"
 	"snow/internal/broadcast"
 	"snow/tool"
 	"time"
 )
 
 func main() {
-	configPath := "C:\\code\\go\\Snow\\config\\config.yml"
+	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
 
 	// 节点数量
-	n := 200
+	n := 20
 	//扇出大小
 	k := 2
 
@@ -52,33 +53,20 @@ func main() {
 	}()
 	//节点启动完之后再跑
 	time.Sleep(time.Duration(n/20) * time.Second)
-	tool.Num = n
+
 	// 测试轮数
 	for i := range rounds {
-		// 1秒一轮
-		time.Sleep(1 * time.Second)
+		// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
 		fmt.Printf("=== %d =====\n", i)
-		err := serverList[5].RegularMessage(msg, 0)
-		if err != nil {
-			log.Println("Error broadcasting message:", err)
+		time.Sleep(1 * time.Second)
+		err := serverList[0].RegularMessage(msg, common.UserMsg)
+		time.Sleep(4 * time.Second)
+		var removedNode *broadcast.Server
+		if len(serverList) > 1 {
+			removedNode, serverList = tool.RemoveElement(serverList, 1)
 		}
-	}
-	for i := range rounds {
-		// 1秒一轮
-		time.Sleep(1 * time.Second)
-		fmt.Printf("=== %d =====\n", i)
-		err := serverList[5].ColoringMessage(msg, 0)
-		//err := serverList[5].RegularMessage(msg, 0)
-
-		if err != nil {
-			log.Println("Error broadcasting message:", err)
-		}
-	}
-	for i := range rounds {
-		// 1秒一轮
-		time.Sleep(1 * time.Second)
-		fmt.Printf("=== %d =====\n", i)
-		err := serverList[5].GossipMessage(msg, 0)
+		removedNode.ApplyLeave()
+		tool.Num--
 		if err != nil {
 			log.Println("Error broadcasting message:", err)
 		}

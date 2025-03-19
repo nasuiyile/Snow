@@ -36,7 +36,7 @@ func NewServer(config *broadcast.Config, action broadcast.Action) (*Server, erro
 	server.isInitialized.Store(false)
 	server.PConfig = &PConfig{
 		LazyPushInterval: 1 * time.Second,
-		LazyPushTimeout:  3 * time.Second,
+		LazyPushTimeout:  4 * time.Second,
 	}
 	server.MessageIdQueue = make(chan []byte, 10000000)
 	server.msgCache = state.NewTimeoutMap()
@@ -65,11 +65,10 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			payload := tool.PackTag(Prune, msgAction)
 			s.SendMessage(parentIP, payload, []byte{})
 		} else {
-			//
-			s.MessageIdQueue <- body[TagLen : TagLen+IpLen]
 			//发送和收到时候都要进行缓存
-			msgId := msg[TagLen : TagLen+TimeLen]
-			s.msgCache.Add(msgId, string(msg), s.Config.ExpirationTime)
+			msgId := msg[TagLen+IpLen : IpLen+TagLen+TimeLen]
+			s.msgCache.Set(string(msgId), string(msg), s.Config.ExpirationTime)
+			s.MessageIdQueue <- msgId
 			//对消息进行转发
 			s.PlumTreeMessage(msg)
 		}
@@ -128,7 +127,7 @@ func (s *Server) PlumTreeBroadcast(msg []byte, msgAction MsgAction) {
 	copy(bytes[TagLen+TimeLen+IpLen:], msg)
 
 	//用随机数当做消息id 发送之前进行缓存
-	msgId := msg[TagLen : TagLen+TimeLen]
+	msgId := msg[TagLen+IpLen : TagLen+IpLen+TimeLen]
 	s.msgCache.Add(msgId, string(msg), s.Config.ExpirationTime)
 	s.PlumTreeMessage(bytes)
 }
