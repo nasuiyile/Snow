@@ -92,7 +92,9 @@ func forward(msg []byte, s *Server, parentIp string) {
 	leftIP := msg[TagLen : IpLen+TagLen]
 	rightIP := msg[IpLen+TagLen : IpLen*2+TagLen]
 	isLeaf := bytes.Compare(leftIP, rightIP) == 0
+
 	if !isLeaf {
+
 		member, _ = s.NextHopMember(msgType, msgAction, leftIP, rightIP, false)
 	}
 	//消息中会附带发送给自己的节点

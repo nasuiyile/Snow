@@ -36,7 +36,7 @@ func BalancedMultiwayTree(left int, right int, current int, k int) []*area {
 	if left > right {
 		return nil
 	} else if (AreaLen - 1) <= k {
-		for ; left < right; left++ {
+		for ; left <= right; left++ {
 			if left == current {
 				continue
 			}

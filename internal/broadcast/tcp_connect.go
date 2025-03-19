@@ -58,11 +58,12 @@ func NewServer(config *Config, action Action) (*Server, error) {
 
 	server.H = server
 	server.Member.FindOrInsert(config.IPBytes())
+
+	for _, addr := range config.DefaultServer {
+		server.Member.AddMember(tool.IPv4To6Bytes(addr))
+	}
 	go server.startAcceptingConnections() // 启动接受连接的协程
 
-	//for _, addr := range config.DefaultServer {
-	//	server.Member.AddMember(tool.IPv4To6Bytes(addr))
-	//}
 	server.schedule()
 	server.ApplyJoin(config.InitialServer)
 	log.Printf("Server is running on port %d...\n\n", config.Port)

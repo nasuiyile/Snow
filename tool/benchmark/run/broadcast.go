@@ -14,7 +14,7 @@ func main() {
 	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
 
 	// 节点数量
-	n := 20
+	n := 500
 	//扇出大小
 	k := 2
 
@@ -24,6 +24,8 @@ func main() {
 	rounds := 50
 	initPort := 40000
 
+	serversAddresses := initAddress(n, initPort)
+
 	msg := randomByteArray(strLen)
 	serverList := make([]*broadcast.Server, 0)
 	//serversAddresses := initAddress(n)
@@ -32,6 +34,7 @@ func main() {
 		f := func(config *broadcast.Config) {
 			config.Port = initPort + i
 			config.FanOut = k
+			config.DefaultServer = serversAddresses
 		}
 		config, err := broadcast.NewConfig(configPath, f)
 		if err != nil {
@@ -60,13 +63,45 @@ func main() {
 		fmt.Printf("=== %d =====\n", i)
 		time.Sleep(1 * time.Second)
 		err := serverList[0].RegularMessage(msg, common.UserMsg)
-		time.Sleep(4 * time.Second)
-		var removedNode *broadcast.Server
-		if len(serverList) > 1 {
-			removedNode, serverList = tool.RemoveElement(serverList, 1)
+		//time.Sleep(4 * time.Second)
+		//var removedNode *broadcast.Server
+		//if len(serverList) > 1 {
+		//	removedNode, serverList = tool.RemoveElement(serverList, 1)
+		//}
+		//removedNode.ApplyLeave()
+		//tool.Num--
+		if err != nil {
+			log.Println("Error broadcasting message:", err)
 		}
-		removedNode.ApplyLeave()
-		tool.Num--
+	}
+	for i := range rounds {
+		// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
+		fmt.Printf("=== %d =====\n", i)
+		time.Sleep(1 * time.Second)
+		err := serverList[0].ColoringMessage(msg, common.UserMsg)
+		//time.Sleep(4 * time.Second)
+		//var removedNode *broadcast.Server
+		//if len(serverList) > 1 {
+		//	removedNode, serverList = tool.RemoveElement(serverList, 1)
+		//}
+		//removedNode.ApplyLeave()
+		//tool.Num--
+		if err != nil {
+			log.Println("Error broadcasting message:", err)
+		}
+	}
+	for i := range rounds {
+		// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
+		fmt.Printf("=== %d =====\n", i)
+		time.Sleep(1 * time.Second)
+		err := serverList[0].GossipMessage(msg, common.UserMsg)
+		//time.Sleep(4 * time.Second)
+		//var removedNode *broadcast.Server
+		//if len(serverList) > 1 {
+		//	removedNode, serverList = tool.RemoveElement(serverList, 1)
+		//}
+		//removedNode.ApplyLeave()
+		//tool.Num--
 		if err != nil {
 			log.Println("Error broadcasting message:", err)
 		}
@@ -118,4 +153,12 @@ func randomByteArray(length int) []byte {
 	}
 
 	return bytes
+}
+func initAddress(n int, port int) []string {
+	strings := make([]string, 0)
+	for i := 0; i < n; i++ {
+		addr := fmt.Sprintf("127.0.0.1:%d", port+i)
+		strings = append(strings, addr)
+	}
+	return strings
 }
