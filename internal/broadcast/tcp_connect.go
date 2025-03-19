@@ -242,11 +242,9 @@ func (s *Server) Close() {
 	s.listener.Close()
 	s.Member.Lock()
 	for _, v := range s.Member.MetaData {
-
 		v.GetClient().Close()
 		v.GetServer().Close()
 	}
-
 	s.Member.Unlock()
 }
 
