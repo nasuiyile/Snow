@@ -11,9 +11,8 @@ type Message struct {
 	Primary   bool
 	MsgType   byte
 
-	Num       int `json:"Num"`
-	FanOut    int `json:"FanOut"`
-
+	Num    int `json:"Num"`
+	FanOut int `json:"FanOut"`
 }
 
 // 每个节点统计信息
@@ -69,10 +68,10 @@ func staticticsCycle(message []Message, nodeCount int) MessageCycle {
 	// 统计有多少节点收到消息
 	set := make(map[string]int)
 	for _, m := range message {
-		if _, e := set[m.From]; !e {
-			set[m.From] = 0
+		if _, e := set[m.Target]; !e {
+			set[m.Target] = 0
 		}
-		set[m.From]++
+		set[m.Target]++
 	}
 	cycle.Reliability = len(set)
 
