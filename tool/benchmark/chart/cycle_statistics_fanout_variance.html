@@ -104,8 +104,10 @@
     }
 
     async function getData() {
+        let search = window.location.search
+        let url = "http://localhost:8111/getCycleStatistics" + search
         let request = new XMLHttpRequest()
-        request.open("GET", "http://localhost:8111/getCycleStatistics")
+        request.open("GET", url)
         request.onreadystatechange = function () {
             if (request.readyState === 4 && request.status == 200) {
                 let response = JSON.parse(request.responseText)
