@@ -173,16 +173,24 @@ func getNodeStatistics(w http.ResponseWriter, r *http.Request) {
 
 func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-
+	decoder := schema.NewDecoder()
+	message := Message{}
+	err := decoder.Decode(&message, r.URL.Query())
+	if err != nil {
+		log.Println(err)
+		return
+	}
 	// 统计每个轮次的消息信息
 	cycleTypeMap := make(map[byte]map[string]MessageCycle)
 	for msgType, _ := range msgIdMap {
 		cycleMap := make(map[string]MessageCycle)
 		for k, v := range cacheMap {
-			messageGroup := v.getMessagesByGroup(msgType)
+			messageGroup := v.getMessagesByGroup(msgType, message)
 			nodeCount := len(v.getNodes())
-			cycle := staticticsCycle(messageGroup, nodeCount)
-			cycleMap[k] = cycle
+			if len(messageGroup) > 0 {
+				cycle := staticticsCycle(messageGroup, nodeCount)
+				cycleMap[k] = cycle
+			}
 		}
 		cycleTypeMap[msgType] = cycleMap
 	}

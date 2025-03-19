@@ -5,6 +5,25 @@
 </head>
 
 <body>
+    <div>
+        <span>k:
+            <select id="k" style="width: 100px;margin: 10px;">
+                <option value=""></option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+                <option value="400">400</option>
+            </select>
+        </span>
+        <span>fanout:
+            <select id="fanout" style="width: 100px;margin: 10px;">
+                <option value=""></option>
+                <option value="2">2</option>
+                <option value="4">4</option>
+                <option value="8">8</option>
+            </select>
+        </span>
+        <button id="search" onclick="search()">search</button>
+    </div>
     <!--    <iframe src="./variance_statistics.html" style="width: 90%; height: 600px;"></iframe>-->
     <!--    <iframe src="./node_statistics.html" style="width: 90%; height: 600px;"></iframe>-->
     <iframe src="./cycle_statistics_LDT.html" style="width: 49%; height: 550px;"></iframe>
@@ -19,6 +38,21 @@
 </html>
 
 <script type="text/javascript">
+    function search() {
+        let k = document.getElementById("k").value
+        let fanout = document.getElementById("fanout").value
+        let param = "?Num=" + k + "&Fanout=" + fanout
+
+        let iframes = document.getElementsByTagName("iframe")
+        Object.values(iframes).forEach(element => {
+            let url = element.src
+            if (url.indexOf("?") > 0) {
+                url = url.substring(0, url.indexOf("?"))
+            }
+            element.src = url + param
+        });
+    }
+
     function clean() {
         let request = new XMLHttpRequest()
         request.open("GET", "http://localhost:8111/clean")

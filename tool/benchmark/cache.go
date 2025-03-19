@@ -58,13 +58,13 @@ func (cache *MessageCache) getMessages() []Message {
 	return values
 }
 
-func (cache *MessageCache) getMessagesByGroup(msgType byte) []Message {
+func (cache *MessageCache) getMessagesByGroup(msgType byte, message Message) []Message {
 	values := make([]Message, 0)
 	values = append(values, cache.messages...)
 
 	msgTypeArr := make([]Message, 0)
 	for _, m := range values {
-		if m.MsgType == msgType {
+		if m.MsgType == msgType && (message.Num == 0 || m.Num == message.Num) && (message.FanOut == 0 || m.FanOut == message.FanOut) {
 			msgTypeArr = append(msgTypeArr, m)
 		}
 	}
