@@ -91,7 +91,7 @@ func (a *Action) process(body []byte) bool {
 }
 
 func (s *Server) IsReceived(m []byte) bool {
-	return s.State.State.Add(m, s.Config.ExpirationTime)
+	return s.State.State.Add(m, "", s.Config.ExpirationTime)
 }
 
 func ObtainOnIPRing(current int, offset int, n int) int {

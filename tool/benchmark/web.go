@@ -44,11 +44,12 @@ func putRing(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(message)
 	message.Timestamp = int(time.Now().UnixMilli())
 	message.Id = getMessageId(message)
-
+	rm.Lock()
 	if _, exisit := cacheMap[message.Id]; !exisit {
 		cacheMap[message.Id] = CreateMessageCache()
 	}
 	cacheMap[message.Id].put(message)
+	rm.Unlock()
 }
 
 // 消息传递路径
@@ -213,6 +214,11 @@ func CreateWeb() {
 	http.HandleFunc("/getAllNode", getAllNode)
 	http.HandleFunc("/getNodeStatistics", getNodeStatistics)
 	http.HandleFunc("/getCycleStatistics", getCycleStatistics)
+	fs := http.FileServer(http.Dir("tool/benchmark/chart"))
+	// 创建静态文件服务器
+
+	// 使用 http.Handle 而不是 http.HandleFunc
+	http.Handle("/chart/", http.StripPrefix("/chart/", fs))
 
 	// 启动HTTP服务器
 	fmt.Println("Server is running on http://localhost:8111")

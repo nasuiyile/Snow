@@ -20,6 +20,8 @@ func SendHttp(from string, target string, data []byte, k int) {
 		values.Add("Size", fmt.Sprintf("%d", len(data)))
 		if data[0] == ColoringMsg || data[0] == RegularMsg || data[0] == ReliableMsg {
 			values.Add("Id", string(data[TagLen+IpLen*2:TagLen+IpLen*2+TimeLen]))
+		} else if data[0] == EagerPush {
+			values.Add("Id", string(data[TagLen+IpLen:TagLen+IpLen+TimeLen]))
 		} else {
 			//其他的消息都没有附带ip
 			values.Add("Id", string(data[TagLen:TagLen+TimeLen]))

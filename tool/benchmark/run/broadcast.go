@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
+	configPath := "C:\\code\\go\\Snow\\config\\config.yml"
 
 	// 节点数量
 	n := 200
@@ -34,8 +34,8 @@ func main() {
 		}
 		config, err := broadcast.NewConfig(configPath, f)
 		if err != nil {
+			panic(err)
 			return
-
 		}
 		server, err := broadcast.NewServer(config, action)
 		if err != nil {

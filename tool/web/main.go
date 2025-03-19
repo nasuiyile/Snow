@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/schema"
 	"math"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -274,7 +275,13 @@ func getRing(w http.ResponseWriter, r *http.Request) {
 
 	builder.WriteString("}")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(builder.String()))
+	bytes := (builder.String())
+	url := "https://dreampuf.github.io/GraphvizOnline/?engine=dot#" + url.PathEscape(bytes)
+	lable := "<iframe src=\"" + url + "\" width=\"100%\" height=\"900\"></iframe>\n"
+	cb := "<button id=\"clean\" onclick=\"clean()\">clean</button> \n<script type=\"text/javascript\">\n    function clean() {\n        let request = new XMLHttpRequest()\n        request.open(\"GET\", \"http://localhost:8111/clean\")\n        request.onreadystatechange = function () {\n            if (request.readyState === 4 && request.status == 200) {\n                console.log(\"clean over\")\n            }\n        }\n       " +
+		" request.send(); location.reload()\n    }</script>"
+
+	w.Write([]byte(lable + cb))
 	fmt.Println(m)
 }
 func clean(w http.ResponseWriter, r *http.Request) {
