@@ -177,3 +177,14 @@ func CutBytes(bytes []byte) []byte {
 func CutTimestamp(bytes []byte) []byte {
 	return bytes[TimeLen:]
 }
+
+// RemoveElement 泛型方法，适用于任何类型的切片
+func RemoveElement[T any](slice []T, index int) (T, []T) {
+	if index < 0 || index >= len(slice) {
+		panic("index out of range")
+	}
+
+	removed := slice[index]                               // 获取要删除的元素
+	newSlice := append(slice[:index], slice[index+1:]...) // 重新组合切片
+	return removed, newSlice
+}
