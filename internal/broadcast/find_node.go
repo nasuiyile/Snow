@@ -92,12 +92,24 @@ func ColoringMultiwayTree(left int, right int, current int, k int) []*area {
 	if left > right {
 		return nil
 	} else if (AreaLen - 1) <= k {
-		for ; left < current; left++ {
-			areas = append(areas, &area{left: left, current: left, right: left})
-		}
-		for ; current < right; current++ {
-			current++
-			areas = append(areas, &area{left: current, current: current, right: current})
+		//for ; left < current; left++ {
+		//	areas = append(areas, &area{left: left, current: left, right: left})
+		//}
+		//for ; current < right; current++ {
+		//	current++
+		//	areas = append(areas, &area{left: current, current: current, right: current})
+		//}
+		//return areas
+		for ; left <= right; left++ {
+			if left == current {
+				continue
+			}
+			//只有这一个节点了
+			areas = append(areas, &area{
+				current: left,
+				left:    left,
+				right:   left,
+			})
 		}
 		return areas
 	}

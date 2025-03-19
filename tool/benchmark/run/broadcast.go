@@ -14,14 +14,14 @@ func main() {
 	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
 
 	// 节点数量
-	n := 500
+	n := 100
 	//扇出大小
-	k := 2
+	k := 4
 
 	//消息大小
 	strLen := 100
 	//测试轮数
-	rounds := 50
+	rounds := 1
 	initPort := 40000
 
 	serversAddresses := initAddress(n, initPort)
@@ -56,24 +56,6 @@ func main() {
 	}()
 	//节点启动完之后再跑
 	time.Sleep(time.Duration(n/20) * time.Second)
-
-	// 测试轮数
-	for i := range rounds {
-		// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
-		fmt.Printf("=== %d =====\n", i)
-		time.Sleep(1 * time.Second)
-		err := serverList[0].RegularMessage(msg, common.UserMsg)
-		//time.Sleep(4 * time.Second)
-		//var removedNode *broadcast.Server
-		//if len(serverList) > 1 {
-		//	removedNode, serverList = tool.RemoveElement(serverList, 1)
-		//}
-		//removedNode.ApplyLeave()
-		//tool.Num--
-		if err != nil {
-			log.Println("Error broadcasting message:", err)
-		}
-	}
 	for i := range rounds {
 		// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
 		fmt.Printf("=== %d =====\n", i)
@@ -90,22 +72,40 @@ func main() {
 			log.Println("Error broadcasting message:", err)
 		}
 	}
-	for i := range rounds {
-		// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
-		fmt.Printf("=== %d =====\n", i)
-		time.Sleep(1 * time.Second)
-		err := serverList[0].GossipMessage(msg, common.UserMsg)
-		//time.Sleep(4 * time.Second)
-		//var removedNode *broadcast.Server
-		//if len(serverList) > 1 {
-		//	removedNode, serverList = tool.RemoveElement(serverList, 1)
-		//}
-		//removedNode.ApplyLeave()
-		//tool.Num--
-		if err != nil {
-			log.Println("Error broadcasting message:", err)
-		}
-	}
+	//// 测试轮数
+	//for i := range rounds {
+	//	// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
+	//	fmt.Printf("=== %d =====\n", i)
+	//	time.Sleep(1 * time.Second)
+	//	err := serverList[0].RegularMessage(msg, common.UserMsg)
+	//	//time.Sleep(4 * time.Second)
+	//	//var removedNode *broadcast.Server
+	//	//if len(serverList) > 1 {
+	//	//	removedNode, serverList = tool.RemoveElement(serverList, 1)
+	//	//}
+	//	//removedNode.ApplyLeave()
+	//	//tool.Num--
+	//	if err != nil {
+	//		log.Println("Error broadcasting message:", err)
+	//	}
+	//}
+	//
+	//for i := range rounds {
+	//	// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
+	//	fmt.Printf("=== %d =====\n", i)
+	//	time.Sleep(1 * time.Second)
+	//	err := serverList[0].GossipMessage(msg, common.UserMsg)
+	//	//time.Sleep(4 * time.Second)
+	//	//var removedNode *broadcast.Server
+	//	//if len(serverList) > 1 {
+	//	//	removedNode, serverList = tool.RemoveElement(serverList, 1)
+	//	//}
+	//	//removedNode.ApplyLeave()
+	//	//tool.Num--
+	//	if err != nil {
+	//		log.Println("Error broadcasting message:", err)
+	//	}
+	//}
 
 	time.Sleep(10 * time.Second)
 

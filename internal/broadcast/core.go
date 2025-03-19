@@ -120,12 +120,7 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 	//todo 这里可以优化读写锁
 	s.Member.Lock()
 	defer s.Member.Unlock()
-	if len(s.Member.IPTable) != 21 {
-		fmt.Println()
-	}
-	if s.Config.ServerAddress == "127.0.0.1:40002" {
-		fmt.Println()
-	}
+
 	coloring := msgType == ColoringMsg
 	if s.Member.MemberLen() == 1 {
 		return make(map[string][]byte), nil
