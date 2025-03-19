@@ -36,7 +36,7 @@ func NewServer(config *broadcast.Config, action broadcast.Action) (*Server, erro
 	server.isInitialized.Store(false)
 	server.PConfig = &PConfig{
 		LazyPushInterval: 1 * time.Second,
-		LazyPushTimeout:  2 * time.Second,
+		LazyPushTimeout:  3 * time.Second,
 	}
 	server.MessageIdQueue = make(chan []byte, 10000000)
 	server.msgCache = state.NewTimeoutMap()
@@ -104,14 +104,14 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			s.SendMessage(parentIP, []byte{}, data)
 		}
 		//补发消息，论文中并没有明确说明如果扇出达到限制时的操作。小于k可以加入，当EagerPush大于k时没有明说(论文里的k其实是f)
-		if len(s.EagerPush) < s.Config.FanOut {
-			s.eagerLock.Lock()
-			//没有包含自身的情况下才能append
-			if (!findString(s.EagerPush, parentIP)) && len(s.EagerPush) < s.Config.FanOut {
-				s.EagerPush = append(s.EagerPush, parentIP)
-			}
-			s.eagerLock.Unlock()
+		//if len(s.EagerPush) < s.Config.FanOut {
+		s.eagerLock.Lock()
+		//没有包含自身的情况下才能append
+		if !findString(s.EagerPush, parentIP) {
+			s.EagerPush = append(s.EagerPush, parentIP)
 		}
+		s.eagerLock.Unlock()
+		//}
 	default:
 		//如果都没匹配到再走之前的逻辑
 		s.Server.Hand(msg, conn)

@@ -7,7 +7,7 @@ import (
 )
 
 func TestGetRandomExcluding(t *testing.T) {
-	excluding := KRandomNodes(0, 10, 4, 10)
+	excluding := KRandomNodes(0, 10, []int{4, 2}, 3)
 	fmt.Println(excluding)
 }
 
