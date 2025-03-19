@@ -20,13 +20,15 @@ import (
 const pushScaleThreshold = 32
 
 // KRandomNodes 定义一个函数，生成指定范围内的随机数，如果取到特定值则重新生成
-func KRandomNodes(min, max, exclude int, k int) []int {
+func KRandomNodes(min int, max int, excludes []int, k int) []int {
 	res := make([]int, 0)
-	if max-min+1 <= k+1 {
+	if max-min+1 <= k+len(excludes) {
 		for ; min <= max; min++ {
-			if min != exclude {
+			if !contains(min, excludes) {
 				res = append(res, min)
+
 			}
+
 		}
 		return res
 	}
@@ -36,18 +38,26 @@ START:
 	for len(res) < k {
 		// 生成 [min, max] 范围内的随机数
 		randomNum := r.Intn(max-min+1) + min
-		for i := 0; i < len(res); i++ {
-			if randomNum == res[i] {
-				goto START
-			}
+		if contains(randomNum, res) {
+			goto START
+
 		}
 		// 如果生成的随机数不等于 exclude，则返回
-		if randomNum != exclude {
+		if !contains(randomNum, excludes) {
 			res = append(res, randomNum)
+
 		}
 		// 否则继续循环，重新生成
 	}
 	return res
+}
+func contains(target int, nums []int) bool {
+	for _, v := range nums {
+		if v == target {
+			return true
+		}
+	}
+	return false
 }
 
 func HashByte(msg []byte) []byte {

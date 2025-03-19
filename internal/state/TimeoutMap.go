@@ -80,6 +80,6 @@ func (tm *TimeoutMap) cleanUp() {
 }
 
 // Add 判断是否被写入过
-func (t *TimeoutMap) Add(msg []byte, timeout time.Duration) bool {
-	return t.Set(tool.Hash(msg), "", timeout)
+func (t *TimeoutMap) Add(msg []byte, v string, timeout time.Duration) bool {
+	return t.Set(tool.Hash(msg), v, timeout)
 }

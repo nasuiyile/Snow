@@ -86,7 +86,7 @@ func (s *Server) KRandomNodes(k int) []string {
 	ip := make([]string, 0)
 	//当前节点的ID，需要被排除
 	idx, _ := s.Member.FindOrInsert(s.Config.IPBytes())
-	randomNodes := tool.KRandomNodes(0, s.Member.MemberLen()-1, idx, k)
+	randomNodes := tool.KRandomNodes(0, s.Member.MemberLen()-1, []int{idx}, k)
 	for _, v := range randomNodes {
 		ip = append(ip, tool.ByteToIPv4Port(s.Member.IPTable[v]))
 	}

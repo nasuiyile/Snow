@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/schema"
 	"math"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -274,7 +275,10 @@ func getRing(w http.ResponseWriter, r *http.Request) {
 
 	builder.WriteString("}")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(builder.String()))
+	bytes := (builder.String())
+	url := "https://dreampuf.github.io/GraphvizOnline/?engine=dot#" + url.PathEscape(bytes)
+	lable := "<iframe src=\"" + url + "\" width=\"100%\" height=\"1000\"></iframe>\n"
+	w.Write([]byte(lable))
 	fmt.Println(m)
 }
 func clean(w http.ResponseWriter, r *http.Request) {
