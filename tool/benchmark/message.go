@@ -72,7 +72,7 @@ func staticticsCycle(message []Message, nodeCount int) MessageCycle {
 	n := nodeCount
 	for _, message := range message {
 		m += message.Size
-		n += message.Num
+		n = message.Num
 	}
 	cycle.RMR = (float64(m) / (float64(n) - 1)) - 1
 
@@ -84,7 +84,7 @@ func staticticsCycle(message []Message, nodeCount int) MessageCycle {
 		}
 		set[m.Target]++
 	}
-	cycle.Reliability = float64(len(set)) / float64(n) * 100
+	cycle.Reliability = float64(len(set)) / float64(n)
 
 	// 统计节点的扇入扇出流量方差
 	nodeSet := make(map[string]*MessageNode)
