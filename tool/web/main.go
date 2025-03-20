@@ -284,6 +284,58 @@ func getRing(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(lable + cb))
 	fmt.Println(m)
 }
+
+func getTree(w http.ResponseWriter, r *http.Request) {
+
+	var builder strings.Builder
+	builder.WriteString("graph G {layout=dot;")
+
+	var arr = make([]string, 0)
+	//var scale float64 = float64(5)
+	for k, _ := range m {
+		arr = append(arr, k)
+	}
+	for _, v := range m {
+		for _, data := range v {
+			flag := false
+			for _, value := range arr {
+				if value == data.Target {
+					flag = true
+				}
+			}
+			if !flag {
+				arr = append(arr, data.Target)
+			}
+		}
+	}
+	sort.Strings(arr)
+
+	for k, v := range m {
+		for _, target := range v {
+			k := k[10:]
+
+			t := target.Target[10:]
+			for _, v := range arr {
+				if v == k {
+
+				}
+			}
+			builder.WriteString("\"" + k + "\"" + " -- " + "\"" + t + "\"" + " [dir=forward];")
+		}
+	}
+
+	builder.WriteString("}")
+	w.WriteHeader(http.StatusOK)
+	bytes := (builder.String())
+	url := "https://dreampuf.github.io/GraphvizOnline/?engine=dot#" + url.PathEscape(bytes)
+	lable := "<iframe src=\"" + url + "\" width=\"100%\" height=\"900\"></iframe>\n"
+	cb := "<button id=\"clean\" onclick=\"clean()\">clean</button> \n<script type=\"text/javascript\">\n    function clean() {\n        let request = new XMLHttpRequest()\n        request.open(\"GET\", \"http://localhost:8111/clean\")\n        request.onreadystatechange = function () {\n            if (request.readyState === 4 && request.status == 200) {\n                console.log(\"clean over\")\n            }\n        }\n       " +
+		" request.send(); location.reload()\n    }</script>"
+
+	w.Write([]byte(lable + cb))
+	fmt.Println(m)
+}
+
 func clean(w http.ResponseWriter, r *http.Request) {
 	m = make(map[string][]Message)
 	sm = sync.Map{}
@@ -296,6 +348,7 @@ func main() {
 	http.HandleFunc("/get", get)
 	http.HandleFunc("/putRing", putRing)
 	http.HandleFunc("/getRing", getRing)
+	http.HandleFunc("/getTree", getTree)
 	http.HandleFunc("/clean", clean)
 	http.HandleFunc("/counterSize", counterSize)
 	http.HandleFunc("/totalCount", totalCount)

@@ -140,11 +140,13 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 		IPTable = s.Member.IPTable
 	}
 	k := s.Config.FanOut
-	//构建子树
+	//构建子树 left 74 right 79
+
 	next, areaLen := CreateSubTree(leftIndex, rightIndex, currentIndex, s.Member.MemberLen(), k, coloring)
 	//构建 secondary tree,注意这里的左边界和右边界要和根节点保持一致
 	if isRoot && areaLen > (1+k) && coloring {
 		secondaryRoot := ObtainOnIPRing(currentIndex, -1, s.Member.MemberLen())
+		//next = []*area{}
 		next = append(next, &area{left: leftIndex, right: rightIndex, current: secondaryRoot})
 	}
 	randomNumber := tool.RandomNumber()
