@@ -26,6 +26,7 @@
         let ReliabilitySum_11 = 0.0
 
         if (dataArr[8]) {
+            xData = []
             Object.entries(dataArr[8]).forEach(([k, v]) => {
                 xData.push(k)
                 Reliability_8.push(v.Reliability)
@@ -33,13 +34,19 @@
             });
         }
         if (dataArr[7]) {
+            xData = []
             Object.entries(dataArr[7]).forEach(([k, v]) => {
+                xData.push(k)
                 Reliability_7.push(v.Reliability)
+                ReliabilitySum_7 += v.Reliability
             });
         }
         if (dataArr[11]) {
+            xData = []
             Object.entries(dataArr[11]).forEach(([k, v]) => {
+                xData.push(k)
                 Reliability_11.push(v.Reliability)
+                ReliabilitySum_11 += v.Reliability
             });
         }
 

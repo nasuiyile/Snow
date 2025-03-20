@@ -26,6 +26,7 @@
         let RMRSum_11 = 0
 
         if (dataArr[8]) {
+            xData = []
             Object.entries(dataArr[8]).forEach(([k, v]) => {
                 xData.push(k)
                 RMR_8.push(v.RMR)
@@ -33,13 +34,17 @@
             });
         }
         if (dataArr[7]) {
+            xData = []
             Object.entries(dataArr[7]).forEach(([k, v]) => {
+                xData.push(k)
                 RMR_7.push(v.RMR)
                 RMRSum_7 += v.RMR
             });
         }
         if (dataArr[11]) {
+            xData = []
             Object.entries(dataArr[11]).forEach(([k, v]) => {
+                xData.push(k)
                 RMR_11.push(v.RMR)
                 RMRSum_11 += v.RMR
             });

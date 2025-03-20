@@ -26,6 +26,7 @@
         let LDTSum_11 = 0
 
         if (dataArr[8]) {
+            xData = []
             Object.entries(dataArr[8]).forEach(([k, v]) => {
                 xData.push(k)
                 LDT_8.push(v.LDT)
@@ -33,14 +34,18 @@
             });
         }
         if (dataArr[7]) {
+            xData = []
             Object.entries(dataArr[7]).forEach(([k, v]) => {
+                xData.push(k)
                 LDT_7.push(v.LDT)
                 LDTSum_7 += v.LDT
 
             });
         }
         if (dataArr[11]) {
+            xData = []
             Object.entries(dataArr[11]).forEach(([k, v]) => {
+                xData.push(k)
                 LDT_11.push(v.LDT)
                 LDTSum_11 += v.LDT
             });
