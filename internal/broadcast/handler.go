@@ -27,13 +27,16 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		forward(msg, s, parentIP)
 	case ColoringMsg:
 		body := tool.CutBytes(msg)
-		if !IsFirst(body, msgType, msgAction, s) {
+
+		first := IsFirst(body, msgType, msgAction, s)
+		forward(msg, s, parentIP)
+		if !first {
 			return
 		}
+
 		if msgAction == ReportLeave {
 			s.Member.RemoveMember(tool.CutTimestamp(body))
 		}
-		forward(msg, s, parentIP)
 	case ReliableMsg:
 		body := tool.CutBytes(msg)
 		if !IsFirst(body, msgType, msgAction, s) {
