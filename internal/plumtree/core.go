@@ -38,7 +38,7 @@ func NewServer(config *broadcast.Config, action broadcast.Action) (*Server, erro
 		LazyPushInterval: 1 * time.Second,
 		LazyPushTimeout:  4 * time.Second,
 	}
-	server.MessageIdQueue = make(chan []byte, 10000000)
+	server.MessageIdQueue = make(chan []byte, 10000)
 	server.msgCache = state.NewTimeoutMap()
 	go server.lazyPushTask(server.Server.StopCh)
 	return server, nil

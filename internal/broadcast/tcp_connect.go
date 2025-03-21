@@ -269,7 +269,7 @@ func (s *Server) Sender() {
 			log.Printf("Error sending message to %v: %v", data.Conn.RemoteAddr(), err)
 			continue
 		}
-		if s.Config.Test {
+		if s.Config.Test && s.Config.Report {
 			bytes := append(data.Payload, data.Msg...)
 			tool.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), bytes, s.Config.FanOut)
 		}

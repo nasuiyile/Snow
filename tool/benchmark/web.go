@@ -3,14 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/schema"
 	"log"
 	"math"
 	"net/http"
+	. "snow/common"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/gorilla/schema"
 )
 
 var cacheMap map[string]*MessageCache
@@ -182,18 +182,26 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// 统计每个轮次的消息信息
-	cycleTypeMap := make(map[byte]map[string]MessageCycle)
+	cycleTypeMap := make(map[byte]map[string]*MessageCycle)
 	for msgType, _ := range msgIdMap {
-		cycleMap := make(map[string]MessageCycle)
+		cycleMap := make(map[string]*MessageCycle)
 		for k, v := range cacheMap {
 			messageGroup := v.getMessagesByGroup(msgType, message)
 			nodeCount := len(v.getNodes())
 			if len(messageGroup) > 0 {
 				cycle := staticticsCycle(messageGroup, nodeCount)
-				cycleMap[k] = cycle
+				cycleMap[k] = &cycle
 			}
 		}
 		cycleTypeMap[msgType] = cycleMap
+	}
+	for b, m := range cycleTypeMap {
+		if b == Graft || b == LazyPush {
+			for s := range m {
+				msg := cycleTypeMap[EagerPush][s]
+				msg.RMR = msg.RMR + m[s].RMR
+			}
+		}
 	}
 
 	var builder strings.Builder

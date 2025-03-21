@@ -23,6 +23,7 @@ const (
 	LazyPush  //发送IHAVE
 	Graft     //收到IHAVE之后，发现自己没有，所以进行主动的拉取
 	Prune     //用于修剪，自己已经收到了EagerPush
+
 )
 
 type MsgAction = byte

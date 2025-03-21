@@ -27,6 +27,7 @@ type Config struct {
 	DefaultServer    []string
 	DefaultAddress   string `yaml:"DefaultAddress"`
 	RemoteHttp       string `yaml:"RemoteHttp"`
+	Report           bool   `yaml:"Report"`
 }
 
 func (c *Config) IPBytes() []byte {

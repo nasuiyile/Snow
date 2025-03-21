@@ -20,10 +20,14 @@
         let LDT_8 = []
         let LDT_7 = []
         let LDT_11 = []
+        let LDT_12 = []
+
 
         let LDTSum_8 = 0
         let LDTSum_7 = 0
         let LDTSum_11 = 0
+        let LDTSum_12 = 0
+
 
         if (dataArr[8]) {
             xData = []
@@ -51,6 +55,15 @@
             });
         }
 
+        if (dataArr[12]) {
+            xData = []
+            Object.entries(dataArr[12]).forEach(([k, v]) => {
+                xData.push(k)
+                LDT_12.push(v.LDT)
+                LDTSum_12 += v.LDT
+            });
+        }
+
         var option = {
             title: [{
                 text: 'LDT',
@@ -67,6 +80,10 @@
                     subtext: 'Gossip Avg: ' + (LDTSum_11 / xData.length).toFixed(0),
                     left: '30%',
                     bottom: '0%'
+                }, {
+                    subtext: 'Plumtree Avg: ' + (LDTSum_12 / xData.length).toFixed(0),
+                    left: '45%',
+                    bottom: '0%'
                 }],
             tooltip: {
                 trigger: 'axis'
@@ -82,7 +99,7 @@
                 max: 'dataMax'
             },
             legend: {
-                data: ['Regular', 'Coloring', 'Gossip']
+                data: ['Regular', 'Coloring', 'Gossip', 'Plumtree']
             },
             series: [
                 {
@@ -99,6 +116,11 @@
                     name: 'Gossip',
                     type: 'line',
                     data: LDT_11
+                },
+                {
+                    name: 'Plumtree',
+                    type: 'line',
+                    data: LDT_12
                 },
             ]
         };

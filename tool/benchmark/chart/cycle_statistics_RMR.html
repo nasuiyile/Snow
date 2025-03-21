@@ -20,10 +20,12 @@
         let RMR_8 = []
         let RMR_7 = []
         let RMR_11 = []
+        let RMR_12 = []
 
         let RMRSum_8 = 0
         let RMRSum_7 = 0
         let RMRSum_11 = 0
+        let RMRSum_12 = 0
 
         if (dataArr[8]) {
             xData = []
@@ -49,11 +51,19 @@
                 RMRSum_11 += v.RMR
             });
         }
+        if (dataArr[12]) {
+            xData = []
+            Object.entries(dataArr[12]).forEach(([k, v]) => {
+                xData.push(k)
+                RMR_12.push(v.RMR)
+                RMRSum_12 += v.RMR
+            });
+        }
 
         var option = {
             title: [{
-                    text: 'RMR',
-                },
+                text: 'RMR',
+            },
                 {
                     subtext: 'Regular Avg: ' + (RMRSum_8 / xData.length).toFixed(0),
                     left: '0%',
@@ -66,7 +76,12 @@
                     subtext: 'Gossip Avg: ' + (RMRSum_11 / xData.length).toFixed(0),
                     left: '30%',
                     bottom: '0%'
-            }],
+                }, {
+                    subtext: 'Plumtree Avg: ' + (RMRSum_12 / xData.length).toFixed(0),
+                    left: '45%',
+                    bottom: '0%'
+                }
+            ],
             tooltip: {
                 trigger: 'axis'
             },
@@ -77,15 +92,14 @@
             },
             yAxis: {
                 type: 'value',
-                // min: "dataMin",
                 min: 0,
                 max: 'dataMax',
                 axisLabel: {
-                    formatter: value => value.toFixed(0) // 保留两位小数
+                    formatter: value => value.toFixed(0)
                 }
             },
             legend: {
-                data: ['Regular', 'Coloring', 'Gossip']
+                data: ['Regular', 'Coloring', 'Gossip', 'Plumtree']
             },
             series: [
                 {
@@ -103,6 +117,11 @@
                     type: 'line',
                     data: RMR_11
                 },
+                {
+                    name: 'Plumtree',
+                    type: 'line',
+                    data: RMR_12
+                }
             ]
         };
         myChart.setOption(option);
