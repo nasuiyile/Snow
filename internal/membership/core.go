@@ -129,26 +129,27 @@ func (m *MemberShipList) AddMember(ip []byte) {
 	}
 	m.FindOrInsert(ip)
 }
-func (m *MemberShipList) RemoveMember(ip []byte) {
+func (m *MemberShipList) RemoveMember(ip []byte, close bool) {
 	m.Lock()
 	defer m.Unlock()
 	address := tool.ByteToIPv4Port(ip)
 	data, ok := m.MetaData[address]
-	if ok {
+	if ok && close {
 		if data.client != nil {
-			time.AfterFunc(2*time.Second, func() {
+			time.AfterFunc(3*time.Second, func() {
 				tcpConn := (data.client).(*net.TCPConn)
 				tcpConn.SetLinger(0)
 				tcpConn.Close()
 			})
 		}
 		if data.server != nil {
-			time.AfterFunc(2*time.Second, func() {
+			time.AfterFunc(3*time.Second, func() {
 				tcpConn := (data.server).(*net.TCPConn)
 				tcpConn.SetLinger(0)
 				tcpConn.Close()
 			})
 		}
+		//扇出后还是可能短暂的发送消息
 		delete(m.MetaData, tool.ByteToIPv4Port(ip))
 	}
 	idx, _ := m.FindOrInsert(ip)
@@ -174,5 +175,5 @@ func (m *MemberShipList) PutMemberIfNil(key string, value *MetaData) {
 	if data.server == nil && value.server != nil {
 		data.server = value.server
 	}
-	m.FindOrInsert(tool.IPv4To6Bytes(key))
+	//m.FindOrInsert(tool.IPv4To6Bytes(key))
 }

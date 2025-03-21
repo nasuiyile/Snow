@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net"
 	. "snow/common"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -187,4 +188,25 @@ func RemoveElement[T any](slice []T, index int) (T, []T) {
 	removed := slice[index]                               // 获取要删除的元素
 	newSlice := append(slice[:index], slice[index+1:]...) // 重新组合切片
 	return removed, newSlice
+}
+
+// DeleteAtIndexes 删除数组中指定索引位置的元素
+func DeleteAtIndexes[T any](arr []T, indexes ...int) []T {
+	// 排序索引，避免删除时索引偏移
+	sort.Ints(indexes)
+
+	// 使用一个新切片存储结果
+	result := make([]T, 0, len(arr)-len(indexes))
+	indexSet := make(map[int]struct{})
+	for _, idx := range indexes {
+		indexSet[idx] = struct{}{}
+	}
+
+	for i, v := range arr {
+		if _, found := indexSet[i]; !found {
+			result = append(result, v)
+		}
+	}
+
+	return result
 }

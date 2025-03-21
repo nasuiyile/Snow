@@ -41,5 +41,7 @@ const (
 const TimeLen = 8
 const TagLen = 2
 const HashLen = 32
-const IpLen = 6
+
+var IpLen = 6
+
 const Placeholder = 1 + 1 + 6 + 6 + 8

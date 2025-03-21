@@ -9,6 +9,7 @@ import (
 	"snow/internal/membership"
 	"snow/internal/state"
 	"snow/tool"
+	"time"
 )
 
 // Server 定义服务器结构体
@@ -58,23 +59,23 @@ func (s *Server) ReduceReliableTimeout(msg []byte, configAction *func(isConverge
 	if r.Counter == 0 {
 		delete(s.State.ReliableTimeout, hash)
 		//如果计数器为0代表已经收到了全部消息，这时候就可以触发根节点的回调方法
+		if r.Action != nil {
+			go (*r.Action)(true)
+		}
 		if r.IsRoot {
 			if configAction != nil {
 				go (*configAction)(true)
 			}
 			return
 		}
-		if r.Action != nil {
-			go (*r.Action)(true)
-		}
+
 		newMsg := make([]byte, len(msg))
 		copy(newMsg, msg)
 		copy(newMsg[prefix:prefix+IpLen], s.Config.IPBytes())
 		s.SendMessage(tool.ByteToIPv4Port(r.Ip), []byte{}, newMsg)
 		//断开连接
 		if msgAction == NodeLeave {
-
-			s.Member.RemoveMember(msg[len(msg)-IpLen:])
+			s.Member.RemoveMember(msg[len(msg)-IpLen:], false)
 		}
 	}
 
@@ -127,26 +128,37 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 	}
 	forwardList := make(map[string][]byte)
 	//要转发的所有节点
-	IPTable := s.Member.IPTable
 	leftIndex, lok := s.Member.FindOrInsert(leftIP)
 	rightIndex, rok := s.Member.FindOrInsert(rightIP)
-	currentIndex, cok := s.Member.FindOrInsert(s.Config.IPBytes())
+	currentIndex, _ := s.Member.FindOrInsert(s.Config.IPBytes())
 	//如果更新了就重新找一遍节点
-	if lok || rok || cok {
+	if lok || rok {
 		leftIndex, _ = s.Member.FindOrInsert(leftIP)
 		rightIndex, _ = s.Member.FindOrInsert(rightIP)
-		currentIndex, _ = s.Member.FindOrInsert(s.Config.IPBytes())
-		//引用也要重新更新
-		IPTable = s.Member.IPTable
+		//引用也要重新更新,这些元素是被临时插入的用完就需要删除
+		if lok && rok {
+			defer func() {
+				s.Member.IPTable = tool.DeleteAtIndexes(s.Member.IPTable, leftIndex, rightIndex)
+			}()
+		} else if lok {
+			defer func() {
+				s.Member.IPTable = tool.DeleteAtIndexes(s.Member.IPTable, leftIndex)
+			}()
+		} else if rok {
+			defer func() {
+				s.Member.IPTable = tool.DeleteAtIndexes(s.Member.IPTable, rightIndex)
+			}()
+		}
+
 	}
+	IPTable := s.Member.IPTable
+
 	k := s.Config.FanOut
-	//构建子树 left 74 right 79
 
 	next, areaLen := CreateSubTree(leftIndex, rightIndex, currentIndex, s.Member.MemberLen(), k, coloring)
 	//构建 secondary tree,注意这里的左边界和右边界要和根节点保持一致
 	if isRoot && areaLen > (1+k) && coloring {
 		secondaryRoot := ObtainOnIPRing(currentIndex, -1, s.Member.MemberLen())
-		//next = []*area{}
 		next = append(next, &area{left: leftIndex, right: rightIndex, current: secondaryRoot})
 	}
 	randomNumber := tool.RandomNumber()
@@ -178,6 +190,7 @@ func (s *Server) ApplyLeave() {
 	f := func(isSuccess bool) {
 		//如果成功了，当前节点下线。如果不成功，在发起一次请求
 		if isSuccess {
+			time.Sleep(3 * time.Second)
 			//进行下线操作
 			stop := struct{}{}
 			s.StopCh <- stop
@@ -192,7 +205,7 @@ func (s *Server) ApplyLeave() {
 	s.ReliableMessage(s.Config.IPBytes(), NodeLeave, &f)
 }
 func (s *Server) ReportLeave(ip []byte) {
-	s.Member.RemoveMember(ip)
+	s.Member.RemoveMember(ip, false)
 	s.ColoringMessage(ip, ReportLeave)
 }
 

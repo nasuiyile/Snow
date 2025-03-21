@@ -90,6 +90,10 @@ func (s *Server) startAcceptingConnections() {
 		//其实是由netpoller 来触发的
 		conn, err := s.listener.Accept()
 		if err != nil {
+			if opErr, ok := err.(*net.OpError); ok && opErr.Err.Error() == "use of closed network connection" {
+				log.Println("Listener closed, stopping connection acceptance.")
+				return
+			}
 			log.Println("Error accepting connection:", err)
 			continue
 		}
@@ -116,7 +120,7 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 		if !isServer {
 			addr = s.Config.GetServerIp(addr)
 		}
-		s.Member.RemoveMember(tool.IPv4To6Bytes(addr))
+		s.Member.RemoveMember(tool.IPv4To6Bytes(addr), false)
 		s.Member.Unlock()
 	}()
 	reader := bufio.NewReader(conn)
@@ -139,7 +143,8 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 				fmt.Println("Normal EOF: connection closed by client")
 			}
 			fmt.Println(conn.RemoteAddr().String())
-			s.Member.RemoveMember(tool.IPv4To6Bytes(conn.RemoteAddr().String()))
+			member := tool.IPv4To6Bytes(conn.RemoteAddr().String())
+			s.Member.RemoveMember(member, false)
 			return
 		}
 
@@ -192,6 +197,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 		conn, err = s.connectToPeer(ip)
 		if err != nil {
 			log.Println(s.Config.ServerAddress, "can't connect to ", ip)
+			log.Println(err)
 			return
 		}
 	} else {
@@ -240,12 +246,19 @@ func (s *Server) replayMessage(conn net.Conn, config *Config, msg []byte) {
 
 // Close 关闭服务器
 func (s *Server) Close() {
-	s.listener.Close()
 	s.Member.Lock()
 	for _, v := range s.Member.MetaData {
-		v.GetClient().Close()
-		v.GetServer().Close()
+		client := v.GetClient()
+		if client != nil {
+			client.Close()
+
+		}
+		server := v.GetServer()
+		if server != nil {
+			server.Close()
+		}
 	}
+	s.listener.Close()
 	s.Member.Unlock()
 }
 

@@ -2,6 +2,7 @@ package broadcast
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	. "snow/common"
 	"snow/tool"
@@ -9,6 +10,9 @@ import (
 
 func (s *Server) Hand(msg []byte, conn net.Conn) {
 	parentIP := s.Config.GetServerIp(conn.RemoteAddr().String())
+	if s.isClosed {
+		fmt.Println()
+	}
 	//判断消息类型
 	msgType := msg[0]
 	//消息要进行的动作
@@ -35,7 +39,7 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		}
 
 		if msgAction == ReportLeave {
-			s.Member.RemoveMember(tool.CutTimestamp(body))
+			s.Member.RemoveMember(tool.CutTimestamp(body), false)
 		}
 	case ReliableMsg:
 		body := tool.CutBytes(msg)
@@ -118,7 +122,7 @@ func forward(msg []byte, s *Server, parentIp string) {
 			//根节点ip
 			newMsg = append(newMsg, msg[len(msg)-IpLen:]...)
 			if msgAction == NodeLeave {
-				s.Member.RemoveMember(msg[len(msg)-IpLen:])
+				s.Member.RemoveMember(msg[len(msg)-IpLen:], false)
 			}
 			s.SendMessage(parentIp, []byte{}, newMsg)
 		} else {
