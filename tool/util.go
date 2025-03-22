@@ -1,6 +1,7 @@
 package tool
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"github.com/zeebo/blake3"
@@ -10,6 +11,7 @@ import (
 	. "snow/common"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -179,15 +181,15 @@ func CutTimestamp(bytes []byte) []byte {
 	return bytes[TimeLen:]
 }
 
-// RemoveElement 泛型方法，适用于任何类型的切片
-func RemoveElement[T any](slice []T, index int) (T, []T) {
-	if index < 0 || index >= len(slice) {
-		panic("index out of range")
+// RemoveElement 泛型版本，删除切片中的指定元素
+func RemoveElement[T comparable](arr []T, val T) []T {
+	result := []T{}
+	for _, v := range arr {
+		if v != val {
+			result = append(result, v)
+		}
 	}
-
-	removed := slice[index]                               // 获取要删除的元素
-	newSlice := append(slice[:index], slice[index+1:]...) // 重新组合切片
-	return removed, newSlice
+	return result
 }
 
 // DeleteAtIndexes 删除数组中指定索引位置的元素
@@ -209,4 +211,27 @@ func DeleteAtIndexes[T any](arr []T, indexes ...int) []T {
 	}
 
 	return result
+}
+func GetPortByIp(ip string) int {
+	split := strings.Split(ip, ":")
+	port, _ := strconv.Atoi(split[1])
+	return port
+}
+
+// FindOrInsert 在有序的 byte slice 切片中查找或插入 target。
+// 返回插入位置索引，以及是否进行了插入。
+func FindOrInsert(list *[][]byte, target []byte) (int, bool) {
+	index := sort.Search(len(*list), func(i int) bool {
+		return bytes.Compare((*list)[i], target) >= 0
+	})
+
+	if index < len(*list) && bytes.Compare((*list)[index], target) == 0 {
+		return index, false
+	}
+
+	*list = append(*list, nil)
+	copy((*list)[index+1:], (*list)[index:])
+	(*list)[index] = append([]byte{}, target...)
+
+	return index, true
 }

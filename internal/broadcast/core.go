@@ -75,7 +75,7 @@ func (s *Server) ReduceReliableTimeout(msg []byte, configAction *func(isConverge
 		s.SendMessage(tool.ByteToIPv4Port(r.Ip), []byte{}, newMsg)
 		//断开连接
 		if msgAction == NodeLeave {
-			s.Member.RemoveMember(msg[len(msg)-IpLen:], false)
+			//s.Member.RemoveMember(msg[len(msg)-IpLen:], false)
 		}
 	}
 
@@ -106,59 +106,59 @@ func (s *Server) InitMessage(msgType MsgType, action MsgAction) (map[string][]by
 	if s.Member.MemberLen() == 1 {
 		return make(map[string][]byte), nil
 	}
-	current, _ := s.Member.FindOrInsert(s.Config.IPBytes())
+	current := s.Member.Find(s.Config.IPBytes())
 	//当前的索引往左偏移
 	leftIndex := ObtainOnIPRing(current, -(s.Member.MemberLen())/2, s.Member.MemberLen())
 	//右索引是左索引-1，这是环的特性
 	rightIndex := ObtainOnIPRing(leftIndex, -1, s.Member.MemberLen())
 	leftIP := s.Member.IPTable[leftIndex]
 	rightIP := s.Member.IPTable[rightIndex]
-
 	return s.NextHopMember(msgType, action, leftIP, rightIP, true)
 }
 
 func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []byte, rightIP []byte, isRoot bool) (map[string][]byte, []byte) {
-	//todo 这里可以优化读写锁
 	s.Member.Lock()
-	defer s.Member.Unlock()
+	def := func() { s.Member.Unlock() }
 
 	coloring := msgType == ColoringMsg
 	if s.Member.MemberLen() == 1 {
+		def()
 		return make(map[string][]byte), nil
 	}
 	forwardList := make(map[string][]byte)
 	//要转发的所有节点
 	leftIndex, lok := s.Member.FindOrInsert(leftIP)
 	rightIndex, rok := s.Member.FindOrInsert(rightIP)
-	currentIndex, _ := s.Member.FindOrInsert(s.Config.IPBytes())
 	//如果更新了就重新找一遍节点
 	if lok || rok {
-		leftIndex, _ = s.Member.FindOrInsert(leftIP)
-		rightIndex, _ = s.Member.FindOrInsert(rightIP)
+		leftIndex = s.Member.Find(leftIP)
+		rightIndex = s.Member.Find(rightIP)
 		//引用也要重新更新,这些元素是被临时插入的用完就需要删除
 		if lok && rok {
-			defer func() {
+			def = func() {
 				s.Member.IPTable = tool.DeleteAtIndexes(s.Member.IPTable, leftIndex, rightIndex)
-			}()
+				s.Member.Unlock()
+			}
 		} else if lok {
-			defer func() {
+			def = func() {
 				s.Member.IPTable = tool.DeleteAtIndexes(s.Member.IPTable, leftIndex)
-			}()
+				s.Member.Unlock()
+			}
 		} else if rok {
-			defer func() {
+			def = func() {
 				s.Member.IPTable = tool.DeleteAtIndexes(s.Member.IPTable, rightIndex)
-			}()
+				s.Member.Unlock()
+			}
 		}
-
 	}
-	IPTable := s.Member.IPTable
+	currentIndex := s.Member.Find(s.Config.IPBytes())
 
 	k := s.Config.FanOut
 
 	next, areaLen := CreateSubTree(leftIndex, rightIndex, currentIndex, s.Member.MemberLen(), k, coloring)
 	//构建 secondary tree,注意这里的左边界和右边界要和根节点保持一致
 	if isRoot && areaLen > (1+k) && coloring {
-		secondaryRoot := ObtainOnIPRing(currentIndex, -1, s.Member.MemberLen())
+		secondaryRoot := ObtainOnIPRing(currentIndex, 1, s.Member.MemberLen())
 		next = append(next, &area{left: leftIndex, right: rightIndex, current: secondaryRoot})
 	}
 	randomNumber := tool.RandomNumber()
@@ -166,14 +166,15 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 		payload := make([]byte, 0)
 		payload = append(payload, msgType)
 		payload = append(payload, msgAction)
-		payload = append(payload, IPTable[v.left]...)
-		payload = append(payload, IPTable[v.right]...)
+		payload = append(payload, s.Member.IPTable[v.left]...)
+		payload = append(payload, s.Member.IPTable[v.right]...)
 		if isRoot {
 			payload = append(payload, randomNumber...)
 		}
-		forwardList[tool.ByteToIPv4Port(IPTable[v.current])] = payload
+		forwardList[tool.ByteToIPv4Port(s.Member.IPTable[v.current])] = payload
 
 	}
+	def()
 
 	return forwardList, randomNumber
 }
@@ -187,22 +188,22 @@ func (s *Server) ApplyJoin(ip string) {
 }
 
 func (s *Server) ApplyLeave() {
-	f := func(isSuccess bool) {
+	_ = func(isSuccess bool) {
 		//如果成功了，当前节点下线。如果不成功，在发起一次请求
 		if isSuccess {
-			time.Sleep(3 * time.Second)
+			time.Sleep(4 * time.Second)
 			//进行下线操作
-			stop := struct{}{}
-			s.StopCh <- stop
-			s.Close()
-			s.Member.Clean()
-			s.isClosed = true
+			//stop := struct{}{}
+			//s.StopCh <- stop
+			//s.Close()
+			//s.Member.Clean()
+			//s.isClosed = true
 		} else {
 			//失败就再发一次
 			s.ApplyLeave()
 		}
 	}
-	s.ReliableMessage(s.Config.IPBytes(), NodeLeave, &f)
+	s.RegularMessage(s.Config.IPBytes(), NodeLeave)
 }
 func (s *Server) ReportLeave(ip []byte) {
 	s.Member.RemoveMember(ip, false)

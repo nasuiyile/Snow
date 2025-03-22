@@ -1,6 +1,7 @@
 package membership
 
 import (
+	"fmt"
 	"net"
 	"snow/tool"
 	"sort"
@@ -89,10 +90,22 @@ func (m *MemberShipList) FindOrInsert(target []byte) (int, bool) {
 	copy(m.IPTable[index+1:], m.IPTable[index:])
 	m.IPTable[index] = append([]byte{}, target...) // 插入新元素
 
-	//fmt.Println("Inserted at index:", index)
-
 	return index, true
+}
 
+func (m *MemberShipList) Find(target []byte) int {
+	m.Lock()
+	defer m.Unlock()
+	// 使用二分查找定位目标位置
+	index := sort.Search(len(m.IPTable), func(i int) bool {
+		return BytesCompare(m.IPTable[i], target) >= 0
+	})
+
+	// 如果找到相等的元素，直接返回原数组和索引
+	if index < len(m.IPTable) && BytesCompare(m.IPTable[index], target) == 0 {
+		return index
+	}
+	return -1
 }
 
 // BytesCompare 比较两个 []byte 的大小
@@ -133,6 +146,9 @@ func (m *MemberShipList) RemoveMember(ip []byte, close bool) {
 	m.Lock()
 	defer m.Unlock()
 	address := tool.ByteToIPv4Port(ip)
+	if tool.GetPortByIp(address) <= tool.InitPort+tool.Num {
+		fmt.Println(address)
+	}
 	data, ok := m.MetaData[address]
 	if ok && close {
 		if data.client != nil {
@@ -154,7 +170,8 @@ func (m *MemberShipList) RemoveMember(ip []byte, close bool) {
 	}
 	idx, _ := m.FindOrInsert(ip)
 	//删除当前元素
-	m.IPTable = append(m.IPTable[:idx], m.IPTable[idx+1:]...)
+	m.IPTable = tool.DeleteAtIndexes(m.IPTable, idx)
+	//m.IPTable = append(m.IPTable[:idx], m.IPTable[idx+1:]...)
 }
 func (m *MemberShipList) GetMember(key string) *MetaData {
 	m.Lock()

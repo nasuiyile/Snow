@@ -6,7 +6,6 @@ import (
 	"net/url"
 	. "snow/common"
 	"strconv"
-	"strings"
 )
 
 var RemoteHttp = "127.0.0.1:8111"
@@ -15,12 +14,13 @@ var Num = 100
 var InitPort = 40000
 
 func SendHttp(from string, target string, data []byte, k int) {
-	if data[1] == UserMsg || data[1] == IHAVE {
-		split := strings.Split(target, ":")
-		port, _ := strconv.Atoi(split[1])
+	if data[1] == UserMsg || data[1] == IHAVE || data[1] == ReliableMsgAck {
+		port := GetPortByIp(target)
 		//不给浮动的节点发送请求
 		if port >= InitPort+Num {
-			fmt.Print(InitPort)
+			//fmt.Print(InitPort)
+			return
+		} else if port == InitPort {
 			return
 		}
 		values := url.Values{}
