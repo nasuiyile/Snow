@@ -42,10 +42,10 @@ type NodeState = byte
 
 // TCP连接->广播自己存活->离开
 const (
-	Prepare   NodeState = iota //接收完TCP连接
-	Survival                   //正常在Iptable中
-	Suspected                  //被怀疑离开
-	Left                       //已经离开，稍后从列表中删除
+	NodePrepare   NodeState = iota //接收完TCP连接
+	NodeSurvival                   //正常在Iptable中
+	NodeSuspected                  //被怀疑离开
+	NodeLeft                       //已经离开，稍后从列表中删除
 )
 
 const TimeLen = 8
@@ -53,5 +53,4 @@ const TagLen = 2
 const HashLen = 32
 
 var IpLen = 6
-
-const Placeholder = 1 + 1 + 6 + 6 + 8
+var Placeholder = TagLen + IpLen*2 + TimeLen

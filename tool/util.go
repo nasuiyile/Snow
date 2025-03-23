@@ -31,7 +31,6 @@ func KRandomNodes(min int, max int, excludes []int, k int) []int {
 				res = append(res, min)
 
 			}
-
 		}
 		return res
 	}

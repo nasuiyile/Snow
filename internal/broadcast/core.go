@@ -188,22 +188,22 @@ func (s *Server) ApplyJoin(ip string) {
 }
 
 func (s *Server) ApplyLeave() {
-	_ = func(isSuccess bool) {
+	f := func(isSuccess bool) {
 		//如果成功了，当前节点下线。如果不成功，在发起一次请求
 		if isSuccess {
-			time.Sleep(4 * time.Second)
+			time.Sleep(3 * time.Second)
 			//进行下线操作
-			//stop := struct{}{}
-			//s.StopCh <- stop
-			//s.Close()
-			//s.Member.Clean()
-			//s.isClosed = true
+			stop := struct{}{}
+			s.StopCh <- stop
+			s.Close()
+			s.Member.Clean()
+			s.isClosed = true
 		} else {
 			//失败就再发一次
 			s.ApplyLeave()
 		}
 	}
-	s.RegularMessage(s.Config.IPBytes(), NodeLeave)
+	s.ReliableMessage(s.Config.IPBytes(), NodeLeave, &f)
 }
 func (s *Server) ReportLeave(ip []byte) {
 	s.Member.RemoveMember(ip, false)

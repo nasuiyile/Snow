@@ -36,7 +36,7 @@ func (m *MemberShipList) InitState(metaDataMap map[string]*MetaData) {
 	m.Lock()
 	defer m.Unlock()
 	for k, v := range metaDataMap {
-		if v.State == Left || v.State == Prepare {
+		if v.State == NodeLeft || v.State == NodePrepare {
 			continue
 		}
 		node, ok := m.MetaData[k]
@@ -135,7 +135,7 @@ func NewEmptyMetaData() *MetaData {
 		Version:    0,
 		UpdateTime: time.Now().Unix(),
 		client:     nil,
-		State:      Prepare,
+		State:      NodePrepare,
 	}
 }
 
@@ -181,6 +181,7 @@ func (m *MemberShipList) RemoveMember(ip []byte, close bool) {
 			delete(m.MetaData, tool.ByteToIPv4Port(ip))
 		}
 		data.UpdateTime = time.Now().Unix()
+		data.State = NodeLeft
 	}
 	idx, _ := m.FindOrInsert(ip)
 	//删除当前元素

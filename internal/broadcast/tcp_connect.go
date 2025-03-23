@@ -61,7 +61,7 @@ func NewServer(config *Config, action Action) (*Server, error) {
 	server.Member.FindOrInsert(config.IPBytes())
 
 	for _, addr := range config.DefaultServer {
-		server.Member.AddMember(tool.IPv4To6Bytes(addr), common.Survival)
+		server.Member.AddMember(tool.IPv4To6Bytes(addr), common.NodeSurvival)
 	}
 	go server.startAcceptingConnections() // 启动接受连接的协程
 
