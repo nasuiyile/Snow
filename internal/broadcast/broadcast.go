@@ -85,7 +85,7 @@ func (s *Server) KRandomNodes(k int) []string {
 	defer s.Member.Unlock()
 	ip := make([]string, 0)
 	//当前节点的ID，需要被排除
-	idx, _ := s.Member.FindOrInsert(s.Config.IPBytes())
+	idx := s.Member.Find(s.Config.IPBytes())
 	randomNodes := tool.KRandomNodes(0, s.Member.MemberLen()-1, []int{idx}, k)
 	for _, v := range randomNodes {
 		ip = append(ip, tool.ByteToIPv4Port(s.Member.IPTable[v]))
@@ -105,7 +105,7 @@ func (s *Server) pushTrigger(stop <-chan struct{}) {
 	// Tick using a dynamic timer
 	for {
 
-		tickTime := tool.PushScale(time.Duration(interval), s.Member.MemberLen())
+		tickTime := tool.PushScale(interval, s.Member.MemberLen())
 		select {
 		case <-time.After(tickTime):
 			s.PushState()

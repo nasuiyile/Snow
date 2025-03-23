@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"snow/common"
 	"snow/internal/dialer"
 	"snow/internal/membership"
 	"snow/internal/state"
@@ -60,12 +61,12 @@ func NewServer(config *Config, action Action) (*Server, error) {
 	server.Member.FindOrInsert(config.IPBytes())
 
 	for _, addr := range config.DefaultServer {
-		server.Member.AddMember(tool.IPv4To6Bytes(addr))
+		server.Member.AddMember(tool.IPv4To6Bytes(addr), common.Survival)
 	}
 	go server.startAcceptingConnections() // 启动接受连接的协程
 
 	server.schedule()
-	server.ApplyJoin(config.InitialServer)
+	//server.ApplyJoin(config.InitialServer)
 	log.Printf("Server is running on port %d...\n\n", config.Port)
 	return server, nil
 
@@ -74,7 +75,7 @@ func NewServer(config *Config, action Action) (*Server, error) {
 func (s *Server) schedule() {
 	// Create the stop tick channel, a blocking channel. We close this
 	// when we should stop the tickers.
-	go s.pushTrigger(s.StopCh)
+	//go s.pushTrigger(s.StopCh)
 	go s.Sender()
 
 }
@@ -186,10 +187,10 @@ func (s *Server) connectToPeer(addr string) (net.Conn, error) {
 	return conn, nil
 }
 func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
-
 	if s.isClosed {
 		return
 	}
+
 	metaData := s.Member.GetMember(ip)
 	var conn net.Conn
 	var err error

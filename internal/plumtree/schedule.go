@@ -42,11 +42,13 @@ func (s *Server) KRandomNodes(k int) []string {
 	//把自己和eagerPush列表里的排除
 
 	nodeIdx := make([]int, 0)
-	currentIdx, _ := s.Server.Member.FindOrInsert(s.Config.IPBytes())
+	currentIdx := s.Server.Member.Find(s.Config.IPBytes())
 	nodeIdx = append(nodeIdx, currentIdx)
 	for _, v := range s.EagerPush {
-		idx, _ := s.Server.Member.FindOrInsert(tool.IPv4To6Bytes(v))
-		nodeIdx = append(nodeIdx, idx)
+		idx := s.Server.Member.Find(tool.IPv4To6Bytes(v))
+		if idx != -1 {
+			nodeIdx = append(nodeIdx, idx)
+		}
 	}
 
 	randomNodes := tool.KRandomNodes(0, s.Member.MemberLen()-1, nodeIdx, k)

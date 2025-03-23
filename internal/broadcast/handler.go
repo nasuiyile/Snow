@@ -10,23 +10,28 @@ import (
 
 func (s *Server) Hand(msg []byte, conn net.Conn) {
 	parentIP := s.Config.GetServerIp(conn.RemoteAddr().String())
-	if s.isClosed {
-		fmt.Println()
-	}
 	//判断消息类型
 	msgType := msg[0]
 	//消息要进行的动作
 	msgAction := msg[1]
 	NodeChanging(msg[1:], parentIP, s, conn)
+
+	if s.Config.ServerAddress == "127.0.0.1:40224" {
+		fmt.Println()
+	}
+
 	switch msgType {
 	case RegularMsg:
 		body := tool.CutBytes(msg)
 		if !IsFirst(body, msgType, msgAction, s) {
 			return
 		}
+		if msgAction == NodeLeave {
+			s.Member.RemoveMember(msg[len(msg)-IpLen:], false)
+		}
 		if msgAction == NodeJoin {
 			//如果不存在
-			s.Member.AddMember(tool.CutTimestamp(body))
+			s.Member.AddMember(tool.CutTimestamp(body), Survival)
 		}
 		forward(msg, s, parentIP)
 	case ColoringMsg:
@@ -37,7 +42,6 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		if !first {
 			return
 		}
-
 		if msgAction == ReportLeave {
 			s.Member.RemoveMember(tool.CutTimestamp(body), false)
 		}
@@ -45,6 +49,9 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		body := tool.CutBytes(msg)
 		if !IsFirst(body, msgType, msgAction, s) {
 			return
+		}
+		if msgAction == NodeLeave {
+			//s.Member.RemoveMember(msg[len(msg)-IpLen:], false)
 		}
 		//如果自己是叶子节点发送ack给父节点	并删除ack的map
 		forward(msg, s, parentIP)
@@ -101,8 +108,13 @@ func forward(msg []byte, s *Server, parentIp string) {
 	isLeaf := bytes.Compare(leftIP, rightIP) == 0
 
 	if !isLeaf {
-
+		s.Member.Lock()
+		memberLen := s.Member.MemberLen()
 		member, _ = s.NextHopMember(msgType, msgAction, leftIP, rightIP, false)
+		if memberLen != s.Member.MemberLen() {
+			fmt.Println()
+		}
+		s.Member.Unlock()
 	}
 	//消息中会附带发送给自己的节点
 	if msgType == ReliableMsg {
@@ -121,9 +133,10 @@ func forward(msg []byte, s *Server, parentIp string) {
 			newMsg = append(newMsg, s.Config.IPBytes()...)
 			//根节点ip
 			newMsg = append(newMsg, msg[len(msg)-IpLen:]...)
-			if msgAction == NodeLeave {
-				s.Member.RemoveMember(msg[len(msg)-IpLen:], false)
-			}
+			//if msgAction == NodeLeave {
+			//	s.Member.RemoveMember(msg[len(msg)-IpLen:], false)
+			//}
+
 			s.SendMessage(parentIp, []byte{}, newMsg)
 		} else {
 			//不是发送节点的化，不需要任何回调

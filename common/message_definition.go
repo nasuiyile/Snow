@@ -23,7 +23,6 @@ const (
 	LazyPush  //发送IHAVE
 	Graft     //收到IHAVE之后，发现自己没有，所以进行主动的拉取
 	Prune     //用于修剪，自己已经收到了EagerPush
-
 )
 
 type MsgAction = byte
@@ -38,6 +37,17 @@ const (
 	RegularStateSync
 	IHAVE //lazypush的发送内容
 )
+
+type NodeState = byte
+
+// TCP连接->广播自己存活->离开
+const (
+	Prepare   NodeState = iota //接收完TCP连接
+	Survival                   //正常在Iptable中
+	Suspected                  //被怀疑离开
+	Left                       //已经离开，稍后从列表中删除
+)
+
 const TimeLen = 8
 const TagLen = 2
 const HashLen = 32

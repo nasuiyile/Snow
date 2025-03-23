@@ -231,5 +231,5 @@ func (s *Server) importState(msg []byte) {
 		fmt.Println("GOB Desialization failed:", err)
 		return
 	}
-	s.Member.InitState(MetaData, s.Config.IPBytes())
+	s.Member.InitState(MetaData)
 }

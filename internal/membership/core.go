@@ -3,15 +3,18 @@ package membership
 import (
 	"fmt"
 	"net"
+	. "snow/common"
 	"snow/tool"
 	"sort"
 	"time"
 )
 
 type MetaData struct {
-	client  net.Conn
-	server  net.Conn
-	Version int
+	client     net.Conn
+	server     net.Conn
+	State      NodeState
+	UpdateTime int64
+	Version    int32 //现在的版本号没有实际的作用
 }
 
 type MemberShipList struct {
@@ -29,20 +32,20 @@ func (m *MemberShipList) Clean() {
 	m.MetaData = make(map[string]*MetaData)
 }
 
-func (m *MemberShipList) InitState(metaDataMap map[string]*MetaData, currentIp []byte) {
+func (m *MemberShipList) InitState(metaDataMap map[string]*MetaData) {
 	m.Lock()
 	defer m.Unlock()
-	keys := make([]string, 0, len(metaDataMap)) // 预分配容量以优化性能
-	for k := range metaDataMap {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
 	for k, v := range metaDataMap {
+		if v.State == Left || v.State == Prepare {
+			continue
+		}
 		node, ok := m.MetaData[k]
 		if ok {
-			if node.Version > v.Version {
+			if node.Version <= v.Version {
 				//所有的元数据都要写这里
 				node.Version = v.Version
+				node.State = v.State
+				node.UpdateTime = v.UpdateTime
 			}
 		} else {
 			m.MetaData[k] = v
@@ -68,6 +71,8 @@ func (m *MetaData) SetClient(client net.Conn) {
 }
 
 func (m *MemberShipList) MemberLen() int {
+	m.Lock()
+	defer m.Unlock()
 	return len(m.IPTable)
 }
 
@@ -127,18 +132,24 @@ func BytesCompare(a, b []byte) int {
 
 func NewEmptyMetaData() *MetaData {
 	return &MetaData{
-		Version: 0,
-		client:  nil,
+		Version:    0,
+		UpdateTime: time.Now().Unix(),
+		client:     nil,
+		State:      Prepare,
 	}
 }
 
 // 和addNode的区别是不需要实际进行连接
-func (m *MemberShipList) AddMember(ip []byte) {
+func (m *MemberShipList) AddMember(ip []byte, state NodeState) {
 	m.Lock()
 	defer m.Unlock()
-	_, ok := m.MetaData[tool.ByteToIPv4Port(ip)]
+	metaData, ok := m.MetaData[tool.ByteToIPv4Port(ip)]
 	if !ok {
-		m.MetaData[tool.ByteToIPv4Port(ip)] = NewEmptyMetaData()
+		metadata := NewEmptyMetaData()
+		metadata.State = state
+		m.MetaData[tool.ByteToIPv4Port(ip)] = metadata
+	} else {
+		metaData.UpdateTime = time.Now().Unix()
 	}
 	m.FindOrInsert(ip)
 }
@@ -146,32 +157,35 @@ func (m *MemberShipList) RemoveMember(ip []byte, close bool) {
 	m.Lock()
 	defer m.Unlock()
 	address := tool.ByteToIPv4Port(ip)
-	if tool.GetPortByIp(address) <= tool.InitPort+tool.Num {
+	if tool.GetPortByIp(address) <= (tool.InitPort + tool.Num + 1) {
 		fmt.Println(address)
 	}
 	data, ok := m.MetaData[address]
-	if ok && close {
-		if data.client != nil {
-			time.AfterFunc(3*time.Second, func() {
-				tcpConn := (data.client).(*net.TCPConn)
-				tcpConn.SetLinger(0)
-				tcpConn.Close()
-			})
+	if ok {
+		if close {
+			if data.client != nil {
+				time.AfterFunc(3*time.Second, func() {
+					tcpConn := (data.client).(*net.TCPConn)
+					tcpConn.SetLinger(0)
+					tcpConn.Close()
+				})
+			}
+			if data.server != nil {
+				time.AfterFunc(3*time.Second, func() {
+					tcpConn := (data.server).(*net.TCPConn)
+					tcpConn.SetLinger(0)
+					tcpConn.Close()
+				})
+			}
+			//扇出后还是可能短暂的发送消息
+			delete(m.MetaData, tool.ByteToIPv4Port(ip))
 		}
-		if data.server != nil {
-			time.AfterFunc(3*time.Second, func() {
-				tcpConn := (data.server).(*net.TCPConn)
-				tcpConn.SetLinger(0)
-				tcpConn.Close()
-			})
-		}
-		//扇出后还是可能短暂的发送消息
-		delete(m.MetaData, tool.ByteToIPv4Port(ip))
+		data.UpdateTime = time.Now().Unix()
 	}
 	idx, _ := m.FindOrInsert(ip)
 	//删除当前元素
-	m.IPTable = tool.DeleteAtIndexes(m.IPTable, idx)
-	//m.IPTable = append(m.IPTable[:idx], m.IPTable[idx+1:]...)
+	//m.IPTable = tool.DeleteAtIndexes(m.IPTable, idx)
+	m.IPTable = append(m.IPTable[:idx], m.IPTable[idx+1:]...)
 }
 func (m *MemberShipList) GetMember(key string) *MetaData {
 	m.Lock()
@@ -186,10 +200,10 @@ func (m *MemberShipList) PutMemberIfNil(key string, value *MetaData) {
 		m.MetaData[key] = value
 		return
 	}
-	if data.client == nil && value.client != nil {
+	if value.client != nil {
 		data.client = value.client
 	}
-	if data.server == nil && value.server != nil {
+	if value.server != nil {
 		data.server = value.server
 	}
 	//m.FindOrInsert(tool.IPv4To6Bytes(key))
