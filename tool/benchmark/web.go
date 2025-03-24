@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	. "snow/common"
+	"snow/tool"
 	"strings"
 	"sync"
 	"time"
@@ -171,6 +172,29 @@ func getNodeStatistics(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(builder.String()))
 }
+func lack(w http.ResponseWriter, r *http.Request) {
+	rm.RLock()
+	arr := make([][]string, 0)
+	for _, v := range cacheMap {
+		flag := false
+		strArr := make([]string, 0)
+		for i := 1; i < 300; i++ {
+			strArr = append(strArr, fmt.Sprintf("%s%d", "127.0.0.1:", i+40000))
+		}
+		for _, msg := range v.messages {
+			if msg.MsgType == RegularMsg {
+				flag = true
+			}
+			strArr = tool.RemoveElement(strArr, msg.Target)
+		}
+		if flag {
+			arr = append(arr, strArr)
+		}
+	}
+	marshal, _ := json.Marshal(arr)
+	rm.RUnlock()
+	w.Write(marshal)
+}
 
 func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -222,6 +246,7 @@ func CreateWeb() {
 	http.HandleFunc("/getAllNode", getAllNode)
 	http.HandleFunc("/getNodeStatistics", getNodeStatistics)
 	http.HandleFunc("/getCycleStatistics", getCycleStatistics)
+	http.HandleFunc("/lack", lack)
 	fs := http.FileServer(http.Dir("tool/benchmark/chart"))
 	// 创建静态文件服务器
 

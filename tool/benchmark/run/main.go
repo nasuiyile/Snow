@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	. "snow/common"
 	"snow/internal/broadcast"
+	"snow/internal/plumtree"
 	"snow/tool"
 	"time"
 )
@@ -15,21 +16,21 @@ func main() {
 	var err error
 
 	// 节点数量
-	n := 300
+	n := 500
 	//扇出大小
 	k := 4
 
 	//消息大小
 	strLen := 100
 	//测试轮数
-	rounds := 1000
+	rounds := 100
 	initPort := 40000
-	testMode := []MsgType{RegularMsg} //按数组中的顺序决定跑的时候的顺序
+	testMode := []MsgType{RegularMsg, ColoringMsg, EagerPush, GossipMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	tool.Num = n
 	tool.InitPort = initPort
 	msg := randomByteArray(strLen)
-	serverList := make([]*broadcast.Server, 0)
+	serverList := make([]*plumtree.Server, 0)
 	for i := 0; i < n; i++ {
 		action := createAction(i + 1)
 		f := func(config *broadcast.Config) {
@@ -42,7 +43,7 @@ func main() {
 			panic(err)
 			return
 		}
-		server, err := broadcast.NewServer(config, action)
+		server, err := plumtree.NewServer(config, action)
 		if err != nil {
 			log.Println(err)
 			return
@@ -60,7 +61,7 @@ func main() {
 	portCounter := 0
 	for _, mode := range testMode {
 		for i := range rounds {
-			serverListTemp := make([]*broadcast.Server, 0)
+			serverListTemp := make([]*plumtree.Server, 0)
 			for i := 0; i < (n / 100); i++ {
 				action := createAction(i + 1)
 				f := func(config *broadcast.Config) {
@@ -75,7 +76,7 @@ func main() {
 					panic(err)
 					return
 				}
-				server, err := broadcast.NewServer(config, action)
+				server, err := plumtree.NewServer(config, action)
 				if err != nil {
 					log.Println(err)
 					return
@@ -93,11 +94,13 @@ func main() {
 				err = serverList[0].ColoringMessage(msg, UserMsg)
 			} else if mode == GossipMsg {
 				err = serverList[0].GossipMessage(msg, UserMsg)
+			} else if mode == EagerPush {
+				serverList[0].PlumTreeBroadcast(msg, UserMsg)
 			}
 			if err != nil {
 				log.Println("Error broadcasting message:", err)
 			}
-			//
+
 			for _, v := range serverListTemp {
 				v.ApplyLeave()
 			}
