@@ -65,20 +65,20 @@
                 text: 'RMR',
             },
                 {
-                    subtext: 'Regular Avg: ' + (RMRSum_8 / xData.length).toFixed(0),
+                    subtext: 'Snow-Standard Avg: ' + (RMRSum_8 / xData.length).toFixed(0),
                     left: '0%',
                     bottom: '0%'
                 }, {
                     subtext: 'Coloring Avg: ' + (RMRSum_7 / xData.length).toFixed(0),
-                    left: '15%',
+                    left: '20%',
                     bottom: '0%'
                 }, {
                     subtext: 'Gossip Avg: ' + (RMRSum_11 / xData.length).toFixed(0),
-                    left: '30%',
+                    left: '35%',
                     bottom: '0%'
                 }, {
                     subtext: 'Plumtree Avg: ' + (RMRSum_12 / xData.length).toFixed(0),
-                    left: '45%',
+                    left: '50%',
                     bottom: '0%'
                 }
             ],
@@ -99,11 +99,11 @@
                 }
             },
             legend: {
-                data: ['Regular', 'Coloring', 'Gossip', 'Plumtree']
+                data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree']
             },
             series: [
                 {
-                    name: 'Regular',
+                    name: 'Snow-Standard',
                     type: 'line',
                     data: RMR_8
                 },

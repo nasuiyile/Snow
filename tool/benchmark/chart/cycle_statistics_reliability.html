@@ -65,20 +65,20 @@
                 text: 'Fanin Traffic Reliability',
             },
                 {
-                    subtext: 'Regular Avg: ' + (ReliabilitySum_8 / xData.length).toFixed(2),
+                    subtext: 'Snow-Standard Avg: ' + (ReliabilitySum_8 / xData.length).toFixed(2),
                     left: '0%',
                     bottom: '0%'
                 }, {
                     subtext: 'Coloring Avg: ' + (ReliabilitySum_7 / xData.length).toFixed(2),
-                    left: '15%',
+                    left: '20%',
                     bottom: '0%'
                 }, {
                     subtext: 'Gossip Avg: ' + (ReliabilitySum_11 / xData.length).toFixed(2),
-                    left: '30%',
+                    left: '35%',
                     bottom: '0%'
                 }, {
                     subtext: 'Plumtree Avg: ' + (ReliabilitySum_12 / xData.length).toFixed(2),
-                    left: '45%',
+                    left: '50%',
                     bottom: '0%'
                 }
             ],
@@ -99,11 +99,11 @@
                 }
             },
             legend: {
-                data: ['Regular', 'Coloring', 'Gossip', 'Plumtree']
+                data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree']
             },
             series: [
                 {
-                    name: 'Regular',
+                    name: 'Snow-Standard',
                     type: 'line',
                     data: Reliability_8
                 },
