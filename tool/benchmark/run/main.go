@@ -12,18 +12,18 @@ import (
 )
 
 func main() {
-	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
+	configPath := "..\\..\\..\\config\\config.yml"
 	var err error
 
 	// 节点数量
-	n := 500
+	n := 50
 	//扇出大小
 	k := 4
 
 	//消息大小
 	strLen := 100
 	//测试轮数
-	rounds := 100
+	rounds := 10
 	initPort := 40000
 	testMode := []MsgType{RegularMsg, ColoringMsg, EagerPush, GossipMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
