@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="./echarts.js"></script>
+</head>
+<style type="text/css">
+    .chart {
+        min-width: 33%;
+        height: 550px;
+        justify-content: space-around;
+    }
+</style>
+
+<body>
+    <div>
+        <span>num:
+            <select id="num" style="width: 100px;margin: 10px;">
+                <option value=""></option>
+                <option value="100">100</option>
+                <option value="200">200</option>
+                <option value="300">300</option>
+                <option value="400">400</option>
+                <option value="500">500</option>
+                <option value="600">600</option>
+            </select>
+        </span>
+        <button id="search" onclick="search()">search</button>
+    </div>
+    <div style="display: flex;">
+        <div class="chart" id="LDT"></div>
+        <div class="chart" id="RMR"></div>
+        <div class="chart" id="Reliability"></div>
+    </div>
+</body>
+
+</html>
+
+<script type="text/javascript">
+    let LDT_avg = { 7: [], 8: [], 11: [], 12: [] }
+    let RMR_avg = { 7: [], 8: [], 11: [], 12: [] }
+    let Reliability_avg = { 7: [], 8: [], 11: [], 12: [] }
+    let xData = {}
+    let chartDom = {}
+
+    function clearData() {
+        LDT_avg = { 7: [], 8: [], 11: [], 12: [] }
+        RMR_avg = { 7: [], 8: [], 11: [], 12: [] }
+        Reliability_avg = { 7: [], 8: [], 11: [], 12: [] }
+        xData = {}
+    }
+
+    function dealData(fanout, dataArr) {
+        xData[fanout] = 1
+        Object.keys(LDT_avg).forEach(type => {
+            n = 0
+            LDT_sum = 0
+            RMR_sum = 0
+            Reliability_sum = 0
+            if (dataArr[type]) {
+                Object.entries(dataArr[type]).forEach(([k, v]) => {
+                    n = k
+                    LDT_sum += v.LDT
+                    RMR_sum += v.RMR
+                    Reliability_sum += v.Reliability
+                })
+            }
+            LDT_avg[type].push(n > 0 ? (LDT_sum / n).toFixed(2) : 0)
+            RMR_avg[type].push(n > 0 ? (RMR_sum / n).toFixed(2) : 0)
+            Reliability_avg[type].push(n > 0 ? (Reliability_sum / n).toFixed(2) : 0)
+        })
+    }
+
+    function draw(chart, dataArr) {
+        if (chartDom[chart]) {
+            chartDom[chart].dispose()
+        }
+        let myChart = echarts.init(document.getElementById(chart));
+        chartDom[chart] = myChart
+
+        var option = {
+            title: {
+                text: chart,
+            },
+            tooltip: {
+                trigger: 'axis'
+            },
+            xAxis: {
+                type: 'category',
+                interval: 0,
+                data: Object.keys(xData)
+            },
+            yAxis: {
+                type: 'value',
+                min: 0,
+                max: 'dataMax'
+            },
+            legend: {
+                data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree']
+            },
+            series: [
+                {
+                    name: 'Snow-Standard',
+                    type: 'bar',
+                    data: dataArr[8]
+                },
+                {
+                    name: 'Coloring',
+                    type: 'bar',
+                    data: dataArr[7]
+                },
+                {
+                    name: 'Gossip',
+                    type: 'bar',
+                    data: dataArr[11]
+                },
+                {
+                    name: 'Plumtree',
+                    type: 'bar',
+                    data: dataArr[12]
+                },
+            ]
+        };
+
+        myChart.setOption(option);
+    }
+
+    function getData(fanout) {
+        let num = document.getElementById("num").value
+        let param = "?Fanout=" + fanout + "&Num=" + num
+        let url = "http://localhost:8111/getCycleStatistics" + param
+        let request = new XMLHttpRequest()
+        request.open("GET", url, false)
+        request.onreadystatechange = function () {
+            if (request.readyState === 4 && request.status == 200) {
+                let response = JSON.parse(request.responseText)
+                dealData(fanout, response)
+            }
+        }
+        request.send()
+    }
+
+    function search() {
+        clearData()
+
+        getData(2)
+        getData(4)
+        getData(6)
+        getData(8)
+
+        draw('LDT', LDT_avg)
+        draw('RMR', RMR_avg)
+        draw('Reliability', Reliability_avg)
+    }
+
+    search()
+</script>
