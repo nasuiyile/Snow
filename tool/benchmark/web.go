@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/schema"
 	"log"
 	"math"
 	"net/http"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gorilla/schema"
 )
 
 var cacheMap map[string]*MessageCache
@@ -223,7 +224,9 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 		if b == Graft || b == LazyPush {
 			for s := range m {
 				msg := cycleTypeMap[EagerPush][s]
-				msg.RMR = msg.RMR + m[s].RMR
+				if msg != nil {
+					msg.RMR = msg.RMR + m[s].RMR
+				}
 			}
 		}
 	}
