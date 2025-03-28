@@ -53,13 +53,13 @@
     function dealData(fanout, dataArr) {
         xData[fanout] = 1
         Object.keys(LDT_avg).forEach(type => {
-            n = 0
-            LDT_sum = 0
-            RMR_sum = 0
-            Reliability_sum = 0
+            let n = 0
+            let LDT_sum = 0
+            let RMR_sum = 0
+            let Reliability_sum = 0
             if (dataArr[type]) {
                 Object.entries(dataArr[type]).forEach(([k, v]) => {
-                    n = k
+                    n++
                     LDT_sum += v.LDT
                     RMR_sum += v.RMR
                     Reliability_sum += v.Reliability
