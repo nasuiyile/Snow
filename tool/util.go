@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/zeebo/blake3"
 	"math"
 	"math/rand"
@@ -233,4 +234,39 @@ func FindOrInsert(list *[][]byte, target []byte) (int, bool) {
 	(*list)[index] = append([]byte{}, target...)
 
 	return index, true
+}
+
+// Encode writes an encoded object to a new bytes buffer
+func Encode(msgType MsgType, in interface{}, msgpackUseNewTimeFormat bool) (*bytes.Buffer, error) {
+	buf := bytes.NewBuffer(nil)
+	buf.WriteByte(msgType)
+	hd := codec.MsgpackHandle{
+		BasicHandle: codec.BasicHandle{
+			TimeNotBuiltin: !msgpackUseNewTimeFormat,
+		},
+	}
+	enc := codec.NewEncoder(buf, &hd)
+	err := enc.Encode(in)
+	return buf, err
+}
+
+// DecodeMsgType 用于从 data 的第一个字节解出消息类型
+func DecodeMsgType(data []byte) (MsgType, error) {
+	if len(data) == 0 {
+		return 0, fmt.Errorf("DecodeMsgType: data is empty")
+	}
+	return MsgType(data[0]), nil
+}
+
+func DecodeMsgPayload(data []byte, out interface{}) error {
+	if len(data) < 2 {
+		return fmt.Errorf("DecodeMsgPayload: data too short (len=%d)", len(data))
+	}
+
+	// 第一个字节是 msgType，我们只反序列化 data[1:]
+	msgpackData := data[1:]
+
+	var handle codec.MsgpackHandle
+	dec := codec.NewDecoderBytes(msgpackData, &handle)
+	return dec.Decode(out)
 }

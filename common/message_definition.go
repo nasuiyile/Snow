@@ -4,12 +4,12 @@ type MsgType = byte
 
 // 定义枚举值
 const (
-	pingMsg MsgType = iota
-	indirectPingMsg
-	ackRespMsg
-	suspectMsg
-	aliveMsg
-	deadMsg
+	PingMsg MsgType = iota
+	IndirectPingMsg
+	AckRespMsg
+	SuspectMsg
+	AliveMsg
+	DeadMsg
 	//节点状态改变
 	NodeChange
 	//这是消息的发送方式
