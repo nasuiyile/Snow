@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"os"
 	. "snow/common"
 	"snow/tool"
 	"strings"
@@ -239,6 +240,57 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(builder.String()))
 }
+
+func exportDataset(w http.ResponseWriter, r *http.Request) {
+	dataSet := make(map[string][]Message)
+	for k, v := range cacheMap {
+		dataSet[k] = v.getMessages()
+	}
+
+	data, err := json.Marshal(dataSet)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	err = os.WriteFile("./dataset/cacheMap.json", data, 0644)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	data, err = json.Marshal(msgIdMap)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	err = os.WriteFile("./dataset/msgIdMap.json", data, 0644)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func loadDataset(w http.ResponseWriter, r *http.Request) {
+	byteValue, err := os.ReadFile("./dataset/cacheMap.json")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	dataSet := make(map[string][]Message)
+	err = json.Unmarshal(byteValue, &dataSet)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	for k, v := range dataSet {
+		cacheMap[k] = new(MessageCache)
+		cacheMap[k].messages = v
+	}
+
+	byteValue, err = os.ReadFile("./dataset/cacheMap.json")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	err = json.Unmarshal(byteValue, &msgIdMap)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+
 func CreateWeb() {
 	cacheMap = make(map[string]*MessageCache)
 	msgIdMap = make(map[byte]map[string]int)
@@ -252,6 +304,8 @@ func CreateWeb() {
 	http.HandleFunc("/getNodeStatistics", getNodeStatistics)
 	http.HandleFunc("/getCycleStatistics", getCycleStatistics)
 	http.HandleFunc("/lack", lack)
+	http.HandleFunc("/exportDataset", exportDataset)
+	http.HandleFunc("/loadDataset", loadDataset)
 	fs := http.FileServer(http.Dir("tool/benchmark/chart"))
 	// 创建静态文件服务器
 
