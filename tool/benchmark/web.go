@@ -37,11 +37,14 @@ func getMessageId(m Message) string {
 // 接收节点广播的消息
 func putRing(w http.ResponseWriter, r *http.Request) {
 	decoder := schema.NewDecoder()
-	message :=
-		Message{}
+	message := Message{}
 	err := decoder.Decode(&message, r.URL.Query())
 	if err != nil {
 		log.Println(err)
+		return
+	}
+	// 类型15会生成一堆id，暂时排除影响
+	if message.MsgType == 15 {
 		return
 	}
 	fmt.Println(message)
@@ -245,6 +248,14 @@ func exportDataset(w http.ResponseWriter, r *http.Request) {
 	dataSet := make(map[string][]Message)
 	for k, v := range cacheMap {
 		dataSet[k] = v.getMessages()
+	}
+
+	if _, err := os.Stat("./dataset"); os.IsNotExist(err) {
+		err := os.MkdirAll("./dataset", os.ModePerm)
+		if err != nil {
+			fmt.Printf("创建文件夹失败: %v\n", err)
+			return
+		}
 	}
 
 	data, err := json.Marshal(dataSet)
