@@ -198,6 +198,8 @@ func lack(w http.ResponseWriter, r *http.Request) {
 }
 
 func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
+	rm.RLock()
+	defer rm.RUnlock()
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	decoder := schema.NewDecoder()
 	message := Message{}

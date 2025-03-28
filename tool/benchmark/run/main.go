@@ -12,25 +12,33 @@ import (
 )
 
 func main() {
-	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
+
+	//测试轮数
+	rounds := 10
+	//for i := 2; i <= 8; i = i + 2 {
+	//	benchmark(600, i, rounds)
+	//}
+	for i := 100; i <= 600; i = i + 100 {
+		//因为在上一组的测试里已经测过了
+		benchmark(i, 4, rounds)
+	}
+	// 主线程保持运行
+	select {}
+}
+func benchmark(n int, k int, rounds int) {
 	var err error
-
-	// 节点数量
-	n := 500
-	//扇出大小
-	k := 4
-
+	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
 	//消息大小
 	strLen := 100
-	//测试轮数
-	rounds := 100
+
 	initPort := 40000
-	testMode := []MsgType{RegularMsg, ColoringMsg, EagerPush, GossipMsg} //按数组中的顺序决定跑的时候的顺序
+	testMode := []MsgType{RegularMsg, EagerPush, ColoringMsg, GossipMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	tool.Num = n
 	tool.InitPort = initPort
 	msg := randomByteArray(strLen)
 	serverList := make([]*plumtree.Server, 0)
+
 	for i := 0; i < n; i++ {
 		action := createAction(i + 1)
 		f := func(config *broadcast.Config) {
@@ -52,38 +60,40 @@ func main() {
 	}
 
 	defer func() {
+		time.Sleep(5 * time.Second)
 		for _, v := range serverList {
 			v.Close()
 		}
 	}()
 	//节点启动完之后再跑
-	time.Sleep(time.Duration(n/100) * time.Second)
-	portCounter := 0
+	time.Sleep(time.Duration(n/200) * time.Second)
+	//portCounter := 0
 	for _, mode := range testMode {
+
 		for i := range rounds {
-			serverListTemp := make([]*plumtree.Server, 0)
-			for i := 0; i < (n / 100); i++ {
-				action := createAction(i + 1)
-				f := func(config *broadcast.Config) {
-					portCounter++
-					config.Port = initPort + n + 1 + portCounter
-					config.FanOut = k
-					config.DefaultServer = serversAddresses
-					config.Report = true
-				}
-				config, err := broadcast.NewConfig(configPath, f)
-				if err != nil {
-					panic(err)
-					return
-				}
-				server, err := plumtree.NewServer(config, action)
-				if err != nil {
-					log.Println(err)
-					return
-				}
-				server.ApplyJoin(server.Config.InitialServer)
-				serverListTemp = append(serverListTemp, server)
-			}
+			//serverListTemp := make([]*plumtree.Server, 0)
+			//for i := 0; i < (n / 100); i++ {
+			//	action := createAction(i + 1)
+			//	f := func(config *broadcast.Config) {
+			//		portCounter++
+			//		config.Port = initPort + n + 1 + portCounter
+			//		config.FanOut = k
+			//		config.DefaultServer = serversAddresses
+			//		config.Report = true
+			//	}
+			//	config, err := broadcast.NewConfig(configPath, f)
+			//	if err != nil {
+			//		panic(err)
+			//		return
+			//	}
+			//	server, err := plumtree.NewServer(config, action)
+			//	if err != nil {
+			//		log.Println(err)
+			//		return
+			//	}
+			//	server.ApplyJoin(server.Config.InitialServer)
+			//	serverListTemp = append(serverListTemp, server)
+			//}
 
 			// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
 			fmt.Printf("=== %d =====\n", i)
@@ -101,16 +111,15 @@ func main() {
 				log.Println("Error broadcasting message:", err)
 			}
 
-			for _, v := range serverListTemp {
-				v.ApplyLeave()
-			}
+			//for _, v := range serverListTemp {
+			//	v.ApplyLeave()
+			//}
 
 			//放一个新的
 
 		}
+
 	}
-	// 主线程保持运行
-	select {}
 }
 
 // 编号从0开始
