@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
+	configPath := "/home/quchen/snow/config/config.yml"
 	n := 15
 	initPort := 40000
 	serverList := make([]*plumtree.Server, 0)
@@ -33,7 +33,6 @@ func main() {
 		for i := 0; i < 50000000000000; i++ {
 			time.Sleep(5 * time.Second)
 			serverList[0].PlumTreeBroadcast([]byte("hello from server!"), 0)
-
 		}
 	}()
 	// 主线程保持运行
