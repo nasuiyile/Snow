@@ -292,7 +292,7 @@ func loadDataset(w http.ResponseWriter, r *http.Request) {
 		cacheMap[k].messages = v
 	}
 
-	byteValue, err = os.ReadFile("./dataset/cacheMap.json")
+	byteValue, err = os.ReadFile("./dataset/msgIdMap.json")
 	if err != nil {
 		log.Fatalln(err)
 	}
