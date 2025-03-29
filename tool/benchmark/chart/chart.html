@@ -9,6 +9,9 @@
         width: 33%;
         height: 550px;
     }
+    .btn {
+        margin: 0px 50px 0px 50px;
+    }
 </style>
 
 <body>
@@ -42,7 +45,11 @@
     <iframe src="cycle_statistics_reliability.html"></iframe>
     <!--        <iframe src="cycle_statistics_fanin_variance.html"></iframe>-->
     <!--        <iframe src="cycle_statistics_fanout_variance.html"></iframe>-->
-    <button id="clean" onclick="clean()" style="margin-top: 20px;">clean</button>
+    <div style="margin-top: 20px;">
+        <button class="btn" id="clean" onclick="clean()">clean</button>
+        <button class="btn" id="clean" onclick="exportDataset()">export</button>
+        <button class="btn" id="clean" onclick="loadDataset()">load</button>
+    </div>
 </body>
 
 </html>
@@ -69,6 +76,28 @@
         request.onreadystatechange = function () {
             if (request.readyState === 4 && request.status == 200) {
                 console.log("clean over")
+            }
+        }
+        request.send()
+    }
+
+    function exportDataset() {
+        let request = new XMLHttpRequest()
+        request.open("GET", "http://localhost:8111/exportDataset")
+        request.onreadystatechange = function () {
+            if (request.readyState === 4 && request.status == 200) {
+                console.log("export over")
+            }
+        }
+        request.send()
+    }
+
+    function loadDataset() {
+        let request = new XMLHttpRequest()
+        request.open("GET", "http://localhost:8111/loadDataset")
+        request.onreadystatechange = function () {
+            if (request.readyState === 4 && request.status == 200) {
+                console.log("load over")
             }
         }
         request.send()
