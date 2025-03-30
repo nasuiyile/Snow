@@ -13,15 +13,25 @@ import (
 
 func main() {
 
-	//测试轮数
-	rounds := 10
-	//for i := 2; i <= 8; i = i + 2 {
-	//	benchmark(600, i, rounds)
+	////测试轮数
+	rounds := 100
+	benchmark(600, 6, rounds)
+	benchmark(600, 8, rounds)
+	benchmark(600, 4, rounds)
+	benchmark(600, 2, rounds)
+	//
+	//for i := 100; i <= 400; i = i + 100 {
+	//	//因为在上一组的测试里已经测过了
+	//	benchmark(i, 4, rounds)
 	//}
-	for i := 100; i <= 600; i = i + 100 {
-		//因为在上一组的测试里已经测过了
-		benchmark(i, 4, rounds)
-	}
+
+	benchmark(500, 4, rounds)
+	benchmark(400, 4, rounds)
+	benchmark(300, 4, rounds)
+	benchmark(200, 4, rounds)
+	benchmark(100, 4, rounds)
+
+	fmt.Println("done!!!")
 	// 主线程保持运行
 	select {}
 }
@@ -32,7 +42,7 @@ func benchmark(n int, k int, rounds int) {
 	strLen := 100
 
 	initPort := 40000
-	testMode := []MsgType{RegularMsg, EagerPush, ColoringMsg, GossipMsg} //按数组中的顺序决定跑的时候的顺序
+	testMode := []MsgType{EagerPush, GossipMsg, RegularMsg, ColoringMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	tool.Num = n
 	tool.InitPort = initPort
@@ -97,7 +107,7 @@ func benchmark(n int, k int, rounds int) {
 
 			// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
 			fmt.Printf("=== %d =====\n", i)
-			time.Sleep(1 * time.Second)
+			time.Sleep(1000 * time.Millisecond)
 			if mode == RegularMsg {
 				err = serverList[0].RegularMessage(msg, UserMsg)
 			} else if mode == ColoringMsg {
@@ -125,7 +135,6 @@ func benchmark(n int, k int, rounds int) {
 // 编号从0开始
 func createAction(num int) broadcast.Action {
 	syncAction := func(bytes []byte) bool {
-		s := string(bytes)
 		//随机睡眠时间，百分之5的节点是掉队者节点
 		if num%20 == 0 {
 			time.Sleep(1 * time.Second)
@@ -134,7 +143,6 @@ func createAction(num int) broadcast.Action {
 			time.Sleep(time.Duration(randInt) * time.Millisecond)
 		}
 
-		fmt.Println("这里是同步处理消息的逻辑：", s)
 		return true
 	}
 	asyncAction := func(bytes []byte) {
