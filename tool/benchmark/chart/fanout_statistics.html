@@ -125,28 +125,39 @@
         myChart.setOption(option);
     }
 
-    function getData(fanout) {
-        let num = document.getElementById("num").value
-        let param = "?Fanout=" + fanout + "&Num=" + num
-        let url = "http://localhost:8111/getCycleStatistics" + param
-        let request = new XMLHttpRequest()
-        request.open("GET", url, false)
-        request.onreadystatechange = function () {
-            if (request.readyState === 4 && request.status == 200) {
-                let response = JSON.parse(request.responseText)
-                dealData(fanout, response)
+    function getPromiseData(fanout) {
+        return new Promise((resolve, reject) => {
+            let num = document.getElementById("num").value
+            let param = "?Fanout=" + fanout + "&Num=" + num
+            let url = "http://localhost:8111/getCycleStatistics" + param
+            let request = new XMLHttpRequest()
+            request.open("GET", url, true)
+            request.onreadystatechange = function () {
+                if (request.readyState === 4) {
+                    if (request.status == 200) {
+                        let response = JSON.parse(request.responseText)
+                        dealData(num, response)
+                        resolve('success');
+                    } else {
+                        reject('failed');
+                    }
+
+                }
             }
-        }
-        request.send()
+            request.send()
+        })
     }
 
-    function search() {
+    async function search() {
         clearData()
 
-        getData(2)
-        getData(4)
-        getData(6)
-        getData(8)
+        await Promise.all([2, 4, 6, 8].map(num => getPromiseData(num)))
+            .then(results => {
+                console.log(results)
+            })
+            .catch(error => {
+                console.error(error);
+            });
 
         draw('LDT', LDT_avg)
         draw('RMR', RMR_avg)
