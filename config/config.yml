@@ -14,8 +14,10 @@ TCPTimeout: 60s
 #最开始要连接的那个服务器（用来通知加入集群）
 InitialServer: "127.0.0.1:40000"
 DefaultAddress: "127.0.0.1:40000"
-
-
+# 心跳检测的间隔时间
+HeartbeatInterval: 1s
+# 间接心跳检测的次数
+IndirectChecks: 3
 #以下配置需要开启config才有效
 Test: true  #测试模式下 membership list里的ip不会被删除。并且会发送额外的信息到固定的服务端进行调试
 #默认没有tls  127.0.0.1:8111

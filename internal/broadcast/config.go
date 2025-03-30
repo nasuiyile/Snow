@@ -11,23 +11,25 @@ import (
 )
 
 type Config struct {
-	Port             int           `yaml:"Port"`
-	Ipv6             bool          `yaml:"Ipv6"`
-	FanOut           int           `yaml:"FanOut"`
-	LocalAddress     string        `yaml:"LocalAddress"`
-	Coloring         bool          `yaml:"Coloring"`
-	Test             bool          `yaml:"Test"`
-	ExpirationTime   time.Duration `yaml:"ExpirationTime"`
-	ClientPortOffset int           `yaml:"ClientPortOffset"`
-	ClientAddress    string
-	ServerAddress    string
-	PushPullInterval time.Duration `yaml:"PushPullInterval"`
-	TCPTimeout       time.Duration `yaml:"TCPTimeout"`
-	InitialServer    string        `yaml:"InitialServer"`
-	DefaultServer    []string
-	DefaultAddress   string `yaml:"DefaultAddress"`
-	RemoteHttp       string `yaml:"RemoteHttp"`
-	Report           bool   `yaml:"Report"`
+	Port              int           `yaml:"Port"`
+	Ipv6              bool          `yaml:"Ipv6"`
+	FanOut            int           `yaml:"FanOut"`
+	LocalAddress      string        `yaml:"LocalAddress"`
+	Coloring          bool          `yaml:"Coloring"`
+	Test              bool          `yaml:"Test"`
+	ExpirationTime    time.Duration `yaml:"ExpirationTime"`
+	ClientPortOffset  int           `yaml:"ClientPortOffset"`
+	ClientAddress     string
+	ServerAddress     string
+	PushPullInterval  time.Duration `yaml:"PushPullInterval"`
+	TCPTimeout        time.Duration `yaml:"TCPTimeout"`
+	InitialServer     string        `yaml:"InitialServer"`
+	DefaultServer     []string
+	DefaultAddress    string        `yaml:"DefaultAddress"`
+	RemoteHttp        string        `yaml:"RemoteHttp"`
+	Report            bool          `yaml:"Report"`
+	HeartbeatInterval time.Duration `yaml:"HeartbeatInterval"`
+	IndirectChecks    int           `yaml:"IndirectChecks"`
 }
 
 func (c *Config) IPBytes() []byte {
