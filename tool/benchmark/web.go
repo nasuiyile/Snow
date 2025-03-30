@@ -245,6 +245,8 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 }
 
 func exportDataset(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	dataSet := make(map[string][]Message)
 	for k, v := range cacheMap {
 		dataSet[k] = v.getMessages()
@@ -278,6 +280,8 @@ func exportDataset(w http.ResponseWriter, r *http.Request) {
 }
 
 func loadDataset(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
 	byteValue, err := os.ReadFile("./dataset/cacheMap.json")
 	if err != nil {
 		log.Fatalln(err)
@@ -317,7 +321,7 @@ func CreateWeb() {
 	http.HandleFunc("/lack", lack)
 	http.HandleFunc("/exportDataset", exportDataset)
 	http.HandleFunc("/loadDataset", loadDataset)
-	fs := http.FileServer(http.Dir("tool/benchmark/chart"))
+	fs := http.FileServer(http.Dir("./chart"))
 	// 创建静态文件服务器
 
 	// 使用 http.Handle 而不是 http.HandleFunc
