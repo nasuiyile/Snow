@@ -158,7 +158,7 @@ func (s *UDPServer) Close() {
 	}
 }
 
-func SendUDPMessage(address [6]byte, msgType common.MsgType, msg interface{}) error {
+func SendUDPMessage(address []byte, msgType common.MsgType, msg interface{}) error {
 	remoteStr := tool.ByteToIPv4Port(address[:])
 	out, err := tool.Encode(msgType, msg, true)
 	if err != nil {
@@ -180,10 +180,9 @@ func SendUDPMessage(address [6]byte, msgType common.MsgType, msg interface{}) er
 		}
 	}()
 
-	n, err := conn.Write(out.Bytes())
+	_, err = conn.Write(out.Bytes())
 	if err != nil {
 		return fmt.Errorf("failed to write msg to udp %s: %v", remoteStr, err)
 	}
-	log.Printf("[UDPServer] Successfully sent %d bytes to %s", n, remoteStr)
 	return nil
 }
