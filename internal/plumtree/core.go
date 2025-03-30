@@ -69,22 +69,16 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			msgId := msg[TagLen+IpLen : IpLen+TagLen+TimeLen]
 			s.msgCache.Set(string(msgId), string(msg), s.Config.ExpirationTime)
 			s.MessageIdQueue <- msgId
-			//ipByte := msg[TagLen : TagLen+IpLen]
-			// s.eagerLock.Lock()
-			// s.EagerPush = addString(s.EagerPush, string(ipByte))
-			// s.eagerLock.Unlock()
-			// switch msgAction {
-			// case NodeJoin:
-			// 	s.Server.Member.AddMember(ipByte, NodePrepare)
-			// 	s.eagerLock.Lock()
-			// 	s.EagerPush = addString(s.EagerPush, string(ipByte))
-			// 	s.eagerLock.Unlock()
-			// case NodeLeave:
-			// 	s.Member.RemoveMember(ipByte, false)
-			// 	s.eagerLock.Lock()
-			// 	s.EagerPush = removeString(s.EagerPush, string(ipByte))
-			// 	s.eagerLock.Unlock()
-			// }
+			ipByte := msg[TagLen : TagLen+IpLen]
+			switch msgAction {
+			case NodeJoin:
+				s.Member.AddMember(ipByte, NodeSurvival)
+			case NodeLeave:
+				s.Member.RemoveMember(ipByte, false)
+				s.eagerLock.Lock()
+				s.EagerPush = removeString(s.EagerPush, parentIP)
+				s.eagerLock.Unlock()
+			}
 			//对消息进行转发
 			s.PlumTreeMessage(msg)
 		}
@@ -145,22 +139,20 @@ func (s *Server) PlumTreeBroadcast(msg []byte, msgAction MsgAction) {
 	//用随机数当做消息id 发送之前进行缓存
 	msgId := msg[TagLen+IpLen : TagLen+IpLen+TimeLen]
 	s.msgCache.Add(msgId, string(msg), s.Config.ExpirationTime)
-	fmt.Println("send")
 	s.PlumTreeMessage(bytes)
 }
 func (s *Server) PlumTreeMessage(msg []byte) {
 	if !s.isInitialized.Load() {
 		//如果树还没初始化过就先进行初始化，初始化的f个节点直接使用扇出来做
+
 		nodes := s.Server.KRandomNodes(s.Server.Config.FanOut)
 		s.eagerLock.Lock()
 		s.EagerPush = nodes
 		s.eagerLock.Unlock()
 		s.isInitialized.Store(true)
 	}
-	fmt.Println("eagerpush:", s.EagerPush)
 	s.eagerLock.RLock()
 	for _, v := range s.EagerPush {
-		fmt.Println("发送消息的节点：", 1)
 		s.Server.SendMessage(v, []byte{}, msg)
 	}
 	s.eagerLock.RUnlock()
@@ -184,8 +176,4 @@ func findString(slice []string, target string) bool {
 		}
 	}
 	return false // 如果未找到目标字符串，返回原切片
-}
-
-func addString(slice []string, target string) []string {
-	return append(slice, target)
 }
