@@ -13,7 +13,6 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 	msgType := msg[0]
 	//消息要进行的动作
 	msgAction := msg[1]
-	NodeChanging(msg[1:], parentIP, s, conn)
 
 	switch msgType {
 	case RegularMsg:
@@ -24,7 +23,6 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		forward(msg, s, parentIP)
 	case ColoringMsg:
 		body := tool.CutBytes(msg)
-
 		first := IsFirst(body, msgType, msgAction, s)
 		forward(msg, s, parentIP)
 		if !first {
@@ -50,7 +48,6 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		if !IsFirst(body, msgType, msgAction, s) {
 			return
 		}
-
 		//减少计数器
 		s.ReduceReliableTimeout(msg, s.Action.ReliableCallback)
 	case GossipMsg:
@@ -67,6 +64,7 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		if !IsFirst(msg[1:], msgType, msgAction, s) {
 			return
 		}
+		NodeChanging(msg[1:], parentIP, s, conn)
 
 	}
 }
@@ -115,10 +113,6 @@ func forward(msg []byte, s *Server, parentIp string) {
 			newMsg = append(newMsg, s.Config.IPBytes()...)
 			//根节点ip
 			newMsg = append(newMsg, msg[len(msg)-IpLen:]...)
-			//if msgAction == NodeLeave {
-			//	s.Member.RemoveMember(msg[len(msg)-IpLen:], false)
-			//}
-
 			s.SendMessage(parentIp, []byte{}, newMsg)
 		} else {
 			//不是发送节点的化，不需要任何回调
