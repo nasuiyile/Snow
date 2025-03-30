@@ -1,7 +1,6 @@
 package membership
 
 import (
-	"fmt"
 	"net"
 	. "snow/common"
 	"snow/tool"
@@ -157,9 +156,6 @@ func (m *MemberShipList) RemoveMember(ip []byte, close bool) {
 	m.Lock()
 	defer m.Unlock()
 	address := tool.ByteToIPv4Port(ip)
-	if tool.GetPortByIp(address) <= (tool.InitPort + tool.Num + 1) {
-		fmt.Println(address)
-	}
 	data, ok := m.MetaData[address]
 	if ok {
 		if close {

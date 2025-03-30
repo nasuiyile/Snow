@@ -9,16 +9,22 @@
         width: 33%;
         height: 550px;
     }
+    .btn {
+        margin: 0px 50px 0px 50px;
+    }
 </style>
 
 <body>
     <div>
-        <span>k:
+        <span>n:
             <select id="k" style="width: 100px;margin: 10px;">
                 <option value=""></option>
                 <option value="100">100</option>
                 <option value="200">200</option>
+                <option value="300">300</option>
                 <option value="400">400</option>
+                <option value="500">500</option>
+                <option value="600">600</option>
             </select>
         </span>
         <span>fanout:
@@ -39,7 +45,11 @@
     <iframe src="cycle_statistics_reliability.html"></iframe>
     <!--        <iframe src="cycle_statistics_fanin_variance.html"></iframe>-->
     <!--        <iframe src="cycle_statistics_fanout_variance.html"></iframe>-->
-    <button id="clean" onclick="clean()" style="margin-top: 20px;">clean</button>
+    <div style="margin-top: 20px;">
+        <button class="btn" id="clean" onclick="clean()">clean</button>
+        <button class="btn" id="clean" onclick="exportDataset()">export</button>
+        <button class="btn" id="clean" onclick="loadDataset()">load</button>
+    </div>
 </body>
 
 </html>
@@ -66,6 +76,28 @@
         request.onreadystatechange = function () {
             if (request.readyState === 4 && request.status == 200) {
                 console.log("clean over")
+            }
+        }
+        request.send()
+    }
+
+    function exportDataset() {
+        let request = new XMLHttpRequest()
+        request.open("GET", "http://localhost:8111/exportDataset")
+        request.onreadystatechange = function () {
+            if (request.readyState === 4 && request.status == 200) {
+                console.log("export over")
+            }
+        }
+        request.send()
+    }
+
+    function loadDataset() {
+        let request = new XMLHttpRequest()
+        request.open("GET", "http://localhost:8111/loadDataset")
+        request.onreadystatechange = function () {
+            if (request.readyState === 4 && request.status == 200) {
+                console.log("load over")
             }
         }
         request.send()

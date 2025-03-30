@@ -97,7 +97,7 @@ func (s *Server) startAcceptingConnections() {
 			log.Println("Error accepting connection:", err)
 			continue
 		}
-		log.Printf("get connect from %s", conn.RemoteAddr().String())
+		//log.Printf("get connect from %s", conn.RemoteAddr().String())
 		tcpConn := conn.(*net.TCPConn)
 		tcpConn.SetLinger(0)
 		conn = tcpConn
@@ -179,7 +179,7 @@ func (s *Server) ConnectToPeer(addr string) (net.Conn, error) {
 		log.Printf("Failed to connect to %s: %v\n", addr, err)
 		return nil, err
 	}
-	log.Printf("%s Connected to %s\n", s.Config.ServerAddress, addr)
+	//log.Printf("%sConnected to %s\n", s.Config.ServerAddress, addr)
 	metaData := membership.NewEmptyMetaData()
 	metaData.SetClient(conn)
 	s.Member.PutMemberIfNil(addr, metaData)

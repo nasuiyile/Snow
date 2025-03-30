@@ -51,13 +51,13 @@
     function dealData(num, dataArr) {
         xData[num] = 1
         Object.keys(LDT_avg).forEach(type => {
-            n = 0
-            LDT_sum = 0
-            RMR_sum = 0
-            Reliability_sum = 0
+            let n = 0
+            let LDT_sum = 0
+            let RMR_sum = 0
+            let Reliability_sum = 0
             if (dataArr[type]) {
                 Object.entries(dataArr[type]).forEach(([k, v]) => {
-                    n = k
+                    n++
                     LDT_sum += v.LDT
                     RMR_sum += v.RMR
                     Reliability_sum += v.Reliability
@@ -123,30 +123,39 @@
         myChart.setOption(option);
     }
 
-    function getData(num) {
-        let fanout = document.getElementById("fanout").value
-        let param = "?Fanout=" + fanout + "&Num=" + num
-        let url = "http://localhost:8111/getCycleStatistics" + param
-        let request = new XMLHttpRequest()
-        request.open("GET", url, false)
-        request.onreadystatechange = function () {
-            if (request.readyState === 4 && request.status == 200) {
-                let response = JSON.parse(request.responseText)
-                dealData(num, response)
+    function getPromiseData(num) {
+        return new Promise((resolve, reject) => {
+            let fanout = document.getElementById("fanout").value
+            let param = "?Fanout=" + fanout + "&Num=" + num
+            let url = "http://localhost:8111/getCycleStatistics" + param
+            let request = new XMLHttpRequest()
+            request.open("GET", url, true)
+            request.onreadystatechange = function () {
+                if (request.readyState === 4) {
+                    if (request.status == 200) {
+                        let response = JSON.parse(request.responseText)
+                        dealData(num, response)
+                        resolve('success');
+                    } else {
+                        reject('failed');
+                    }
+
+                }
             }
-        }
-        request.send()
+            request.send()
+        })
     }
 
-    function search() {
+    async function search() {
         clearData()
 
-        getData(100)
-        getData(200)
-        getData(300)
-        getData(400)
-        getData(500)
-        getData(600)
+        await Promise.all([100, 200, 300, 400, 500, 600].map(num => getPromiseData(num)))
+            .then(results => {
+                console.log(results)
+            })
+            .catch(error => {
+                console.error(error);
+            });
 
         draw('LDT', LDT_avg)
         draw('RMR', RMR_avg)

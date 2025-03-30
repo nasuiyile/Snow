@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"os"
 	. "snow/common"
 	"snow/tool"
 	"strings"
@@ -36,14 +37,17 @@ func getMessageId(m Message) string {
 // 接收节点广播的消息
 func putRing(w http.ResponseWriter, r *http.Request) {
 	decoder := schema.NewDecoder()
-	message :=
-		Message{}
+	message := Message{}
 	err := decoder.Decode(&message, r.URL.Query())
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	fmt.Println(message)
+	// 类型15会生成一堆id，暂时排除影响
+	if message.MsgType == 15 {
+		return
+	}
+	//fmt.Println(message)
 	message.Timestamp = int(time.Now().UnixMilli())
 	message.Id = getMessageId(message)
 	rm.Lock()
@@ -198,6 +202,8 @@ func lack(w http.ResponseWriter, r *http.Request) {
 }
 
 func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
+	rm.RLock()
+	defer rm.RUnlock()
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	decoder := schema.NewDecoder()
 	message := Message{}
@@ -237,6 +243,69 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(builder.String()))
 }
+
+func exportDataset(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	dataSet := make(map[string][]Message)
+	for k, v := range cacheMap {
+		dataSet[k] = v.getMessages()
+	}
+
+	if _, err := os.Stat("./dataset"); os.IsNotExist(err) {
+		err := os.MkdirAll("./dataset", os.ModePerm)
+		if err != nil {
+			fmt.Printf("创建文件夹失败: %v\n", err)
+			return
+		}
+	}
+
+	data, err := json.Marshal(dataSet)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	err = os.WriteFile("./dataset/cacheMap.json", data, 0644)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	data, err = json.Marshal(msgIdMap)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	err = os.WriteFile("./dataset/msgIdMap.json", data, 0644)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func loadDataset(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	byteValue, err := os.ReadFile("./dataset/cacheMap.json")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	dataSet := make(map[string][]Message)
+	err = json.Unmarshal(byteValue, &dataSet)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	for k, v := range dataSet {
+		cacheMap[k] = new(MessageCache)
+		cacheMap[k].messages = v
+	}
+
+	byteValue, err = os.ReadFile("./dataset/msgIdMap.json")
+	if err != nil {
+		log.Fatalln(err)
+	}
+	err = json.Unmarshal(byteValue, &msgIdMap)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+
 func CreateWeb() {
 	cacheMap = make(map[string]*MessageCache)
 	msgIdMap = make(map[byte]map[string]int)
@@ -250,7 +319,9 @@ func CreateWeb() {
 	http.HandleFunc("/getNodeStatistics", getNodeStatistics)
 	http.HandleFunc("/getCycleStatistics", getCycleStatistics)
 	http.HandleFunc("/lack", lack)
-	fs := http.FileServer(http.Dir("tool/benchmark/chart"))
+	http.HandleFunc("/exportDataset", exportDataset)
+	http.HandleFunc("/loadDataset", loadDataset)
+	fs := http.FileServer(http.Dir("./chart"))
 	// 创建静态文件服务器
 
 	// 使用 http.Handle 而不是 http.HandleFunc
