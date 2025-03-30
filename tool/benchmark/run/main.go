@@ -109,11 +109,11 @@ func benchmark(n int, k int, rounds int) {
 			fmt.Printf("=== %d =====\n", i)
 			time.Sleep(1000 * time.Millisecond)
 			if mode == RegularMsg {
-				err = serverList[0].RegularMessage(msg, UserMsg)
+				serverList[0].RegularMessage(msg, UserMsg)
 			} else if mode == ColoringMsg {
-				err = serverList[0].ColoringMessage(msg, UserMsg)
+				serverList[0].ColoringMessage(msg, UserMsg)
 			} else if mode == GossipMsg {
-				err = serverList[0].GossipMessage(msg, UserMsg)
+				serverList[0].GossipMessage(msg, UserMsg)
 			} else if mode == EagerPush {
 				serverList[0].PlumTreeBroadcast(msg, UserMsg)
 			}
