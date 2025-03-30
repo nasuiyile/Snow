@@ -1,6 +1,7 @@
 package plumtree
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	. "snow/common"
@@ -73,6 +74,13 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			switch msgAction {
 			case NodeJoin:
 				s.Member.AddMember(ipByte, NodeSurvival)
+
+				if !bytes.Equal(ipByte, s.Config.IPBytes()) {
+					s.eagerLock.Lock()
+					s.EagerPush = append(s.EagerPush, parentIP)
+					s.eagerLock.Unlock()
+				}
+
 			case NodeLeave:
 				s.Member.RemoveMember(ipByte, false)
 				s.eagerLock.Lock()

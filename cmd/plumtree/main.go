@@ -12,13 +12,13 @@ func main() {
 	n := 15
 	initPort := 40000
 	serverList := make([]*plumtree.Server, 0)
-	//serversAddresses := initAddress(n, initPort)
+	serversAddresses := initAddress(n, initPort)
 	action := createAction()
 
 	for i2 := 0; i2 < n; i2++ {
 		f := func(config *broadcast.Config) {
 			config.Port = initPort + i2
-			config.DefaultServer = make([]string, 0)
+			config.DefaultServer = serversAddresses
 		}
 		config, err := broadcast.NewConfig(configPath, f)
 		//time.Sleep(50 * time.Millisecond)
@@ -29,6 +29,13 @@ func main() {
 		serverList = append(serverList, server)
 	}
 	//模拟每隔1秒向所有客户端发送一条消息
+	go func() {
+		for i := 0; i < 50000000000000; i++ {
+			time.Sleep(5 * time.Second)
+			serverList[0].PlumTreeBroadcast([]byte("hello from server!"), 0)
+		}
+	}()
+
 	go func() {
 		for i := 0; i < 50000000000000; i++ {
 			time.Sleep(5 * time.Second)
