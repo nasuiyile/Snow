@@ -47,7 +47,7 @@ func putRing(w http.ResponseWriter, r *http.Request) {
 	if message.MsgType == 15 {
 		return
 	}
-	fmt.Println(message)
+	//fmt.Println(message)
 	message.Timestamp = int(time.Now().UnixMilli())
 	message.Id = getMessageId(message)
 	rm.Lock()

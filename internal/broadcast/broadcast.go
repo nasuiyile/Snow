@@ -7,53 +7,49 @@ import (
 	"time"
 )
 
-func (s *Server) RegularMessage(message []byte, msgAction MsgAction) error {
+func (s *Server) RegularMessage(message []byte, msgAction MsgAction) {
 	member, _ := s.InitMessage(RegularMsg, msgAction)
 	newMsg := tool.CopyMsg(message)
 	for ip, payload := range member {
 		s.SendMessage(ip, payload, newMsg)
 	}
-	return nil
 }
 
-func (s *Server) ColoringMessage(message []byte, msgAction MsgAction) error {
+func (s *Server) ColoringMessage(message []byte, msgAction MsgAction) {
 	member, _ := s.InitMessage(ColoringMsg, msgAction)
 	newMsg := tool.CopyMsg(message)
 	for ip, payload := range member {
 		s.SendMessage(ip, payload, newMsg)
 	}
-	return nil
 }
 
 // GossipMessage gossip协议是有可能广播给发送给自己的节点的= =
-func (s *Server) GossipMessage(msg []byte, msgAction MsgAction) error {
+func (s *Server) GossipMessage(msg []byte, msgAction MsgAction) {
 	bytes := make([]byte, len(msg)+TimeLen+TagLen)
 	bytes[0] = GossipMsg
 	bytes[1] = msgAction
 	copy(bytes[TagLen:], tool.RandomNumber())
 	copy(bytes[TagLen+TimeLen:], msg)
-	return s.SendGossip(bytes)
+	s.SendGossip(bytes)
 }
 
-func (s *Server) SendGossip(msg []byte) error {
+func (s *Server) SendGossip(msg []byte) {
 	nodes := s.KRandomNodes(s.Config.FanOut)
 	for _, v := range nodes {
 		s.SendMessage(v, []byte{}, msg)
 	}
-	return nil
 }
 
 // ForwardMessage 转发消息
-func (s *Server) ForwardMessage(msg []byte, member map[string][]byte) error {
+func (s *Server) ForwardMessage(msg []byte, member map[string][]byte) {
 	newMsg := tool.CopyMsg(msg)
 	for ip, payload := range member {
 		s.SendMessage(ip, payload, newMsg[len(payload):])
 	}
-	return nil
 }
 
 // ReliableMessage 在成功时，每个节点都会回调这个方法，在失败时只有根节点和部分成功的节点会重新调用这个方法
-func (s *Server) ReliableMessage(message []byte, msgAction MsgAction, action *func(isSuccess bool)) error {
+func (s *Server) ReliableMessage(message []byte, msgAction MsgAction, action *func(isSuccess bool)) {
 
 	member, randomNum := s.InitMessage(ReliableMsg, msgAction)
 
@@ -77,7 +73,6 @@ func (s *Server) ReliableMessage(message []byte, msgAction MsgAction, action *fu
 	for ip, payload := range member {
 		s.SendMessage(ip, payload, msg)
 	}
-	return nil
 }
 
 func (s *Server) KRandomNodes(k int) []string {

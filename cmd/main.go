@@ -54,9 +54,8 @@ func initAddress(n int, port int) []string {
 
 func createAction() broadcast.Action {
 	syncAction := func(bytes []byte) bool {
-		s := string(bytes)
-
-		fmt.Println("这里是同步处理消息的逻辑：", s)
+		//s := string(bytes)
+		//log.Println("这里是同步处理消息的逻辑：", s)
 		return true
 	}
 	asyncAction := func(bytes []byte) {
@@ -64,7 +63,7 @@ func createAction() broadcast.Action {
 		//fmt.Println("这里是异步处理消息的逻辑：", s)
 	}
 	reliableCallback := func(isConverged bool) {
-		fmt.Println("这里是：可靠消息回调------------------------------", isConverged)
+		log.Println("这里是：可靠消息回调------------------------------", isConverged)
 	}
 	action := broadcast.Action{
 		SyncAction:       &syncAction,
