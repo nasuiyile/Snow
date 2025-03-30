@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -138,12 +137,12 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 		header := make([]byte, 4)
 		_, err := io.ReadFull(reader, header)
 		if err != nil {
-			fmt.Println(errors.Is(err, io.EOF))
+			log.Println(errors.Is(err, io.EOF))
 			log.Printf("Read header error from %v: %v\n", conn.RemoteAddr(), err)
 			if err == io.EOF {
-				fmt.Println("Normal EOF: connection closed by client")
+				log.Println("Normal EOF: connection closed by client")
 			}
-			fmt.Println(conn.RemoteAddr().String())
+			log.Println(conn.RemoteAddr().String())
 			member := tool.IPv4To6Bytes(conn.RemoteAddr().String())
 			s.Member.RemoveMember(member, false)
 			return
@@ -167,7 +166,7 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 	}
 }
 
-func (s *Server) connectToPeer(addr string) (net.Conn, error) {
+func (s *Server) ConnectToPeer(addr string) (net.Conn, error) {
 	s.Member.Lock()
 	defer s.Member.Unlock()
 	member := s.Member.GetMember(addr)
@@ -195,7 +194,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 	var conn net.Conn
 	var err error
 	if metaData == nil {
-		conn, err = s.connectToPeer(ip)
+		conn, err = s.ConnectToPeer(ip)
 		if err != nil {
 			log.Println(s.Config.ServerAddress, "can't connect to ", ip)
 			log.Println(err)
@@ -206,7 +205,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 	}
 	if conn == nil {
 		//先建立一次链接进行尝试
-		newConn, err := s.connectToPeer(ip)
+		newConn, err := s.ConnectToPeer(ip)
 		if err != nil {
 			log.Println(s.Config.ServerAddress, "can't connect to ", ip)
 			return
@@ -235,7 +234,7 @@ func (s *Server) replayMessage(conn net.Conn, config *Config, msg []byte) {
 	length := uint32(len(msg))
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, length)
-	fmt.Println(conn.RemoteAddr().String())
+	log.Println(conn.RemoteAddr().String())
 	data := &SendData{
 		Conn:    conn,
 		Header:  header,
