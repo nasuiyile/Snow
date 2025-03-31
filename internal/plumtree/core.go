@@ -1,6 +1,7 @@
 package plumtree
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	. "snow/common"
@@ -69,6 +70,23 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			msgId := msg[TagLen+IpLen : IpLen+TagLen+TimeLen]
 			s.msgCache.Set(string(msgId), string(msg), s.Config.ExpirationTime)
 			s.MessageIdQueue <- msgId
+			ipByte := msg[TagLen : TagLen+IpLen]
+			switch msgAction {
+			case NodeJoin:
+				s.Member.AddMember(ipByte, NodeSurvival)
+				sourceIp := tool.ByteToIPv4Port(ipByte)
+				if !bytes.Equal(ipByte, s.Config.IPBytes()) {
+					s.eagerLock.Lock()
+					s.EagerPush = append(s.EagerPush, sourceIp)
+					s.eagerLock.Unlock()
+				}
+
+			case NodeLeave:
+				s.Member.RemoveMember(ipByte, false)
+				s.eagerLock.Lock()
+				s.EagerPush = removeString(s.EagerPush, parentIP)
+				s.eagerLock.Unlock()
+			}
 			//对消息进行转发
 			s.PlumTreeMessage(msg)
 		}
@@ -127,7 +145,7 @@ func (s *Server) PlumTreeBroadcast(msg []byte, msgAction MsgAction) {
 	copy(bytes[TagLen+TimeLen+IpLen:], msg)
 
 	//用随机数当做消息id 发送之前进行缓存
-	msgId := msg[TagLen+IpLen : TagLen+IpLen+TimeLen]
+	msgId := bytes[TagLen+IpLen : TagLen+IpLen+TimeLen]
 	s.msgCache.Add(msgId, string(msg), s.Config.ExpirationTime)
 	s.PlumTreeMessage(bytes)
 }

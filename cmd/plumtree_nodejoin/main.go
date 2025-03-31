@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
+	configPath := "/home/quchen/snow/config/config.yml"
 	n := 15
 	initPort := 40000
 	serverList := make([]*plumtree.Server, 0)
@@ -29,12 +29,26 @@ func main() {
 		serverList = append(serverList, server)
 	}
 	//模拟每隔1秒向所有客户端发送一条消息
-	go func() {
-		for i := 0; i < 50000000000000; i++ {
-			time.Sleep(5 * time.Second)
-			serverList[0].PlumTreeBroadcast([]byte("hello from server!"), 0)
+	// go func() {
+	// 	for i := 0; i < 50000000000000; i++ {
+	// 		time.Sleep(5 * time.Second)
+	// 		serverList[0].PlumTreeBroadcast([]byte("hello from server!"), 0)
+	// 	}
+	// }()
 
+	go func() {
+		f := func(config *broadcast.Config) {
+			time.Sleep(5 * time.Second)
+			config.Port = initPort + 100
+			config.DefaultServer = serversAddresses
 		}
+		config, err := broadcast.NewConfig(configPath, f)
+		//time.Sleep(50 * time.Millisecond)
+		server, err := plumtree.NewServer(config, action)
+		if err != nil {
+			return
+		}
+		server.NodeJoin()
 	}()
 	// 主线程保持运行
 	select {}
