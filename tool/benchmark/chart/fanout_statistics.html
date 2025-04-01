@@ -88,35 +88,46 @@
             xAxis: {
                 type: 'category',
                 interval: 0,
-                data: Object.keys(xData)
+                data: Object.keys(xData),
+                axisLabel: {
+                    color: 'black',
+                    fontSize: '18px'
+                }
             },
             yAxis: {
                 type: 'value',
                 min: 0,
-                max: 'dataMax'
+                max: 'dataMax',
+                axisLabel: {
+                    color: 'black',
+                    fontSize: '18px'
+                }
             },
             legend: {
-                data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree']
+                data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
+                textStyle: {
+                    fontSize: '16px'
+                }
             },
             series: [
                 {
                     name: 'Snow-Standard',
-                    type: 'bar',
+                    type: 'line',
                     data: dataArr[8]
                 },
                 {
                     name: 'Coloring',
-                    type: 'bar',
+                    type: 'line',
                     data: dataArr[7]
                 },
                 {
                     name: 'Gossip',
-                    type: 'bar',
+                    type: 'line',
                     data: dataArr[11]
                 },
                 {
                     name: 'Plumtree',
-                    type: 'bar',
+                    type: 'line',
                     data: dataArr[12]
                 },
             ]
@@ -136,7 +147,7 @@
                 if (request.readyState === 4) {
                     if (request.status == 200) {
                         let response = JSON.parse(request.responseText)
-                        dealData(num, response)
+                        dealData(fanout, response)
                         resolve('success');
                     } else {
                         reject('failed');
