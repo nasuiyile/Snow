@@ -6,7 +6,7 @@
 </head>
 
 <body>
-<div id="echartsMain" style="width: 100%; height: 500px;"></div>
+    <div id="echartsMain" style="width: 100%; height: 500px;"></div>
 </body>
 <style>
     body {
@@ -14,6 +14,7 @@
         padding: 0;
     }
 </style>
+
 </html>
 
 <script type="text/javascript">
@@ -68,43 +69,69 @@
         var option = {
             title: [{
                 text: 'Reliability',
-            },
-                {
-                    subtext: 'Snow-Standard Avg: ' + (ReliabilitySum_8 / xData.length).toFixed(2),
-                    left: '0%',
-                    bottom: '0%'
-                }, {
-                    subtext: 'Coloring Avg: ' + (ReliabilitySum_7 / xData.length).toFixed(2),
-                    left: '25%',
-                    bottom: '0%'
-                }, {
-                    subtext: 'Gossip Avg: ' + (ReliabilitySum_11 / xData.length).toFixed(2),
-                    left: '50%',
-                    bottom: '0%'
-                }, {
-                    subtext: 'Plumtree Avg: ' + (ReliabilitySum_12 / xData.length).toFixed(2),
-                    left: '75%',
-                    bottom: '0%'
+                textStyle: {
+                    fontSize: '24px',
                 }
-            ],
+            }, {
+                subtext: 'Snow-Standard Avg: ' + (ReliabilitySum_8 / xData.length).toFixed(2),
+                left: '0%',
+                bottom: '0%',
+                subtextStyle: {
+                    color: '#000000',
+                    fontSize: '14px'
+                }
+            }, {
+                subtext: 'Coloring Avg: ' + (ReliabilitySum_7 / xData.length).toFixed(2),
+                left: '30%',
+                bottom: '0%',
+                subtextStyle: {
+                    color: '#000000',
+                    fontSize: '14px'
+                }
+            }, {
+                subtext: 'Gossip Avg: ' + (ReliabilitySum_11 / xData.length).toFixed(2),
+                left: '53%',
+                bottom: '0%',
+                subtextStyle: {
+                    color: '#000000',
+                    fontSize: '14px'
+                }
+            }, {
+                subtext: 'Plumtree Avg: ' + (ReliabilitySum_12 / xData.length).toFixed(2),
+                left: '75%',
+                bottom: '0%',
+                subtextStyle: {
+                    color: '#000000',
+                    fontSize: '14px'
+                }
+            }],
             tooltip: {
                 trigger: 'axis'
             },
             xAxis: {
                 type: 'category',
                 interval: 0,
-                data: xData
+                data: xData,
+                axisLabel: {
+                    color: 'black',
+                    fontSize: '18px'
+                }
             },
             yAxis: {
                 type: 'value',
                 min: 'dataMin',
                 max: 'dataMax',
                 axisLabel: {
-                    formatter: value => value.toFixed(2)
+                    formatter: value => value.toFixed(2),
+                    color: 'black',
+                    fontSize: '18px'
                 }
             },
             legend: {
-                data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree']
+                data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
+                textStyle: {
+                    fontSize: '16px'
+                }
             },
             series: [
                 {
