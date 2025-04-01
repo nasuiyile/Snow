@@ -96,6 +96,9 @@ func (s *Server) IsReceived(m []byte) bool {
 }
 
 func ObtainOnIPRing(current int, offset int, n int) int {
+	if n == 0 {
+		fmt.Println()
+	}
 	return (current + offset + n) % n
 }
 
@@ -191,7 +194,7 @@ func (s *Server) ApplyLeave() {
 	f := func(isSuccess bool) {
 		//如果成功了，当前节点下线。如果不成功，在发起一次请求
 		if isSuccess {
-			time.Sleep(3 * time.Second)
+			time.Sleep(5 * time.Second)
 			//进行下线操作
 			stop := struct{}{}
 			s.StopCh <- stop

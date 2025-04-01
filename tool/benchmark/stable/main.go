@@ -19,11 +19,6 @@ func main() {
 	benchmark(600, 8, rounds)
 	benchmark(600, 4, rounds)
 	benchmark(600, 2, rounds)
-	//
-	//for i := 100; i <= 400; i = i + 100 {
-	//	//因为在上一组的测试里已经测过了
-	//	benchmark(i, 4, rounds)
-	//}
 
 	benchmark(500, 4, rounds)
 	benchmark(400, 4, rounds)
@@ -48,7 +43,6 @@ func benchmark(n int, k int, rounds int) {
 	tool.InitPort = initPort
 	msg := randomByteArray(strLen)
 	serverList := make([]*plumtree.Server, 0)
-
 	for i := 0; i < n; i++ {
 		action := createAction(i + 1)
 		f := func(config *broadcast.Config) {
@@ -68,7 +62,6 @@ func benchmark(n int, k int, rounds int) {
 		}
 		serverList = append(serverList, server)
 	}
-
 	defer func() {
 		time.Sleep(5 * time.Second)
 		for _, v := range serverList {
@@ -77,34 +70,8 @@ func benchmark(n int, k int, rounds int) {
 	}()
 	//节点启动完之后再跑
 	time.Sleep(time.Duration(n/200) * time.Second)
-	//portCounter := 0
 	for _, mode := range testMode {
-
 		for i := range rounds {
-			//serverListTemp := make([]*plumtree.Server, 0)
-			//for i := 0; i < (n / 100); i++ {
-			//	action := createAction(i + 1)
-			//	f := func(config *broadcast.Config) {
-			//		portCounter++
-			//		config.Port = initPort + n + 1 + portCounter
-			//		config.FanOut = k
-			//		config.DefaultServer = serversAddresses
-			//		config.Report = true
-			//	}
-			//	config, err := broadcast.NewConfig(configPath, f)
-			//	if err != nil {
-			//		panic(err)
-			//		return
-			//	}
-			//	server, err := plumtree.NewServer(config, action)
-			//	if err != nil {
-			//		log.Println(err)
-			//		return
-			//	}
-			//	server.ApplyJoin(server.Config.InitialServer)
-			//	serverListTemp = append(serverListTemp, server)
-			//}
-
 			// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
 			fmt.Printf("=== %d =====\n", i)
 			time.Sleep(1000 * time.Millisecond)
@@ -120,15 +87,7 @@ func benchmark(n int, k int, rounds int) {
 			if err != nil {
 				log.Println("Error broadcasting message:", err)
 			}
-
-			//for _, v := range serverListTemp {
-			//	v.ApplyLeave()
-			//}
-
-			//放一个新的
-
 		}
-
 	}
 }
 

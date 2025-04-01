@@ -4,10 +4,10 @@ import (
 	. "snow/common"
 )
 
-func (s *Server) NodeJoin() {
-	s.PlumTreeBroadcast([]byte("nodejoinwehellosdfds"), NodeJoin)
+func (s *Server) ApplyJoin() {
+	s.PlumTreeBroadcast([]byte{}, NodeJoin)
 }
 
-func (s *Server) NodeLeave() {
+func (s *Server) ApplyLeave() {
 	s.PlumTreeBroadcast([]byte{}, NodeLeave)
 }

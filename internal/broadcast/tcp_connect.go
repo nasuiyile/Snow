@@ -176,7 +176,7 @@ func (s *Server) ConnectToPeer(addr string) (net.Conn, error) {
 	// 赋值给 Dialer 的 LocalAddr
 	conn, err := s.client.Dial("tcp", addr)
 	if err != nil {
-		log.Printf("Failed to connect to %s: %v\n", addr, err)
+		//log.Printf("Failed to connect to %s: %v\n", addr, err)
 		return nil, err
 	}
 	//log.Printf("%sConnected to %s\n", s.Config.ServerAddress, addr)
@@ -266,8 +266,8 @@ func (s *Server) Sender() {
 	for data := range s.sendChan {
 		_, err := data.Conn.Write(data.Header)
 		if err != nil {
-			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
 			log.Printf("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
+			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
 			continue
 		}
 		_, err = data.Conn.Write(data.Payload)
