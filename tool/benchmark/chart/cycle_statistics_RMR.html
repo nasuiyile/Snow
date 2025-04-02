@@ -70,7 +70,9 @@
             title: [{
                 text: 'RMR',
                 textStyle: {
-                    fontSize: '24px',
+                    fontSize: '18px',
+                    fontWeight: 'bold'
+
                 }
             }, {
                 subtext: 'Snow-Standard Avg: ' + (RMRSum_8 / xData.length).toFixed(0),
@@ -78,7 +80,9 @@
                 bottom: '0%',
                 subtextStyle: {
                     color: '#000000',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    fontWeight: 'bold'
+
                 }
             }, {
                 subtext: 'Coloring Avg: ' + (RMRSum_7 / xData.length).toFixed(0),
@@ -86,7 +90,9 @@
                 bottom: '0%',
                 subtextStyle: {
                     color: '#000000',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    fontWeight: 'bold'
+
                 }
             }, {
                 subtext: 'Gossip Avg: ' + (RMRSum_11 / xData.length).toFixed(0),
@@ -94,7 +100,9 @@
                 bottom: '0%',
                 subtextStyle: {
                     color: '#000000',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    fontWeight: 'bold'
+
                 }
             }, {
                 subtext: 'Plumtree Avg: ' + (RMRSum_12 / xData.length).toFixed(0),
@@ -102,7 +110,9 @@
                 bottom: '0%',
                 subtextStyle: {
                     color: '#000000',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    fontWeight: 'bold'
+
                 }
             }],
             tooltip: {
@@ -114,7 +124,9 @@
                 data: xData,
                 axisLabel: {
                     color: 'black',
-                    fontSize: '18px'
+                    fontSize: '18px',
+                    fontWeight: 'bold'
+
                 }
             },
             yAxis: {
@@ -124,13 +136,17 @@
                 axisLabel: {
                     formatter: value => value.toFixed(0),
                     color: 'black',
-                    fontSize: '18px'
+                    fontSize: '18px',
+                    fontWeight: 'bold'
+
                 }
             },
             legend: {
                 data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
                 textStyle: {
-                    fontSize: '16px'
+                    fontSize: '16px',
+                    fontWeight: 'bold'
+
                 }
             },
             series: [

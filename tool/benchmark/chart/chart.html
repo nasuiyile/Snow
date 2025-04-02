@@ -9,13 +9,14 @@
         width: 33%;
         height: 550px;
     }
+
     .btn {
         margin: 0px 50px 0px 50px;
     }
 </style>
 
 <body>
-    <div>
+<div>
         <span>n:
             <select id="k" style="width: 100px;margin: 10px;">
                 <option value=""></option>
@@ -27,31 +28,39 @@
                 <option value="600">600</option>
             </select>
         </span>
-        <span>fanout:
+    <span>fanout:
             <select id="fanout" style="width: 100px;margin: 10px;">
                 <option value=""></option>
                 <option value="2">2</option>
                 <option value="4">4</option>
                 <option value="6">6</option>
+                <option value="8">8</option>
+
             </select>
         </span>
-        <button id="search" onclick="search()">search</button>
-    </div>
-    <!--    <iframe src="./variance_statistics.html"></iframe>-->
-    <!--    <iframe src="./node_statistics.html"></iframe>-->
-    <iframe src="./cycle_statistics_LDT.html"></iframe>
-    <iframe src="./cycle_statistics_RMR.html"></iframe>
+    <button id="search" onclick="search()">search</button>
+</div>
+<!--    <iframe src="./variance_statistics.html"></iframe>-->
+<!--    <iframe src="./node_statistics.html"></iframe>-->
+<iframe src="./cycle_statistics_LDT.html"></iframe>
+<iframe src="./cycle_statistics_RMR.html"></iframe>
 
-    <iframe src="cycle_statistics_reliability.html"></iframe>
-    <!--        <iframe src="cycle_statistics_fanin_variance.html"></iframe>-->
-    <!--        <iframe src="cycle_statistics_fanout_variance.html"></iframe>-->
-    <div style="margin-top: 20px;">
-        <button class="btn" id="clean" onclick="clean()">clean</button>
-        <button class="btn" id="clean" onclick="exportDataset()">export</button>
-        <button class="btn" id="clean" onclick="loadDataset()">load</button>
-    </div>
+<iframe src="cycle_statistics_reliability.html"></iframe>
+<!--        <iframe src="cycle_statistics_fanin_variance.html"></iframe>-->
+<!--        <iframe src="cycle_statistics_fanout_variance.html"></iframe>-->
+<div style="margin-top: 20px;">
+    <button class="btn" id="clean" onclick="clean()">clean</button>
+    <button class="btn" id="clean" onclick="exportDataset()">export</button>
+    <button class="btn" id="clean" onclick="loadDataset()">load</button>
+</div>
 </body>
+<style>
+    <!--
+    文字加粗，Helvetica
 
+    -->
+
+</style>
 </html>
 
 <script type="text/javascript">

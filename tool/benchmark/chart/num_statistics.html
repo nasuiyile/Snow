@@ -63,8 +63,8 @@
                     Reliability_sum += v.Reliability
                 })
             }
-            LDT_avg[type].push(n > 0 ? (LDT_sum / n).toFixed(2) : 0)
-            RMR_avg[type].push(n > 0 ? (RMR_sum / n).toFixed(2) : 0)
+            LDT_avg[type].push(n > 0 ? (LDT_sum / n).toFixed(0) : 0)
+            RMR_avg[type].push(n > 0 ? (RMR_sum / n).toFixed(0) : 0)
             Reliability_avg[type].push(n > 0 ? (Reliability_sum / n).toFixed(2) : 0)
         })
     }
@@ -79,6 +79,10 @@
         var option = {
             title: {
                 text: chart,
+                textStyle: {  // 标题样式配置
+                    fontSize: 17,  // 设置标题字体大小（单位：px）
+                    fontWeight: 'bold',  // 可选：加粗标题
+                }
             },
             tooltip: {
                 trigger: 'axis'
@@ -89,7 +93,9 @@
                 data: Object.keys(xData),
                 axisLabel: {
                     color: 'black',
-                    fontSize: '18px'
+                    fontSize: '18px',
+                    fontWeight: 'bold'
+
                 }
             },
             yAxis: {
@@ -98,13 +104,17 @@
                 max: 'dataMax',
                 axisLabel: {
                     color: 'black',
-                    fontSize: '18px'
+                    fontSize: '18px',
+                    fontWeight: 'bold'
+
                 }
             },
             legend: {
                 data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
                 textStyle: {
-                    fontSize: '16px'
+                    fontSize: '16px',
+                    fontWeight: 'bold'
+
                 }
             },
             series: [

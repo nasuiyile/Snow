@@ -37,7 +37,7 @@ func NewServer(config *broadcast.Config, action broadcast.Action) (*Server, erro
 	server.isInitialized.Store(false)
 	server.PConfig = &PConfig{
 		LazyPushInterval: 1 * time.Second,
-		LazyPushTimeout:  4 * time.Second,
+		LazyPushTimeout:  6 * time.Second,
 	}
 	server.EagerPush = tool.NewSafeSet[string]()
 	server.MessageIdQueue = make(chan []byte, 10000)
