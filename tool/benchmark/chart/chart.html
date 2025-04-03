@@ -2,24 +2,23 @@
 <html>
 
 <head>
-    <script src="./echarts.js"></script>
-    <style type="text/css">
-        .chart {
-            width: 33%;
-            height: 500px;
-            justify-content: space-around;
-        }
-
-        .btn {
-            margin: 0px 50px 0px 50px;
-        }
-    </style>
 </head>
+<style type="text/css">
+    iframe {
+        border: 0px;
+        width: 33%;
+        height: 550px;
+    }
+
+    .btn {
+        margin: 0px 50px 0px 50px;
+    }
+</style>
 
 <body>
-    <div>
+<div>
         <span>n:
-            <select id="num" style="width: 100px;margin: 10px;">
+            <select id="k" style="width: 100px;margin: 10px;">
                 <option value=""></option>
                 <option value="100">100</option>
                 <option value="200">200</option>
@@ -29,190 +28,55 @@
                 <option value="600">600</option>
             </select>
         </span>
-        <span>fanout:
+    <span>fanout:
             <select id="fanout" style="width: 100px;margin: 10px;">
                 <option value=""></option>
                 <option value="2">2</option>
                 <option value="4">4</option>
                 <option value="6">6</option>
                 <option value="8">8</option>
+
             </select>
         </span>
-        <button id="search" onclick="search()">search</button>
-    </div>
-    <div style="display: flex;">
-        <div class="chart" id="LDT"></div>
-        <div class="chart" id="RMR"></div>
-        <div class="chart" id="Reliability"></div>
-    </div>
-    <div style="margin-top: 50px;">
-        <button class="btn" id="clean" onclick="clean()">clean</button>
-        <button class="btn" id="clean" onclick="exportDataset()">export</button>
-        <button class="btn" id="clean" onclick="loadDataset()">load</button>
-    </div>
-</body>
+    <button id="search" onclick="search()">search</button>
+</div>
+<!--    <iframe src="./variance_statistics.html"></iframe>-->
+<!--    <iframe src="./node_statistics.html"></iframe>-->
+<iframe src="./cycle_statistics_LDT.html"></iframe>
+<iframe src="./cycle_statistics_RMR.html"></iframe>
 
+<iframe src="cycle_statistics_reliability.html"></iframe>
+<!--        <iframe src="cycle_statistics_fanin_variance.html"></iframe>-->
+<!--        <iframe src="cycle_statistics_fanout_variance.html"></iframe>-->
+<div style="margin-top: 20px;">
+    <button class="btn" id="clean" onclick="clean()">clean</button>
+    <button class="btn" id="clean" onclick="exportDataset()">export</button>
+    <button class="btn" id="clean" onclick="loadDataset()">load</button>
+</div>
+</body>
+<style>
+    <!--
+    文字加粗，Helvetica
+
+    -->
+
+</style>
 </html>
 
 <script type="text/javascript">
-    let LDT_arr = {}
-    let RMR_arr = {}
-    let Reliability_arr = {}
-    let LDT_avg = {}
-    let RMR_avg = {}
-    let Reliability_avg = {}
-    let xData = {}
-    let chartDom = {}
+    function search() {
+        let k = document.getElementById("k").value
+        let fanout = document.getElementById("fanout").value
+        let param = "?Num=" + k + "&Fanout=" + fanout
 
-    function clearData() {
-        LDT_arr = {}
-        RMR_arr = {}
-        Reliability_arr = {}
-        LDT_avg = {}
-        RMR_avg = {}
-        Reliability_avg = {}
-        xData = {}
-        chartDom = {}
-    }
-
-    function dealData(dataArr) {
-        Object.entries(dataArr).forEach(([type, v]) => {
-            if (type != 7 && type != 8 && type != 11 && type != 12) return
-            LDT_arr[type] = []
-            RMR_arr[type] = []
-            Reliability_arr[type] = []
-            let LDT_sum = 0
-            let RMR_sum = 0
-            let Reliability_sum = 0
-            let count = 0
-            Object.entries(v).forEach(([cycle, message]) => {
-                xData[cycle] = 1
-                count += 1
-                LDT_arr[type].push(message.LDT)
-                RMR_arr[type].push(message.RMR)
-                Reliability_arr[type].push(message.Reliability.toFixed(2))
-
-                LDT_sum += message.LDT
-                RMR_sum += message.RMR
-                Reliability_sum += message.Reliability
-            })
-            LDT_avg[type] = (LDT_sum / count).toFixed(0)
-            RMR_avg[type] = (RMR_sum / count).toFixed(0)
-            Reliability_avg[type] = (Reliability_sum / count).toFixed(2)
-        })
-    }
-
-    function draw(title, dataArr, avgData) {
-        if (chartDom[title]) {
-            chartDom[title].dispose()
-        }
-        let myChart = echarts.init(document.getElementById(title));
-        chartDom[title] = myChart
-
-        let option = {
-            title: [{
-                text: title,
-                textStyle: {
-                    fontSize: '18px',
-                    fontWeight: 'bold'
-                }
-            }, {
-                subtext: 'Snow-Standard Avg: ' + avgData[8],
-                left: '0%',
-                bottom: '0%',
-                subtextStyle: {
-                    color: 'black',
-                    fontSize: '14px',
-                    fontWeight: 'bold'
-                }
-            }, {
-                subtext: 'Coloring Avg: ' + avgData[7],
-                left: '30%',
-                bottom: '0%',
-                subtextStyle: {
-                    color: 'black',
-                    fontSize: '14px',
-                    fontWeight: 'bold'
-                }
-            }, {
-                subtext: 'Gossip Avg: ' + avgData[11],
-                left: '53%',
-                bottom: '0%',
-                subtextStyle: {
-                    color: 'black',
-                    fontSize: '14px',
-                    fontWeight: 'bold'
-                }
-            }, {
-                subtext: 'Plumtree Avg: ' + avgData[12],
-                left: '75%',
-                bottom: '0%',
-                subtextStyle: {
-                    color: 'black',
-                    fontSize: '14px',
-                    fontWeight: 'bold'
-                }
-            }],
-            tooltip: {
-                trigger: 'axis'
-            },
-            xAxis: {
-                type: 'category',
-                interval: 0,
-                data: Object.keys(xData),
-                axisLabel: {
-                    color: 'black',
-                    fontSize: '18px',
-                    fontWeight: 'bold'
-                }
-            },
-            yAxis: {
-                type: 'value',
-                min: title == 'Reliability' ? 'dataMin' : 0,
-                max: 'dataMax',
-                axisLabel: {
-                    formatter: value => {
-                        if (title == 'RMR') return value.toFixed(0)
-                        else if (title == 'Reliability') return value.toFixed(2)
-                        else return value
-                    },
-                    color: 'black',
-                    fontSize: '18px',
-                    fontWeight: 'bold'
-                }
-            },
-            legend: {
-                data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
-                textStyle: {
-                    fontSize: '16px',
-                    fontWeight: 'bold'
-                }
-            },
-            series: [
-                {
-                    name: 'Snow-Standard',
-                    type: 'line',
-                    data: dataArr[8]
-                },
-                {
-                    name: 'Coloring',
-                    type: 'line',
-                    data: dataArr[7]
-                },
-                {
-                    name: 'Gossip',
-                    type: 'line',
-                    data: dataArr[11]
-                },
-                {
-                    name: 'Plumtree',
-                    type: 'line',
-                    data: dataArr[12]
-                },
-            ]
-        };
-
-        myChart.setOption(option);
+        let iframes = document.getElementsByTagName("iframe")
+        Object.values(iframes).forEach(element => {
+            let url = element.src
+            if (url.indexOf("?") > 0) {
+                url = url.substring(0, url.indexOf("?"))
+            }
+            element.src = url + param
+        });
     }
 
     function clean() {
@@ -224,33 +88,6 @@
             }
         }
         request.send()
-    }
-
-    function getData() {
-        let num = document.getElementById("num").value
-        let fanout = document.getElementById("fanout").value
-        let param = "?Num=" + num + "&Fanout=" + fanout
-        let url = "http://localhost:8111/getCycleStatistics" + param
-        let request = new XMLHttpRequest()
-        request.open("GET", url, false)
-        request.onreadystatechange = function () {
-            if (request.readyState === 4 && request.status == 200) {
-                let response = JSON.parse(request.responseText)
-                console.log(response)
-                dealData(response)
-
-            }
-        }
-        request.send()
-    }
-
-    function search() {
-        clearData()
-        getData()
-
-        draw('LDT', LDT_arr, LDT_avg)
-        draw('RMR', RMR_arr, RMR_avg)
-        draw('Reliability', Reliability_arr, Reliability_avg)
     }
 
     function exportDataset() {
@@ -274,6 +111,4 @@
         }
         request.send()
     }
-
-    search()
 </script>
