@@ -57,7 +57,9 @@ func benchmark(n int, k int, rounds int) {
 			}
 			serverList = append(serverList, server)
 		}
-		for i := range rounds {
+		//每次发r个消息加入一个节点
+		r := 10
+		for i := 0; i < rounds; i = i + r {
 			action := createAction(1)
 			f := func(config *broadcast.Config) {
 				portCounter++
@@ -83,18 +85,21 @@ func benchmark(n int, k int, rounds int) {
 				server.Server.ApplyJoin(server.Config.InitialServer)
 			}
 
-			// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
-			fmt.Printf("=== %d =====\n", i)
-			time.Sleep(1000 * time.Millisecond)
-			if mode == RegularMsg {
-				serverList[0].RegularMessage(msg, UserMsg)
-			} else if mode == ColoringMsg {
-				serverList[0].ColoringMessage(msg, UserMsg)
-			} else if mode == GossipMsg {
-				serverList[0].GossipMessage(msg, UserMsg)
-			} else if mode == EagerPush {
-				serverList[0].PlumTreeBroadcast(msg, UserMsg)
+			for i2 := 0; i2 < r; i2++ {
+				// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
+				fmt.Printf("=== %d =====\n", i+i2)
+				time.Sleep(1000 * time.Millisecond)
+				if mode == RegularMsg {
+					serverList[0].RegularMessage(msg, UserMsg)
+				} else if mode == ColoringMsg {
+					serverList[0].ColoringMessage(msg, UserMsg)
+				} else if mode == GossipMsg {
+					serverList[0].GossipMessage(msg, UserMsg)
+				} else if mode == EagerPush {
+					serverList[0].PlumTreeBroadcast(msg, UserMsg)
+				}
 			}
+
 			if mode == EagerPush {
 				server.ApplyLeave()
 			} else {
