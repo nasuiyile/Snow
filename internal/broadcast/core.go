@@ -20,7 +20,7 @@ type Server struct {
 	State            state.State
 	Action           Action
 	client           net.Dialer //客户端连接器
-	isClosed         bool       //是否关闭了
+	IsClosed         bool       //是否关闭了
 	H                HandlerFunc
 	StopCh           chan struct{}
 	sendChan         chan *SendData
@@ -200,7 +200,7 @@ func (s *Server) ApplyLeave() {
 			s.StopCh <- stop
 			s.Close()
 			s.Member.Clean()
-			s.isClosed = true
+			s.IsClosed = true
 		} else {
 			//失败就再发一次
 			s.ApplyLeave()

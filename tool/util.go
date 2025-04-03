@@ -270,3 +270,15 @@ func DecodeMsgPayload(data []byte, out interface{}) error {
 	dec := codec.NewDecoderBytes(msgpackData, &handle)
 	return dec.Decode(out)
 }
+func IsLastDigitEqual(a, b int) bool {
+	// 获取a的个位数和十位数
+	lastDigitA := a % 10
+	secondLastDigitA := (a / 10) % 10
+
+	// 获取b的个位数和十位数
+	lastDigitB := b % 10
+	secondLastDigitB := (b / 10) % 10
+
+	// 比较个位数和十位数是否都相等
+	return lastDigitA == lastDigitB && secondLastDigitA == secondLastDigitB
+}

@@ -50,7 +50,7 @@ func NewServer(config *Config, action Action) (*Server, error) {
 		},
 		Action:           action,
 		client:           dialer.Dialer(clientAddress, config.TCPTimeout),
-		isClosed:         false,
+		IsClosed:         false,
 		StopCh:           make(chan struct{}),
 		sendChan:         make(chan *SendData),
 		clientWorkerPool: tool.NewWorkerPool(1),
@@ -186,7 +186,7 @@ func (s *Server) ConnectToPeer(addr string) (net.Conn, error) {
 	return conn, nil
 }
 func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
-	if s.isClosed {
+	if s.IsClosed {
 		return
 	}
 
@@ -267,7 +267,7 @@ func (s *Server) Sender() {
 		_, err := data.Conn.Write(data.Header)
 		if err != nil {
 			log.Printf("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
-			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+			//s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
 			continue
 		}
 		_, err = data.Conn.Write(data.Payload)

@@ -58,7 +58,7 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		body = msg[TagLen+IpLen:]
 		//用了原有的去重逻辑
 		if !broadcast.IsFirst(body, msgType, msgAction, s.Server) {
-			//发送PRUNE进行修剪,
+			//已经收到消息了，发送PRUNE进行修剪
 			sourceIp := tool.ByteToIPv4Port(msg[TagLen : TagLen+IpLen])
 			//不对根节点进行修剪
 			if sourceIp == parentIP {
@@ -66,30 +66,35 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			}
 			payload := tool.PackTag(Prune, msgAction)
 			s.SendMessage(parentIP, payload, []byte{})
-		} else {
-			//发送和收到时候都要进行缓存
-			msgId := msg[TagLen+IpLen : IpLen+TagLen+TimeLen]
-			s.msgCache.Set(string(msgId), string(msg), s.Config.ExpirationTime)
-			s.MessageIdQueue <- msgId
-			ipByte := msg[TagLen : TagLen+IpLen]
-			switch msgAction {
-			case NodeJoin:
-				s.eagerLock.Lock()
-				s.Member.AddMember(ipByte, NodeSurvival)
-				sourceIp := tool.ByteToIPv4Port(ipByte)
-				if !bytes.Equal(ipByte, s.Config.IPBytes()) {
-					s.EagerPush.Add(sourceIp)
-				}
-				s.eagerLock.Unlock()
-			case NodeLeave:
-				s.eagerLock.Lock()
-				s.Member.RemoveMember(ipByte, false)
-				s.EagerPush.Remove(parentIP)
-				s.eagerLock.Unlock()
-			}
-			//对消息进行转发
-			s.PlumTreeMessage(msg)
+			return
 		}
+		//发送和收到时候都要进行缓存
+		msgId := msg[TagLen+IpLen : IpLen+TagLen+TimeLen]
+		s.msgCache.Set(string(msgId), string(msg), s.Config.ExpirationTime)
+		s.MessageIdQueue <- msgId
+		ipByte := msg[TagLen : TagLen+IpLen]
+		switch msgAction {
+		case NodeJoin:
+			s.eagerLock.Lock()
+			s.Member.AddMember(ipByte, NodeSurvival)
+			sourceIp := tool.ByteToIPv4Port(ipByte)
+			//不等于自己
+			if !bytes.Equal(ipByte, s.Config.IPBytes()) {
+				//port := tool.GetPortByIp(sourceIp)
+				//if tool.IsLastDigitEqual(s.Config.Port, port) {
+				s.EagerPush.Add(sourceIp)
+				//}
+			}
+			s.eagerLock.Unlock()
+			return
+		case NodeLeave:
+			s.eagerLock.Lock()
+			s.Member.RemoveMember(ipByte, false)
+			s.EagerPush.Remove(parentIP)
+			s.eagerLock.Unlock()
+		}
+		//对消息进行转发
+		s.PlumTreeMessage(msg)
 	case Prune:
 		//从eagerPush里进行删除
 		s.EagerPush.Remove(parentIP)
