@@ -23,8 +23,8 @@ func (s *Server) lazyPushTask(stop <-chan struct{}) {
 
 func (s *Server) lazyPush() {
 	//k个随机个节点，但是排除自身EagerPush里面的内容
-	nodes := s.KRandomNodes(s.Config.FanOut)
 	for bytes := range s.MessageIdQueue {
+		nodes := s.KRandomNodes(s.Config.FanOut)
 		for _, node := range nodes {
 			s.SendIHAVE(node, bytes)
 		}
@@ -50,6 +50,7 @@ func (s *Server) KRandomNodes(k int) []string {
 		}
 		return true
 	})
+
 	randomNodes := tool.KRandomNodes(0, s.Member.MemberLen()-1, nodeIdx, k)
 	for _, v := range randomNodes {
 		ip = append(ip, tool.ByteToIPv4Port(s.Member.IPTable[v]))
