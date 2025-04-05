@@ -22,4 +22,6 @@ if err != nil {
 //发送消息
 server.RegularMessage(msg, common.UserMsg)
 ~~~
-
+这是对论文https://arxiv.org/abs/2504.02676的实现。
+服务发现基于SWIM：https://www.cs.cornell.edu/projects/Quicksilver/public_pdfs/SWIM.pdf
+和Lifeguard：https://arxiv.org/abs/1707.00788

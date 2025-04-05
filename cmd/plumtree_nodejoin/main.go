@@ -48,7 +48,7 @@ func main() {
 		if err != nil {
 			return
 		}
-		server.NodeJoin()
+		server.ApplyJoin()
 	}()
 	// 主线程保持运行
 	select {}
