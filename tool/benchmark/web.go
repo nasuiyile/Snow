@@ -321,7 +321,7 @@ func CreateWeb() {
 	http.HandleFunc("/lack", lack)
 	http.HandleFunc("/exportDataset", exportDataset)
 	http.HandleFunc("/loadDataset", loadDataset)
-	fs := http.FileServer(http.Dir("./chart"))
+	fs := http.FileServer(http.Dir("./tool/benchmark/chart"))
 	// 创建静态文件服务器
 
 	// 使用 http.Handle 而不是 http.HandleFunc
