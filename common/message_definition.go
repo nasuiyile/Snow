@@ -37,6 +37,7 @@ const (
 	ReportLeave //这是被别人上报的节点离开方法
 	RegularStateSync
 	IHAVE //lazypush的发送内容
+	PingAction
 )
 
 type NodeState = byte
