@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	. "snow/common"
+	. "snow/config"
 	"snow/internal/broadcast"
 	"snow/internal/state"
 	"snow/tool"
@@ -23,7 +24,7 @@ type Server struct {
 	msgCache       *state.TimeoutMap //缓存最近全部的消息
 }
 
-func NewServer(config *broadcast.Config, action broadcast.Action) (*Server, error) {
+func NewServer(config *Config, action broadcast.Action) (*Server, error) {
 	oldServer, err := broadcast.NewServer(config, action)
 	if err != nil {
 		panic(err)

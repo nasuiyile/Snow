@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	. "snow/common"
+	. "snow/config"
 	"snow/internal/broadcast"
 	"snow/internal/plumtree"
 	"snow/tool"
@@ -47,12 +48,12 @@ func benchmark(n int, k int, rounds int) {
 		serverList := make([]*plumtree.Server, 0)
 		for i := 0; i < n; i++ {
 			action := createAction(i + 1)
-			f := func(config *broadcast.Config) {
+			f := func(config *Config) {
 				config.Port = initPort + i
 				config.FanOut = k
 				config.DefaultServer = serversAddresses
 			}
-			config, err := broadcast.NewConfig(configPath, f)
+			config, err := NewConfig(configPath, f)
 			if err != nil {
 				panic(err)
 				return

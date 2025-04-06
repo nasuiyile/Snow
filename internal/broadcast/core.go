@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	. "snow/common"
+	. "snow/config"
 	"snow/internal/membership"
 	"snow/internal/state"
 	"snow/tool"

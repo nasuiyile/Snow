@@ -2,17 +2,18 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"snow/config"
 	"snow/internal/broadcast"
-	"snow/internal/plumtree"
+	"snow/pkg/server"
 	"time"
 )
 
 func main() {
-	configPath := "/home/quchen/snow/config/config.yml"
-	n := 15
+	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
+	n := 20
 	initPort := 40000
-	serverList := make([]*plumtree.Server, 0)
+	serverList := make([]*server.SnowServer, 0)
 	serversAddresses := initAddress(n, initPort)
 	action := createAction()
 
@@ -23,33 +24,18 @@ func main() {
 		}
 		config, err := config.NewConfig(configPath, f)
 		//time.Sleep(50 * time.Millisecond)
-		server, err := plumtree.NewServer(config, action)
+		server, err := server.NewSnowServer(config, action)
 		if err != nil {
 			return
 		}
 		serverList = append(serverList, server)
 	}
 	//模拟每隔1秒向所有客户端发送一条消息
-	// go func() {
-	// 	for i := 0; i < 50000000000000; i++ {
-	// 		time.Sleep(5 * time.Second)
-	// 		serverList[0].PlumTreeBroadcast([]byte("hello from server!"), 0)
-	// 	}
-	// }()
-
 	go func() {
-		f := func(config *config.Config) {
-			time.Sleep(5 * time.Second)
-			config.Port = initPort + 100
-			config.DefaultServer = serversAddresses
+		for i := 0; i < 50000000000000; i++ {
+			time.Sleep(1 * time.Second)
+			serverList[0].RegularMessage([]byte("hello from server!"))
 		}
-		config, err := config.NewConfig(configPath, f)
-		//time.Sleep(50 * time.Millisecond)
-		server, err := plumtree.NewServer(config, action)
-		if err != nil {
-			return
-		}
-		server.ApplyJoin()
 	}()
 	// 主线程保持运行
 	select {}
@@ -67,8 +53,7 @@ func initAddress(n int, port int) []string {
 func createAction() broadcast.Action {
 	syncAction := func(bytes []byte) bool {
 		s := string(bytes)
-
-		fmt.Println("这里是同步处理消息的逻辑：", s)
+		log.Println("这里是同步处理消息的逻辑：", s)
 		return true
 	}
 	asyncAction := func(bytes []byte) {
@@ -76,7 +61,7 @@ func createAction() broadcast.Action {
 		//fmt.Println("这里是异步处理消息的逻辑：", s)
 	}
 	reliableCallback := func(isConverged bool) {
-		fmt.Println("这里是：可靠消息回调------------------------------", isConverged)
+		log.Println("这里是：可靠消息回调------------------------------", isConverged)
 	}
 	action := broadcast.Action{
 		SyncAction:       &syncAction,

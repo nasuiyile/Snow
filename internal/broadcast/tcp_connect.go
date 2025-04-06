@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"snow/common"
+	"snow/config"
 	"snow/internal/dialer"
 	"snow/internal/membership"
 	"snow/internal/state"
@@ -27,7 +28,7 @@ type SendData struct {
 //var clientWorkerPool = tool.NewWorkerPool(1)
 
 // NewServer 创建并启动一个 TCP 服务器
-func NewServer(config *Config, action Action) (*Server, error) {
+func NewServer(config *config.Config, action Action) (*Server, error) {
 	listener, err := net.Listen("tcp", config.ServerAddress)
 
 	if err != nil {
@@ -229,7 +230,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 }
 
 // 这个方法只能用来回复消息
-func (s *Server) replayMessage(conn net.Conn, config *Config, msg []byte) {
+func (s *Server) replayMessage(conn net.Conn, config *config.Config, msg []byte) {
 	// 创建消息头，存储消息长度 (4字节大端序)
 	length := uint32(len(msg))
 	header := make([]byte, 4)

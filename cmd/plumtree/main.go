@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"snow/config"
 	"snow/internal/broadcast"
 	"snow/internal/plumtree"
 	"time"
@@ -16,11 +17,11 @@ func main() {
 	action := createAction()
 
 	for i2 := 0; i2 < n; i2++ {
-		f := func(config *broadcast.Config) {
+		f := func(config *config.Config) {
 			config.Port = initPort + i2
 			config.DefaultServer = serversAddresses
 		}
-		config, err := broadcast.NewConfig(configPath, f)
+		config, err := config.NewConfig(configPath, f)
 		//time.Sleep(50 * time.Millisecond)
 		server, err := plumtree.NewServer(config, action)
 		if err != nil {

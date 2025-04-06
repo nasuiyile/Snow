@@ -18,6 +18,7 @@ const (
 	ReliableMsg    //可靠消息
 	ReliableMsgAck //可靠消息回执
 	GossipMsg      //gossip消息
+	UnicastMsg
 	//plumtree
 	EagerPush //急迫推送
 	LazyPush  //发送IHAVE

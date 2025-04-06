@@ -2,7 +2,6 @@ package tool
 
 import (
 	"fmt"
-	"math"
 	"testing"
 )
 
@@ -39,28 +38,5 @@ func (a *ActionSon) func1() {
 }
 
 func Test(t *testing.T) {
-
-}
-
-// variance 计算一组数的方差
-func variance(nums []float64) float64 {
-	n := float64(len(nums))
-	if n == 0 {
-		return 0
-	}
-
-	// 计算均值
-	sum := 0.0
-	for _, num := range nums {
-		sum += num
-	}
-	mean := sum / n
-
-	// 计算方差
-	var sumSquaredDiffs float64
-	for _, num := range nums {
-		sumSquaredDiffs += math.Pow(num-mean, 2)
-	}
-
-	return sumSquaredDiffs / n
+	exe()
 }

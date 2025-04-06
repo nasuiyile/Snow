@@ -65,7 +65,11 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			return
 		}
 		NodeChanging(msg[1:], parentIP, s, conn)
-
+	case UnicastMsg:
+		body := msg[TagLen:]
+		if msgAction == UserMsg {
+			s.Action.process(body)
+		}
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 	. "snow/common"
+	. "snow/config"
 	"snow/internal/broadcast"
 	"snow/internal/plumtree"
 	"snow/tool"
@@ -40,12 +41,12 @@ func benchmark(n int, k int, rounds int) {
 
 		for i := 0; i < n; i++ {
 			action := createAction(i + 1)
-			f := func(config *broadcast.Config) {
+			f := func(config *Config) {
 				config.Port = initPort + i
 				config.FanOut = k
 				config.DefaultServer = serversAddresses
 			}
-			config, err := broadcast.NewConfig(configPath, f)
+			config, err := NewConfig(configPath, f)
 			if err != nil {
 				panic(err)
 				return
@@ -61,14 +62,14 @@ func benchmark(n int, k int, rounds int) {
 		r := 10
 		for i := 0; i < rounds; i = i + r {
 			action := createAction(1)
-			f := func(config *broadcast.Config) {
+			f := func(config *Config) {
 				portCounter++
 				config.Port = initPort + n + 1 + portCounter
 				config.FanOut = k
 				config.DefaultServer = serversAddresses
 				config.Report = true
 			}
-			config, err := broadcast.NewConfig(configPath, f)
+			config, err := NewConfig(configPath, f)
 			if err != nil {
 				panic(err)
 				return
