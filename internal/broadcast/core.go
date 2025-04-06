@@ -26,6 +26,8 @@ type Server struct {
 	StopCh           chan struct{}
 	sendChan         chan *SendData
 	clientWorkerPool *tool.WorkerPool
+	HeartbeatService *Heartbeat // 心跳服务
+	udpServer        *UDPServer // UDP服务器
 }
 
 type area struct {

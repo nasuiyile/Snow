@@ -1,8 +1,11 @@
 package config
 
 import (
+	"encoding/binary"
 	"fmt"
 	"gopkg.in/yaml.v3"
+	"log"
+	"net"
 	"os"
 	"snow/tool"
 	"strconv"
@@ -77,4 +80,19 @@ func (c *Config) GetServerIp(clientIp string) string {
 	split := strings.Split(clientIp, ":")
 	port, _ := strconv.Atoi(split[1])
 	return fmt.Sprintf("%s:%d", split[0], port-c.ClientPortOffset)
+}
+
+func (c *Config) GetLocalAddr() []byte {
+	ip := c.LocalAddress
+	port := c.Port
+
+	ipBytes := net.ParseIP(ip).To4()
+	if ipBytes == nil {
+		// 处理无效的 IP 地址格式
+		log.Fatalf("Invalid IP address format: %s", ip)
+	}
+	portBytes := make([]byte, 2)
+	binary.BigEndian.PutUint16(portBytes, uint16(port))
+
+	return append(ipBytes, portBytes...)
 }

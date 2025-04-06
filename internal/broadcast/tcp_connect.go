@@ -63,6 +63,24 @@ func NewServer(config *config.Config, action Action) (*Server, error) {
 	for _, addr := range config.DefaultServer {
 		server.Member.AddMember(tool.IPv4To6Bytes(addr), common.NodeSurvival)
 	}
+
+	// 初始化UDP服务
+	udpServer, err := NewUDPServer(*config)
+	if err != nil {
+		log.Printf("[WARN] Failed to initialize UDP server: %v", err)
+	} else {
+		server.udpServer = udpServer
+		udpServer.H = server
+	}
+
+	// 初始化Heartbeat服务 - 直接传递server和udpServer
+	server.HeartbeatService = NewHeartbeat(
+		config,
+		&server.Member,
+		server,
+		server.udpServer,
+	)
+
 	go server.startAcceptingConnections() // 启动接受连接的协程
 
 	server.schedule()
