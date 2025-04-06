@@ -305,6 +305,9 @@ func loadDataset(w http.ResponseWriter, r *http.Request) {
 		log.Fatalln(err)
 	}
 }
+func index(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Hello, World!"))
+}
 
 func CreateWeb() {
 	cacheMap = make(map[string]*MessageCache)
@@ -321,6 +324,8 @@ func CreateWeb() {
 	http.HandleFunc("/lack", lack)
 	http.HandleFunc("/exportDataset", exportDataset)
 	http.HandleFunc("/loadDataset", loadDataset)
+	http.HandleFunc("/", index)
+
 	fs := http.FileServer(http.Dir("./tool/benchmark/chart"))
 	// 创建静态文件服务器
 

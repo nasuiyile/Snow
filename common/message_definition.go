@@ -56,3 +56,4 @@ const HashLen = 32
 
 var IpLen = 6
 var Placeholder = TagLen + IpLen*2 + TimeLen
+var Offset = 2000
