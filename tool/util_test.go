@@ -38,5 +38,6 @@ func (a *ActionSon) func1() {
 }
 
 func Test(t *testing.T) {
-	exe()
+	DisableNode(8111)
+
 }

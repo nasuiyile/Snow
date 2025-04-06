@@ -305,6 +305,12 @@ func loadDataset(w http.ResponseWriter, r *http.Request) {
 		log.Fatalln(err)
 	}
 }
+func index(w http.ResponseWriter, r *http.Request) {
+	// 设置响应的内容类型为文本
+	w.Header().Set("Content-Type", "text/plain")
+	// 返回 "Hello, World"
+	fmt.Fprintln(w, "Hello, World!")
+}
 
 func CreateWeb() {
 	cacheMap = make(map[string]*MessageCache)
@@ -321,6 +327,7 @@ func CreateWeb() {
 	http.HandleFunc("/lack", lack)
 	http.HandleFunc("/exportDataset", exportDataset)
 	http.HandleFunc("/loadDataset", loadDataset)
+	http.HandleFunc("/", index)
 	fs := http.FileServer(http.Dir("./chart"))
 	// 创建静态文件服务器
 

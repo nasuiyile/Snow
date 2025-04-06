@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"os"
+	"snow/common"
 	"snow/tool"
 	"strconv"
 	"strings"
@@ -54,6 +55,7 @@ func NewConfig(filename string, opts ...ConfigOption) (*Config, error) {
 	}
 	config.ClientAddress = fmt.Sprintf("%s:%d", config.LocalAddress, config.Port+config.ClientPortOffset)
 	config.ServerAddress = fmt.Sprintf("%s:%d", config.LocalAddress, config.Port)
+	common.Offset = config.ClientPortOffset
 	return config, nil
 }
 

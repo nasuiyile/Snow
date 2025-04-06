@@ -11,7 +11,7 @@ import (
 
 func main() {
 	configPath := ""
-	flag.StringVar(&configPath, "configPath", "E:\\code\\go\\Snow\\config\\config.ym", "config file path")
+	flag.StringVar(&configPath, "configPath", "E:\\code\\go\\Snow\\config\\config.yml", "config file path")
 	flag.Parse()
 	n := 60
 	initPort := 40000
