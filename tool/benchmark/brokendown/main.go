@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"os/exec"
 	. "snow/common"
 	. "snow/config"
 	"snow/internal/broadcast"
@@ -16,24 +15,14 @@ import (
 
 func main() {
 	// 执行 Linux 命令 "ls -l"
-	cmd := exec.Command("ls", "-l")
 
-	// 获取命令的标准输出
-	output, err := cmd.Output()
-	if err != nil {
-		fmt.Println("执行命令时出错:", err)
-		return
-	}
-
-	// 打印命令输出
-	fmt.Println(string(output))
 	////测试轮数
-	//rounds := 100
-	//benchmark(50, 4, rounds)
-	//
-	//fmt.Println("done!!!")
-	//// 主线程保持运行
-	//select {}
+	rounds := 100
+	benchmark(50, 4, rounds)
+
+	fmt.Println("done!!!")
+	// 主线程保持运行
+	select {}
 }
 func benchmark(n int, k int, rounds int) {
 	configPath := ""
@@ -84,7 +73,12 @@ func benchmark(n int, k int, rounds int) {
 			} else if mode == EagerPush {
 				serverList[0].PlumTreeBroadcast(msg, UserMsg)
 			}
+			if i != 0 && (i%10 == 0) {
+				port := serverList[i].Server.Config.Port
+				tool.DisableNode(port)
+			}
 		}
+
 		time.Sleep(8 * time.Second)
 		for _, v := range serverList {
 			v.Close()
