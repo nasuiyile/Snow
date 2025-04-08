@@ -2,6 +2,7 @@ package broadcast
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -24,12 +25,12 @@ type UDPServer struct {
 	localAddr *net.UDPAddr       // 本地监听地址
 	stopCh    chan struct{}      // 用于停止服务的通道
 	sendCh    chan *UDPSendData  // 发送队列
-	Config    config.Config      // 配置参数
+	Config    *config.Config     // 配置参数
 	H         common.HandlerFunc // H 是消息处理回调
 }
 
 // NewUDPServer 创建并启动一个 UDP 服务器
-func NewUDPServer(config config.Config) (*UDPServer, error) {
+func NewUDPServer(config *config.Config) (*UDPServer, error) {
 	// 解析本地地址
 	addr, err := net.ResolveUDPAddr("udp", config.ServerAddress)
 	if err != nil {
@@ -114,6 +115,11 @@ func (s *UDPServer) startReading() {
 		n, remoteAddr, err := s.conn.ReadFromUDP(buf)
 		if err != nil {
 			log.Printf("[UDPServer] ReadFromUDP error: %v", err)
+			// 如果错误不是临时错误（例如连接已关闭），则退出循环
+			var ne net.Error
+			if errors.As(err, &ne) && !ne.Temporary() {
+				return
+			}
 			continue
 		}
 
