@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"log"
 	"net"
 	. "snow/common"
 	. "snow/config"
@@ -24,7 +25,7 @@ type Server struct {
 	IsClosed         bool       //是否关闭了
 	H                HandlerFunc
 	StopCh           chan struct{}
-	sendChan         chan *SendData
+	SendChan         chan *SendData
 	clientWorkerPool *tool.WorkerPool
 	HeartbeatService *Heartbeat // 心跳服务
 	udpServer        *UDPServer // UDP服务器
@@ -99,9 +100,6 @@ func (s *Server) IsReceived(m []byte) bool {
 }
 
 func ObtainOnIPRing(current int, offset int, n int) int {
-	if n == 0 {
-		fmt.Println()
-	}
 	return (current + offset + n) % n
 }
 
@@ -212,6 +210,7 @@ func (s *Server) ApplyLeave() {
 	s.ReliableMessage(s.Config.IPBytes(), NodeLeave, &f)
 }
 func (s *Server) ReportLeave(ip []byte) {
+	log.Printf("report leave:" + tool.ByteToIPv4Port(ip))
 	s.Member.RemoveMember(ip, false)
 	s.ColoringMessage(ip, ReportLeave)
 }

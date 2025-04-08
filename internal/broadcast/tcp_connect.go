@@ -13,6 +13,7 @@ import (
 	"snow/internal/membership"
 	"snow/internal/state"
 	"snow/tool"
+	"time"
 )
 
 // 定义一个结构体来封装发送的数据
@@ -30,7 +31,6 @@ type SendData struct {
 // NewServer 创建并启动一个 TCP 服务器
 func NewServer(config *config.Config, action Action) (*Server, error) {
 	listener, err := net.Listen("tcp", config.ServerAddress)
-
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func NewServer(config *config.Config, action Action) (*Server, error) {
 		client:           dialer.Dialer(clientAddress, config.TCPTimeout),
 		IsClosed:         false,
 		StopCh:           make(chan struct{}),
-		sendChan:         make(chan *SendData),
+		SendChan:         make(chan *SendData),
 		clientWorkerPool: tool.NewWorkerPool(1),
 	}
 
@@ -63,23 +63,24 @@ func NewServer(config *config.Config, action Action) (*Server, error) {
 	for _, addr := range config.DefaultServer {
 		server.Member.AddMember(tool.IPv4To6Bytes(addr), common.NodeSurvival)
 	}
+	if server.Config.HeartBeat {
+		// 初始化UDP服务
+		udpServer, err := NewUDPServer(*config)
+		if err != nil {
+			log.Printf("[WARN] Failed to initialize UDP server: %v", err)
+		} else {
+			server.udpServer = udpServer
+			udpServer.H = server
+		}
 
-	// 初始化UDP服务
-	udpServer, err := NewUDPServer(*config)
-	if err != nil {
-		log.Printf("[WARN] Failed to initialize UDP server: %v", err)
-	} else {
-		server.udpServer = udpServer
-		udpServer.H = server
+		// 初始化Heartbeat服务 - 直接传递server和udpServer
+		server.HeartbeatService = NewHeartbeat(
+			config,
+			&server.Member,
+			server,
+			server.udpServer,
+		)
 	}
-
-	// 初始化Heartbeat服务 - 直接传递server和udpServer
-	server.HeartbeatService = NewHeartbeat(
-		config,
-		&server.Member,
-		server,
-		server.udpServer,
-	)
 
 	go server.startAcceptingConnections() // 启动接受连接的协程
 
@@ -208,7 +209,6 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 	if s.IsClosed {
 		return
 	}
-
 	metaData := s.Member.GetMember(ip)
 	var conn net.Conn
 	var err error
@@ -216,6 +216,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 		conn, err = s.ConnectToPeer(ip)
 		if err != nil {
 			log.Println(s.Config.ServerAddress, "can't connect to ", ip)
+			s.ReportLeave(tool.IPv4To6Bytes(ip))
 			log.Println(err)
 			return
 		}
@@ -227,6 +228,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 		newConn, err := s.ConnectToPeer(ip)
 		if err != nil {
 			log.Println(s.Config.ServerAddress, "can't connect to ", ip)
+			s.ReportLeave(tool.IPv4To6Bytes(ip))
 			return
 		} else {
 			conn = newConn
@@ -237,14 +239,14 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, length)
-
 	data := &SendData{
 		Conn:    conn,
 		Header:  header,
 		Payload: payload,
 		Msg:     msg,
 	}
-	s.sendChan <- data
+	s.SendChan <- data
+
 }
 
 // 这个方法只能用来回复消息
@@ -260,7 +262,7 @@ func (s *Server) replayMessage(conn net.Conn, config *config.Config, msg []byte)
 		Payload: []byte{},
 		Msg:     msg,
 	}
-	s.sendChan <- data
+	s.SendChan <- data
 }
 
 // Close 关闭服务器
@@ -282,28 +284,36 @@ func (s *Server) Close() {
 }
 
 func (s *Server) Sender() {
-	for data := range s.sendChan {
-		_, err := data.Conn.Write(data.Header)
-		if err != nil {
-			log.Printf("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
-			//s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
-			continue
-		}
-		_, err = data.Conn.Write(data.Payload)
-		if err != nil {
-			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
-			log.Printf("Error sending payload to %v: %v", data.Conn.RemoteAddr(), err)
-			continue
-		}
-		_, err = data.Conn.Write(data.Msg)
-		if err != nil {
-			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
-			log.Printf("Error sending message to %v: %v", data.Conn.RemoteAddr(), err)
-			continue
-		}
-		if s.Config.Test && s.Config.Report {
-			bytes := append(data.Payload, data.Msg...)
-			tool.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), bytes, s.Config.FanOut)
-		}
+	for data := range s.SendChan {
+		data := data
+		go func() {
+			err := data.Conn.SetWriteDeadline(time.Now().Add(s.Config.TCPTimeout))
+			if err != nil {
+				log.Println(err)
+			}
+			if s.Config.Test && s.Config.Report {
+				bytes := append(data.Payload, data.Msg...)
+				tool.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), bytes, s.Config.FanOut)
+			}
+			_, err = data.Conn.Write(data.Header)
+			if err != nil {
+				log.Printf("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
+				s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+				return
+			}
+			_, err = data.Conn.Write(data.Payload)
+			if err != nil {
+				s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+				log.Printf("Error sending payload to %v: %v", data.Conn.RemoteAddr(), err)
+				return
+			}
+			_, err = data.Conn.Write(data.Msg)
+			if err != nil {
+				s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+				log.Printf("Error sending message to %v: %v", data.Conn.RemoteAddr(), err)
+				return
+			}
+		}()
+
 	}
 }

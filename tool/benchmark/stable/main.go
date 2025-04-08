@@ -32,11 +32,11 @@ func main() {
 	select {}
 }
 func benchmark(n int, k int, rounds int) {
-	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
+	configPath := "./config/config.yml"
 	//消息大小
 	strLen := 100
 	initPort := 40000
-	testMode := []MsgType{EagerPush, RegularMsg, ColoringMsg, GossipMsg} //按数组中的顺序决定跑的时候的顺序
+	testMode := []MsgType{RegularMsg, ColoringMsg, GossipMsg, EagerPush} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	tool.Num = n
 	tool.InitPort = initPort
@@ -69,15 +69,17 @@ func benchmark(n int, k int, rounds int) {
 			// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
 			fmt.Printf("=== %d =====\n", i)
 			time.Sleep(1000 * time.Millisecond)
-			if mode == RegularMsg {
-				serverList[0].RegularMessage(msg, UserMsg)
-			} else if mode == ColoringMsg {
-				serverList[0].ColoringMessage(msg, UserMsg)
-			} else if mode == GossipMsg {
-				serverList[0].GossipMessage(msg, UserMsg)
-			} else if mode == EagerPush {
-				serverList[0].PlumTreeBroadcast(msg, UserMsg)
-			}
+			go func() {
+				if mode == RegularMsg {
+					serverList[0].RegularMessage(msg, UserMsg)
+				} else if mode == ColoringMsg {
+					serverList[0].ColoringMessage(msg, UserMsg)
+				} else if mode == GossipMsg {
+					serverList[0].GossipMessage(msg, UserMsg)
+				} else if mode == EagerPush {
+					serverList[0].PlumTreeBroadcast(msg, UserMsg)
+				}
+			}()
 		}
 		time.Sleep(8 * time.Second)
 		for _, v := range serverList {

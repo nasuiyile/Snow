@@ -34,6 +34,7 @@ type Config struct {
 	Report            bool          `yaml:"Report"`
 	HeartbeatInterval time.Duration `yaml:"HeartbeatInterval"`
 	IndirectChecks    int           `yaml:"IndirectChecks"`
+	HeartBeat         bool          `yaml:"HeartBeat"`
 }
 
 func (c *Config) IPBytes() []byte {

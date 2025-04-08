@@ -2,7 +2,9 @@ package plumtree
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	"log"
 	"net"
 	. "snow/common"
 	. "snow/config"
@@ -90,8 +92,9 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			return
 		case NodeLeave:
 			s.eagerLock.Lock()
-			s.Member.RemoveMember(ipByte, false)
-			s.EagerPush.Remove(parentIP)
+			ip := msg[TagLen+IpLen+TimeLen : TagLen+TimeLen+IpLen*2]
+			s.Member.RemoveMember(ip, false)
+			s.EagerPush.Remove(tool.ByteToIPv4Port(ip))
 			s.eagerLock.Unlock()
 		}
 		//对消息进行转发
@@ -156,5 +159,53 @@ func (s *Server) PlumTreeMessage(msg []byte) {
 		s.SendMessage(key, []byte{}, msg)
 		return true
 	})
+}
+
+func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
+	if s.IsClosed {
+		return
+	}
+	go func() {
+		metaData := s.Member.GetMember(ip)
+		var conn net.Conn
+		var err error
+		if metaData == nil {
+			conn, err = s.ConnectToPeer(ip)
+			if err != nil {
+				log.Println(s.Config.ServerAddress, "can't connect to ", ip)
+				s.EagerPush.Remove(ip)
+				s.ReportLeave(tool.IPv4To6Bytes(ip))
+				log.Println(err)
+				return
+			}
+		} else {
+			conn = metaData.GetClient()
+		}
+		if conn == nil {
+			//先建立一次链接进行尝试
+			newConn, err := s.ConnectToPeer(ip)
+			if err != nil {
+				log.Println(s.Config.ServerAddress, "can't connect to ", ip)
+				s.EagerPush.Remove(ip)
+				s.ReportLeave(tool.IPv4To6Bytes(ip))
+				return
+			} else {
+				conn = newConn
+			}
+		}
+		// 创建消息头，存储消息长度 (4字节大端序)
+		length := uint32(len(payload) + len(msg))
+
+		header := make([]byte, 4)
+		binary.BigEndian.PutUint32(header, length)
+
+		data := &broadcast.SendData{
+			Conn:    conn,
+			Header:  header,
+			Payload: payload,
+			Msg:     msg,
+		}
+		s.SendChan <- data
+	}()
 
 }

@@ -267,7 +267,6 @@ func IsFirst(body []byte, msgType MsgType, action MsgAction, s *Server) bool {
 	return true
 }
 
-// 返回自己是不是转发成功，不成功说明是叶子节点
 func forward(msg []byte, s *Server, parentIp string) {
 	member := make(map[string][]byte)
 	msgType := msg[0]

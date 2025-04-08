@@ -14,32 +14,34 @@ import (
 )
 
 func main() {
-	// 执行 Linux 命令 "ls -l"
-
 	////测试轮数
 	rounds := 100
-	benchmark(50, 4, rounds)
+	benchmark(200, 4, rounds)
 
 	fmt.Println("done!!!")
 	// 主线程保持运行
 	select {}
 }
 func benchmark(n int, k int, rounds int) {
+	defer tool.ResetIPTable()
 	configPath := ""
-	flag.StringVar(&configPath, "configPath", "E:\\code\\go\\Snow\\config\\config.ym", "config file path")
+	flag.StringVar(&configPath, "configPath", "./config/config.yml", "config file path")
 	flag.Parse()
 	//消息大小
 	strLen := 100
 	initPort := 40000
-	testMode := []MsgType{EagerPush, RegularMsg, ColoringMsg, GossipMsg} //按数组中的顺序决定跑的时候的顺序
+	testMode := []MsgType{RegularMsg, EagerPush, GossipMsg, ColoringMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	tool.Num = n
 	tool.InitPort = initPort
 	msg := randomByteArray(strLen)
 
 	//节点启动完之后再跑
-	time.Sleep(time.Duration(n/200) * time.Second)
 	for _, mode := range testMode {
+		err := tool.ResetIPTable()
+		if err != nil {
+			panic(err)
+		}
 		serverList := make([]*plumtree.Server, 0)
 		for i := 0; i < n; i++ {
 			action := createAction(i + 1)
@@ -60,10 +62,12 @@ func benchmark(n int, k int, rounds int) {
 			}
 			serverList = append(serverList, server)
 		}
+		time.Sleep(time.Duration(n/20) * time.Second)
 		for i := range rounds {
 			// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
 			fmt.Printf("=== %d =====\n", i)
-			time.Sleep(1000 * time.Millisecond)
+			time.Sleep(500 * time.Millisecond)
+
 			if mode == RegularMsg {
 				serverList[0].RegularMessage(msg, UserMsg)
 			} else if mode == ColoringMsg {
@@ -73,15 +77,20 @@ func benchmark(n int, k int, rounds int) {
 			} else if mode == EagerPush {
 				serverList[0].PlumTreeBroadcast(msg, UserMsg)
 			}
-			if i != 0 && (i%10 == 0) {
+			if i != 0 && i%10 == 0 {
 				port := serverList[i].Server.Config.Port
 				tool.DisableNode(port)
+				time.Sleep(1000 * time.Millisecond)
 			}
-		}
 
+		}
 		time.Sleep(8 * time.Second)
 		for _, v := range serverList {
 			v.Close()
+		}
+		err = tool.ResetIPTable()
+		if err != nil {
+			panic(err)
 		}
 		time.Sleep(2 * time.Second)
 
