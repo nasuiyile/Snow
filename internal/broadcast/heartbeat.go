@@ -57,6 +57,7 @@ type Heartbeat struct {
 	probeIndex  int                 // 当前探测的索引
 	running     bool                // 服务是否在运行
 	ackHandlers map[int]*ackHandler // 序列号到对应处理程序的映射
+	stopCh      chan struct{}       // 增加 stopCh 用来停止心跳探测循环
 }
 
 // NewHeartbeat 创建心跳服务
@@ -77,6 +78,7 @@ func NewHeartbeat(
 		server:      server,
 		udpServer:   udpServer,
 		ackHandlers: make(map[int]*ackHandler),
+		stopCh:      make(chan struct{}),
 	}
 	return h
 }
@@ -101,7 +103,18 @@ func (h *Heartbeat) Start() {
 	}()
 }
 
-// probeLoop 心跳探测主循环
+// Stop 停止心跳探测，退出 probeLoop
+func (h *Heartbeat) Stop() {
+	h.Lock()
+	defer h.Unlock()
+	if h.running {
+		h.running = false
+		close(h.stopCh)
+		log.Println("[INFO] Heartbeat service stopped")
+	}
+}
+
+// probeLoop 心跳探测主循环（增加了 stopCh 的监听）
 func (h *Heartbeat) probeLoop() {
 	ticker := time.NewTicker(h.config.HeartbeatInterval)
 	defer ticker.Stop()
@@ -110,6 +123,9 @@ func (h *Heartbeat) probeLoop() {
 		select {
 		case <-ticker.C:
 			h.probe()
+		case <-h.stopCh:
+			log.Println("[INFO] Heartbeat probeLoop stopped")
+			return
 		}
 	}
 }
@@ -193,7 +209,6 @@ func (h *Heartbeat) probeNode(addr []byte) {
 		h.handleRemoteFailure(addr, p)
 		return
 	}
-	h.handleRemoteFailure(addr, p)
 	log.Printf("[UDPServer] Successfully sent from %s to %s", tool.ByteToIPv4Port(h.config.GetLocalAddr()), tool.ByteToIPv4Port(addr))
 
 	// 等待 ACK 响应或超时
