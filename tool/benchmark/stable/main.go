@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	. "snow/common"
@@ -15,7 +16,7 @@ import (
 func main() {
 
 	////测试轮数
-	rounds := 100
+	rounds := 1
 	//benchmark(600, 6, rounds)
 	//benchmark(600, 8, rounds)
 	//benchmark(600, 4, rounds)
@@ -65,6 +66,11 @@ func benchmark(n int, k int, rounds int) {
 			}
 			serverList = append(serverList, server)
 		}
+		time.Sleep(1 * time.Second)
+		for _, v := range serverList {
+			v.StartHeartBeat()
+		}
+		log.SetOutput(ioutil.Discard)
 		for i := range rounds {
 			// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
 			fmt.Printf("=== %d =====\n", i)
@@ -81,11 +87,12 @@ func benchmark(n int, k int, rounds int) {
 				}
 			}()
 		}
-		time.Sleep(8 * time.Second)
+		time.Sleep(2 * time.Second)
 		for _, v := range serverList {
+			fmt.Println("关闭节点：", v.Config.ServerAddress)
 			v.Close()
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(20 * time.Second)
 
 	}
 }

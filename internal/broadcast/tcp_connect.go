@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -23,10 +24,6 @@ type SendData struct {
 	Payload []byte
 	Msg     []byte
 }
-
-//var stopCh = make(chan struct{})
-//var sendChan = make(chan *SendData)
-//var clientWorkerPool = tool.NewWorkerPool(1)
 
 // NewServer 创建并启动一个 TCP 服务器
 func NewServer(config *config.Config, action Action) (*Server, error) {
@@ -49,46 +46,49 @@ func NewServer(config *config.Config, action Action) (*Server, error) {
 			State:           state.NewTimeoutMap(),
 			ReliableTimeout: make(map[string]*state.ReliableInfo),
 		},
-		Action:           action,
-		client:           dialer.Dialer(clientAddress, config.TCPTimeout),
-		IsClosed:         false,
-		StopCh:           make(chan struct{}),
-		SendChan:         make(chan *SendData),
-		clientWorkerPool: tool.NewWorkerPool(1),
+		Action:   action,
+		client:   dialer.Dialer(clientAddress, config.TCPTimeout),
+		IsClosed: false,
+		StopCh:   make(chan struct{}),
+		SendChan: make(chan *SendData),
 	}
 
 	server.H = server
 	server.Member.FindOrInsert(config.IPBytes())
-
 	for _, addr := range config.DefaultServer {
 		server.Member.AddMember(tool.IPv4To6Bytes(addr), common.NodeSurvival)
 	}
-	if server.Config.HeartBeat {
-		// 初始化UDP服务
-		udpServer, err := NewUDPServer(*config)
-		if err != nil {
-			log.Printf("[WARN] Failed to initialize UDP server: %v", err)
-		} else {
-			server.udpServer = udpServer
-			udpServer.H = server
-		}
-
-		// 初始化Heartbeat服务 - 直接传递server和udpServer
-		server.HeartbeatService = NewHeartbeat(
-			config,
-			&server.Member,
-			server,
-			server.udpServer,
-		)
+	if server.Config.HeartBeat && server.Config.Test {
+		server.StartHeartBeat()
 	}
 
 	go server.startAcceptingConnections() // 启动接受连接的协程
 
 	server.schedule()
 	//server.ApplyJoin(config.InitialServer)
-	log.Printf("Server is running on port %d...\n\n", config.Port)
+	fmt.Printf("Server is running on port %d...\n\n", config.Port)
 	return server, nil
 
+}
+
+func (s *Server) StartHeartBeat() {
+	// 初始化UDP服务
+	udpServer, err := NewUDPServer(s.Config)
+	if err != nil {
+		log.Printf("[WARN] Failed to initialize UDP server: %v", err)
+	} else {
+		s.udpServer = udpServer
+		udpServer.H = s
+	}
+
+	// 初始化Heartbeat服务 - 直接传递server和udpServer
+	s.HeartbeatService = NewHeartbeat(
+		s.Config,
+		&s.Member,
+		s,
+		s.udpServer,
+	)
+	s.HeartbeatService.Start()
 }
 
 func (s *Server) schedule() {
@@ -250,7 +250,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 }
 
 // 这个方法只能用来回复消息
-func (s *Server) replayMessage(conn net.Conn, config *config.Config, msg []byte) {
+func (s *Server) replayMessage(conn net.Conn, msg []byte) {
 	// 创建消息头，存储消息长度 (4字节大端序)
 	length := uint32(len(msg))
 	header := make([]byte, 4)
@@ -279,6 +279,7 @@ func (s *Server) Close() {
 			server.Close()
 		}
 	}
+	s.udpServer.Close()
 	s.listener.Close()
 	s.Member.Unlock()
 }

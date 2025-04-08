@@ -26,7 +26,6 @@ type Server struct {
 	H                HandlerFunc
 	StopCh           chan struct{}
 	SendChan         chan *SendData
-	clientWorkerPool *tool.WorkerPool
 	HeartbeatService *Heartbeat // 心跳服务
 	udpServer        *UDPServer // UDP服务器
 }
