@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"math"
 	"net/http"
 	"os"
@@ -11,7 +10,10 @@ import (
 	"snow/tool"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/gorilla/schema"
 )
@@ -19,6 +21,7 @@ import (
 var cacheMap map[string]*MessageCache
 var msgIdMap map[byte]map[string]int
 var rm sync.RWMutex
+var chartPath string
 
 func getMessageId(m Message) string {
 	rm.Lock()
@@ -41,10 +44,6 @@ func putRing(w http.ResponseWriter, r *http.Request) {
 	err := decoder.Decode(&message, r.URL.Query())
 	if err != nil {
 		log.Error(err)
-		return
-	}
-	// 类型15会生成一堆id，暂时排除影响
-	if message.MsgType == 15 {
 		return
 	}
 	//fmt.Println(message)
@@ -201,6 +200,35 @@ func lack(w http.ResponseWriter, r *http.Request) {
 	w.Write(marshal)
 }
 
+func getCycleTypeStatistics(message Message) map[byte]map[string]*MessageCycle {
+	cycleTypeMap := make(map[byte]map[string]*MessageCycle)
+	msgTypes := []byte{RegularMsg, ColoringMsg, GossipMsg, EagerPush, Graft, LazyPush}
+	for _, msgType := range msgTypes {
+		cycleMap := make(map[string]*MessageCycle)
+		for k, v := range cacheMap {
+			messageGroup := v.getMessagesByGroup(msgType, message)
+			nodeCount := len(v.getNodes())
+			if len(messageGroup) > 0 {
+				cycle := staticticsCycle(messageGroup, nodeCount)
+				cycleMap[k] = &cycle
+			}
+		}
+		cycleTypeMap[msgType] = cycleMap
+	}
+
+	for b, m := range cycleTypeMap {
+		if b == Graft || b == LazyPush {
+			for s := range m {
+				msg := cycleTypeMap[EagerPush][s]
+				if msg != nil {
+					msg.RMR = msg.RMR + m[s].RMR
+				}
+			}
+		}
+	}
+	return cycleTypeMap
+}
+
 func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 	rm.RLock()
 	defer rm.RUnlock()
@@ -213,29 +241,7 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// 统计每个轮次的消息信息
-	cycleTypeMap := make(map[byte]map[string]*MessageCycle)
-	for msgType, _ := range msgIdMap {
-		cycleMap := make(map[string]*MessageCycle)
-		for k, v := range cacheMap {
-			messageGroup := v.getMessagesByGroup(msgType, message)
-			nodeCount := len(v.getNodes())
-			if len(messageGroup) > 0 {
-				cycle := staticticsCycle(messageGroup, nodeCount)
-				cycleMap[k] = &cycle
-			}
-		}
-		cycleTypeMap[msgType] = cycleMap
-	}
-	for b, m := range cycleTypeMap {
-		if b == Graft || b == LazyPush {
-			for s := range m {
-				msg := cycleTypeMap[EagerPush][s]
-				if msg != nil {
-					msg.RMR = msg.RMR + m[s].RMR
-				}
-			}
-		}
-	}
+	cycleTypeMap := getCycleTypeStatistics(message)
 
 	var builder strings.Builder
 	marshal, _ := json.Marshal(cycleTypeMap)
@@ -305,6 +311,17 @@ func loadDataset(w http.ResponseWriter, r *http.Request) {
 		log.Fatalln(err)
 	}
 }
+
+func goChart(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles(fmt.Sprintf("%s%s", chartPath, "go_chart.html"))
+	if err != nil {
+		fmt.Println("go chart, err:", err)
+		return
+	}
+	info := []string{"./chart/go_cycle_statistics.html", "./chart/go_num_statistics.html", "./chart/go_fanout_statistics.html"}
+	tmpl.Execute(w, info)
+}
+
 func index(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello, World!"))
 }
@@ -312,6 +329,8 @@ func index(w http.ResponseWriter, r *http.Request) {
 func CreateWeb() {
 	cacheMap = make(map[string]*MessageCache)
 	msgIdMap = make(map[byte]map[string]int)
+	chartPath = "./tool/benchmark/chart/"
+	// chartPath = "./chart/"
 	// 注册路由和处理函数
 	http.HandleFunc("/putRing", putRing)
 	http.HandleFunc("/getRing", getRing)
@@ -324,9 +343,10 @@ func CreateWeb() {
 	http.HandleFunc("/lack", lack)
 	http.HandleFunc("/exportDataset", exportDataset)
 	http.HandleFunc("/loadDataset", loadDataset)
+	http.HandleFunc("/goChart", goChart)
 	http.HandleFunc("/", index)
 
-	fs := http.FileServer(http.Dir("./tool/benchmark/chart"))
+	fs := http.FileServer(http.Dir(chartPath))
 	// 创建静态文件服务器
 
 	// 使用 http.Handle 而不是 http.HandleFunc
