@@ -28,12 +28,12 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 	case PingMsg:
 		var ping Ping
 		if err := tool.DecodeMsgPayload(msg, &ping); err != nil {
-			log.Info("[TCP] Failed to decode ping message: %v", err)
+			log.Infof("[TCP] Failed to decode ping message: %v", err)
 			return
 		}
 
 		sourceIP := tool.ByteToIPv4Port(ping.Src)
-		log.Debug("[DEBUG] Received PING from %s (seq=%d)", sourceIP, ping.SeqNo)
+		log.Debugf("[DEBUG] Received PING from %s (seq=%d)", sourceIP, ping.SeqNo)
 
 		// 构造丰富的 ACK 响应
 		ackResp := AckResp{
@@ -60,13 +60,13 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		// 处理间接 PING 消息
 		var ping Ping
 		if err := tool.DecodeMsgPayload(msg, &ping); err != nil {
-			log.Debug("[DEBUG] Failed to decode indirect ping message: %v", err)
+			log.Debugf("[DEBUG] Failed to decode indirect ping message: %v", err)
 			return
 		}
 
 		targetAddr := tool.ByteToIPv4Port(ping.Addr)
 		sourceAddr := tool.ByteToIPv4Port(ping.Src)
-		log.Debug("[DEBUG] Received INDIRECT_PING for %s from %s (seq=%d)",
+		log.Debugf("[DEBUG] Received INDIRECT_PING for %s from %s (seq=%d)",
 			targetAddr, sourceAddr, ping.SeqNo)
 
 		// 确认收到间接 PING 请求
@@ -95,18 +95,18 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			s.SendMessage(targetAddr, []byte{}, pingMsg)
 		}
 
-		log.Debug("[DEBUG] Forwarded ping to %s on behalf of %s", targetAddr, sourceAddr)
+		log.Debugf("[DEBUG] Forwarded ping to %s on behalf of %s", targetAddr, sourceAddr)
 
 	case AckRespMsg:
 		// 处理 ACK 响应
 		var ackResp AckResp
 		if err := tool.DecodeMsgPayload(msg, &ackResp); err != nil {
-			log.Debug("[DEBUG] Failed to decode ack response: %v", err)
+			log.Debugf("[DEBUG] Failed to decode ack response: %v", err)
 			return
 		}
 
 		sourceAddr := tool.ByteToIPv4Port(ackResp.Source)
-		log.Debug("[DEBUG] Received ACK (seq=%d) from %s", ackResp.SeqNo, sourceAddr)
+		log.Debugf("[DEBUG] Received ACK (seq=%d) from %s", ackResp.SeqNo, sourceAddr)
 
 		// 更新节点状态
 		s.Member.Lock()
@@ -126,13 +126,13 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		// 处理怀疑节点消息
 		var suspect Suspect
 		if err := tool.DecodeMsgPayload(msg, &suspect); err != nil {
-			log.Debug("[DEBUG] Failed to decode suspect message: %v", err)
+			log.Debugf("[DEBUG] Failed to decode suspect message: %v", err)
 			return
 		}
 
 		suspectAddr := tool.ByteToIPv4Port(suspect.Addr)
 		sourceAddr := tool.ByteToIPv4Port(suspect.Src)
-		log.Debug("[DEBUG] Received SUSPECT message for %s from %s",
+		log.Debugf("[DEBUG] Received SUSPECT message for %s from %s",
 			suspectAddr, sourceAddr)
 
 		// 如果是针对本节点的怀疑消息，发送反驳
@@ -247,7 +247,7 @@ func (s *Server) sendAckResponse(conn net.Conn, ackResp AckResp) {
 	if err != nil {
 		log.Error("[ERROR] Error sending ACK response: %v", err)
 	} else {
-		log.Debug("[DEBUG] Sent ACK response (seq=%d) to %s",
+		log.Debugf("[DEBUG] Sent ACK response (seq=%d) to %s",
 			ackResp.SeqNo, conn.RemoteAddr().String())
 	}
 }

@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	. "snow/common"
 	. "snow/config"
@@ -14,15 +14,14 @@ import (
 )
 
 func main() {
-
 	////测试轮数
-	rounds := 1
+	rounds := 100
 	//benchmark(600, 6, rounds)
 	//benchmark(600, 8, rounds)
 	//benchmark(600, 4, rounds)
 	//benchmark(600, 2, rounds)
 
-	benchmark(500, 4, rounds)
+	benchmark(200, 4, rounds)
 	//benchmark(400, 4, rounds)
 	//benchmark(300, 4, rounds)
 	//benchmark(200, 4, rounds)

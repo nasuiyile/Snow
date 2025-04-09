@@ -27,6 +27,9 @@ type Server struct {
 }
 
 func NewServer(config *Config, action broadcast.Action) (*Server, error) {
+	if config.Test {
+		tool.DebugLog()
+	}
 	oldServer, err := broadcast.NewServer(config, action)
 	if err != nil {
 		panic(err)

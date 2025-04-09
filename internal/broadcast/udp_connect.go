@@ -52,7 +52,7 @@ func NewUDPServer(config *config.Config) (*UDPServer, error) {
 	}
 	server.H = server
 
-	log.Info("UDPServer running on %s\n", config.ServerAddress)
+	log.Infof("UDPServer running on %s\n", config.ServerAddress)
 
 	// 启动读取和发送消息的协程
 	go server.startReading()
@@ -102,7 +102,7 @@ func (u *udpConnWrapper) SetWriteDeadline(t time.Time) error {
 
 // startReading 循环读取 UDP 消息
 func (s *UDPServer) startReading() {
-	defer log.Info("[UDPServer] Reading loop exited")
+	defer log.Infof("[UDPServer] Reading loop exited")
 
 	buf := make([]byte, 65535) // UDP 理论最大长度
 	for {
@@ -114,7 +114,7 @@ func (s *UDPServer) startReading() {
 
 		n, remoteAddr, err := s.conn.ReadFromUDP(buf)
 		if err != nil {
-			log.Error("[UDPServer] ReadFromUDP error: %v", err)
+			log.Errorf("[UDPServer] ReadFromUDP error: %v", err)
 			// 如果错误不是临时错误（例如连接已关闭），则退出循环
 			var ne net.Error
 			if errors.As(err, &ne) && !ne.Temporary() {
@@ -159,12 +159,12 @@ func (s *UDPServer) sendUDPReply(addr *net.UDPAddr, msg []byte) {
 		log.Error("[UDPServer] Error sending to %s: %v", addr.String(), err)
 		return
 	}
-	log.Debug("[UDPServer] Sent ACK to %s", addr.String())
+	log.Debugf("[UDPServer] Sent ACK to %s", addr.String())
 }
 
 // startSending 处理发送队列，将消息实际发送出去
 func (s *UDPServer) startSending() {
-	defer log.Info("[UDPServer] Sending loop exited")
+	defer log.Infof("[UDPServer] Sending loop exited")
 	for {
 		select {
 		case <-s.stopCh:
@@ -211,7 +211,7 @@ func (s *UDPServer) UDPSendMessage(remote string, payload, msg []byte) error {
 
 // Close 优雅关闭 UDP 服务
 func (s *UDPServer) Close() {
-	log.Info("[UDPServer] Closing...")
+	log.Infof("[UDPServer] Closing...")
 	close(s.stopCh)
 	if err := s.conn.Close(); err != nil {
 		log.Error("Error closing UDP connection: %v", err)

@@ -3,7 +3,6 @@ package broadcast
 import (
 	"bufio"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -111,7 +110,7 @@ func (s *Server) startAcceptingConnections() {
 		conn, err := s.listener.Accept()
 		if err != nil {
 			if opErr, ok := err.(*net.OpError); ok && opErr.Err.Error() == "use of closed network connection" {
-				log.Info("Listener closed, stopping connection acceptance.")
+				log.Infof("Listener closed, stopping connection acceptance.")
 				return
 			}
 			log.Error("Error accepting connection:", err)
@@ -157,12 +156,10 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 		header := make([]byte, 4)
 		_, err := io.ReadFull(reader, header)
 		if err != nil {
-			log.Error(errors.Is(err, io.EOF))
-			log.Error("Read header error from %v: %v\n", conn.RemoteAddr(), err)
+			log.Errorf("Read header error from %v: %v\n", conn.RemoteAddr(), err)
 			if err == io.EOF {
 				log.Warn("Normal EOF: connection closed by client")
 			}
-			log.Error(conn.RemoteAddr().String())
 			member := tool.IPv4To6Bytes(conn.RemoteAddr().String())
 			s.Member.RemoveMember(member, false)
 			return
@@ -171,14 +168,14 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 		// 解析消息长度
 		messageLength := int(binary.BigEndian.Uint32(header))
 		if messageLength <= 0 {
-			log.Error("Invalid message length from %v: %d\n", conn.RemoteAddr(), messageLength)
+			log.Errorf("Invalid message length from %v: %d\n", conn.RemoteAddr(), messageLength)
 			continue
 		}
 		// 根据消息长度读取消息体
 		msg := make([]byte, messageLength)
 		_, err = io.ReadFull(reader, msg)
 		if err != nil {
-			log.Error("Read body error from %v: %v\n", conn.RemoteAddr(), err)
+			log.Errorf("Read body error from %v: %v\n", conn.RemoteAddr(), err)
 			return
 		}
 		s.H.Hand(msg, conn)
@@ -196,10 +193,10 @@ func (s *Server) ConnectToPeer(addr string) (net.Conn, error) {
 	// 赋值给 Dialer 的 LocalAddr
 	conn, err := s.client.Dial("tcp", addr)
 	if err != nil {
-		log.Warn("Failed to connect to %s: %v\n", addr, err)
+		log.Warnf("Failed to connect to %s: %v\n", addr, err)
 		return nil, err
 	}
-	log.Warn("%sConnected to %s\n", s.Config.ServerAddress, addr)
+	//log.Debugff("%sConnected to %s\n", s.Config.ServerAddress, addr)
 	metaData := membership.NewEmptyMetaData()
 	metaData.SetClient(conn)
 	s.Member.PutMemberIfNil(addr, metaData)
@@ -268,8 +265,9 @@ func (s *Server) replayMessage(conn net.Conn, msg []byte) {
 // Close 关闭服务器
 func (s *Server) Close() {
 	s.Member.Lock()
+	defer s.Member.Unlock()
 	s.IsClosed = true
-	s.HeartbeatService.Stop()
+
 	for _, v := range s.Member.MetaData {
 		client := v.GetClient()
 		if client != nil {
@@ -281,9 +279,14 @@ func (s *Server) Close() {
 			server.Close()
 		}
 	}
-	s.udpServer.Close()
+	if s.HeartbeatService != nil {
+		s.HeartbeatService.Stop()
+	}
+	if s.udpServer != nil {
+		s.udpServer.Close()
+	}
 	s.listener.Close()
-	s.Member.Unlock()
+
 }
 
 func (s *Server) Sender() {

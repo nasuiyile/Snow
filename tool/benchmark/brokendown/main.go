@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	. "snow/common"
@@ -24,6 +23,7 @@ func main() {
 	select {}
 }
 func benchmark(n int, k int, rounds int) {
+	tool.ResetIPTable()
 	defer tool.ResetIPTable()
 	configPath := ""
 	flag.StringVar(&configPath, "configPath", "./config/config.yml", "config file path")
@@ -67,7 +67,6 @@ func benchmark(n int, k int, rounds int) {
 		for _, v := range serverList {
 			v.StartHeartBeat()
 		}
-		log.SetOutput(ioutil.Discard)
 		time.Sleep(time.Duration(n/200) * time.Second)
 		for i := range rounds {
 			// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
