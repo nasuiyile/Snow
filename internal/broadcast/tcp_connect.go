@@ -268,6 +268,8 @@ func (s *Server) replayMessage(conn net.Conn, msg []byte) {
 // Close 关闭服务器
 func (s *Server) Close() {
 	s.Member.Lock()
+	s.IsClosed = true
+	s.HeartbeatService.Stop()
 	for _, v := range s.Member.MetaData {
 		client := v.GetClient()
 		if client != nil {
