@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net"
 	. "snow/common"
 	. "snow/config"
@@ -172,10 +172,10 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 		if metaData == nil {
 			conn, err = s.ConnectToPeer(ip)
 			if err != nil {
-				log.Println(s.Config.ServerAddress, "can't connect to ", ip)
+				log.Error(s.Config.ServerAddress, "can't connect to ", ip)
 				s.EagerPush.Remove(ip)
 				s.ReportLeave(tool.IPv4To6Bytes(ip))
-				log.Println(err)
+				log.Error(err)
 				return
 			}
 		} else {
@@ -185,7 +185,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 			//先建立一次链接进行尝试
 			newConn, err := s.ConnectToPeer(ip)
 			if err != nil {
-				log.Println(s.Config.ServerAddress, "can't connect to ", ip)
+				log.Error(s.Config.ServerAddress, "can't connect to ", ip)
 				s.EagerPush.Remove(ip)
 				s.ReportLeave(tool.IPv4To6Bytes(ip))
 				return

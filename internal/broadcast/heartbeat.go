@@ -2,7 +2,7 @@ package broadcast
 
 import (
 	"bytes"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"math/rand"
 	"net"
 	"snow/common"
@@ -107,7 +107,7 @@ func (h *Heartbeat) Stop() {
 	if h.running {
 		h.running = false
 		close(h.stopCh)
-		log.Println("[INFO] Heartbeat service stopped")
+		log.Info("[INFO] Heartbeat service stopped")
 	}
 }
 
@@ -121,7 +121,7 @@ func (h *Heartbeat) probeLoop() {
 		case <-ticker.C:
 			h.probe()
 		case <-h.stopCh:
-			log.Println("[INFO] Heartbeat probeLoop stopped")
+			log.Info("[INFO] Heartbeat probeLoop stopped")
 			return
 		}
 	}
@@ -143,7 +143,7 @@ func (h *Heartbeat) probe() {
 	for {
 		if numCheck >= length {
 			h.Unlock()
-			log.Println("[DEBUG] heartbeat: No more nodes to check")
+			log.Debug("[DEBUG] heartbeat: No more nodes to check")
 			return
 		}
 		if h.probeIndex >= length {
@@ -184,7 +184,7 @@ func (h *Heartbeat) probeNode(addr []byte) {
 
 	// 注册 ACK 处理回调
 	h.registerAckHandler(seqNo, func(ackResp AckResp) {
-		log.Printf("[DEBUG] heartbeat: Received ACK from %s (seq=%d)",
+		log.Debug("[DEBUG] heartbeat: Received ACK from %s (seq=%d)",
 			targetAddr, seqNo)
 
 		// 更新节点状态
@@ -202,11 +202,11 @@ func (h *Heartbeat) probeNode(addr []byte) {
 	// 发送 UDP ping 消息
 	out, _ := tool.Encode(common.PingMsg, common.PingAction, &p, false)
 	if err := h.udpServer.UDPSendMessage(targetAddr, []byte{}, out); err != nil {
-		log.Printf("[ERR] heartbeat: Failed to send UDP ping to %s: %v\n", tool.ByteToIPv4Port(addr[:]), err)
+		log.Error("[ERR] heartbeat: Failed to send UDP ping to %s: %v\n", tool.ByteToIPv4Port(addr[:]), err)
 		h.handleRemoteFailure(addr, p)
 		return
 	}
-	log.Printf("[UDPServer] Successfully sent from %s to %s", tool.ByteToIPv4Port(h.config.GetLocalAddr()), tool.ByteToIPv4Port(addr))
+	log.Debug("[UDPServer] Successfully sent from %s to %s", tool.ByteToIPv4Port(h.config.GetLocalAddr()), tool.ByteToIPv4Port(addr))
 
 	// 等待 ACK 响应或超时
 	select {
@@ -215,7 +215,7 @@ func (h *Heartbeat) probeNode(addr []byte) {
 		return
 	case <-time.After(h.config.HeartbeatInterval):
 		// 超时，启动故障处理流程
-		log.Printf("[DEBUG] heartbeat: ACK timeout for %s (seq=%d)", targetAddr, seqNo)
+		log.Debug("[DEBUG] heartbeat: ACK timeout for %s (seq=%d)", targetAddr, seqNo)
 		h.handleRemoteFailure(addr, p)
 	}
 }
@@ -227,7 +227,7 @@ func (h *Heartbeat) registerAckHandler(seqNo int, callback func(AckResp), timeou
 
 	// 如果已存在处理器，合并回调函数
 	if existHandler, exists := h.ackHandlers[seqNo]; exists {
-		log.Printf("[INFO] Merging ACK handlers for seq %d", seqNo)
+		log.Infof("[INFO] Merging ACK handlers for seq %d", seqNo)
 
 		// 创建组合回调函数
 		originalAckFn := existHandler.ackFn
@@ -257,7 +257,7 @@ func (h *Heartbeat) registerAckHandler(seqNo int, callback func(AckResp), timeou
 
 		// 检查处理程序是否仍然存在（可能已被处理过）
 		if _, exists := h.ackHandlers[seqNo]; exists {
-			log.Printf("[DEBUG] heartbeat: ACK handler for seq=%d timed out", seqNo)
+			log.Debug("[DEBUG] heartbeat: ACK handler for seq=%d timed out", seqNo)
 			delete(h.ackHandlers, seqNo)
 		}
 	})
@@ -272,7 +272,7 @@ func (h *Heartbeat) handleAckResponse(ackResp AckResp) {
 
 	handler, exists := h.ackHandlers[ackResp.SeqNo]
 	if !exists {
-		log.Printf("[INFO] Multiple probes or late ACK for seq=%d", ackResp.SeqNo)
+		log.Info("[INFO] Multiple probes or late ACK for seq=%d", ackResp.SeqNo)
 		return
 	}
 
@@ -290,7 +290,7 @@ func (h *Heartbeat) handleAckResponse(ackResp AckResp) {
 // handleRemoteFailure 当探测失败时调用，通过回调通知上层标记该节点为 suspect
 func (h *Heartbeat) handleRemoteFailure(addr []byte, p Ping) {
 	targetAddr := tool.ByteToIPv4Port(addr)
-	log.Printf("[INFO] heartbeat: No ack received from %s, initiating indirect probes\n", targetAddr)
+	log.Info("[INFO] heartbeat: No ack received from %s, initiating indirect probes\n", targetAddr)
 
 	// 间接探测：选择 3 个随机节点，发送间接 ping
 	peers := h.selectKRandomNodes(h.config.IndirectChecks, addr)
@@ -306,7 +306,7 @@ func (h *Heartbeat) handleRemoteFailure(addr []byte, p Ping) {
 
 	// 注册间接 ACK 处理器
 	h.registerAckHandler(p.SeqNo, func(ackResp AckResp) {
-		log.Printf("[DEBUG] heartbeat: Received indirect ACK for %s", targetAddr)
+		log.Debug("[DEBUG] heartbeat: Received indirect ACK for %s", targetAddr)
 		select {
 		case indirectSuccess <- struct{}{}:
 		default:
@@ -317,18 +317,18 @@ func (h *Heartbeat) handleRemoteFailure(addr []byte, p Ping) {
 	out, _ := tool.Encode(common.IndirectPingMsg, common.PingAction, &indirect, false)
 	for _, peer := range peers {
 		if err := h.udpServer.UDPSendMessage(tool.ByteToIPv4Port(peer), []byte{}, out); err != nil {
-			log.Printf("[ERR] heartbeat: Failed to send indirect ping to %s: %v\n", tool.ByteToIPv4Port(peer[:]), err)
+			log.Error("[ERR] heartbeat: Failed to send indirect ping to %s: %v\n", tool.ByteToIPv4Port(peer[:]), err)
 		}
 	}
 
 	// 等待间接探测结果
 	select {
 	case <-indirectSuccess:
-		log.Printf("[INFO] heartbeat: Node %s confirmed alive via indirect ping", targetAddr)
+		log.Info("[INFO] heartbeat: Node %s confirmed alive via indirect ping", targetAddr)
 		return
 	case <-indirectTimeout:
 		// 间接探测超时，进行 TCP 后备探测
-		log.Printf("[INFO] heartbeat: Indirect probes for %s timed out, attempting TCP fallback", targetAddr)
+		log.Info("[INFO] heartbeat: Indirect probes for %s timed out, attempting TCP fallback", targetAddr)
 
 		// TCP 后备探测
 		tcpSuccess := make(chan bool, 1)
@@ -341,16 +341,16 @@ func (h *Heartbeat) handleRemoteFailure(addr []byte, p Ping) {
 		select {
 		case success := <-tcpSuccess:
 			if success {
-				log.Printf("[WARN] heartbeat: TCP fallback succeeded for %s", targetAddr)
+				log.Warn("[WARN] heartbeat: TCP fallback succeeded for %s", targetAddr)
 				return
 			}
 		case <-time.After(3 * time.Second):
 			// TCP 探测也失败
-			log.Printf("[INFO] heartbeat: Node %s timed out after TCP fallback", targetAddr)
+			log.Info("[INFO] heartbeat: Node %s timed out after TCP fallback", targetAddr)
 		}
 
 		// 标记节点为可疑
-		log.Printf("[INFO] heartbeat: Node %s is suspected to have failed, no acks received\n", targetAddr)
+		log.Info("[INFO] heartbeat: Node %s is suspected to have failed, no acks received\n", targetAddr)
 		/*s := Suspect{
 			Incarnation: 0,
 			Addr:        addr,
@@ -368,14 +368,14 @@ func (h *Heartbeat) tcpFallbackProbe(addr []byte, p Ping) bool {
 	// 设置 TCP ACK 处理
 	tcpSuccess := make(chan struct{})
 	h.registerAckHandler(p.SeqNo, func(ackResp AckResp) {
-		log.Printf("[DEBUG] heartbeat: Received TCP ACK from %s", targetAddr)
+		log.Debug("[DEBUG] heartbeat: Received TCP ACK from %s", targetAddr)
 		close(tcpSuccess)
 	}, 3*time.Second)
 
 	// 直接尝试发送消息，不需要重复建立连接
 	out, _ := tool.Encode(common.PingMsg, common.PingAction, &p, false)
 	h.server.SendMessage(targetAddr, []byte{}, out)
-	log.Printf("[DEBUG] heartbeat: Sent TCP fallback probe to %s, waiting for ACK...", targetAddr)
+	log.Debug("[DEBUG] heartbeat: Sent TCP fallback probe to %s, waiting for ACK...", targetAddr)
 
 	// 等待 TCP ACK 或超时
 	select {
@@ -433,7 +433,7 @@ func (h *Heartbeat) markNodeSuspect(s *Suspect) {
 
 	// 如果是本节点被怀疑，发送反驳
 	if node == h.config.ServerAddress {
-		log.Println("[WARN] Refuting suspect message for self")
+		log.Warn("[WARN] Refuting suspect message for self")
 		return
 	}
 

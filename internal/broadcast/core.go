@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net"
 	. "snow/common"
 	. "snow/config"
@@ -209,7 +209,7 @@ func (s *Server) ApplyLeave() {
 	s.ReliableMessage(s.Config.IPBytes(), NodeLeave, &f)
 }
 func (s *Server) ReportLeave(ip []byte) {
-	log.Printf("report leave:" + tool.ByteToIPv4Port(ip))
+	log.Debug("report leave:" + tool.ByteToIPv4Port(ip))
 	s.Member.RemoveMember(ip, false)
 	s.ColoringMessage(ip, ReportLeave)
 }

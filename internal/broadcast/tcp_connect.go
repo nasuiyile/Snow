@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"net"
 	"snow/common"
 	"snow/config"
@@ -75,7 +75,7 @@ func (s *Server) StartHeartBeat() {
 	// 初始化UDP服务
 	udpServer, err := NewUDPServer(s.Config)
 	if err != nil {
-		log.Printf("[WARN] Failed to initialize UDP server: %v", err)
+		log.Warn("[WARN] Failed to initialize UDP server: %v", err)
 	} else {
 		s.udpServer = udpServer
 		udpServer.H = s
@@ -111,10 +111,10 @@ func (s *Server) startAcceptingConnections() {
 		conn, err := s.listener.Accept()
 		if err != nil {
 			if opErr, ok := err.(*net.OpError); ok && opErr.Err.Error() == "use of closed network connection" {
-				log.Println("Listener closed, stopping connection acceptance.")
+				log.Info("Listener closed, stopping connection acceptance.")
 				return
 			}
-			log.Println("Error accepting connection:", err)
+			log.Error("Error accepting connection:", err)
 			continue
 		}
 		//log.Printf("get connect from %s", conn.RemoteAddr().String())
@@ -157,12 +157,12 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 		header := make([]byte, 4)
 		_, err := io.ReadFull(reader, header)
 		if err != nil {
-			log.Println(errors.Is(err, io.EOF))
-			log.Printf("Read header error from %v: %v\n", conn.RemoteAddr(), err)
+			log.Error(errors.Is(err, io.EOF))
+			log.Error("Read header error from %v: %v\n", conn.RemoteAddr(), err)
 			if err == io.EOF {
-				log.Println("Normal EOF: connection closed by client")
+				log.Warn("Normal EOF: connection closed by client")
 			}
-			log.Println(conn.RemoteAddr().String())
+			log.Error(conn.RemoteAddr().String())
 			member := tool.IPv4To6Bytes(conn.RemoteAddr().String())
 			s.Member.RemoveMember(member, false)
 			return
@@ -171,14 +171,14 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 		// 解析消息长度
 		messageLength := int(binary.BigEndian.Uint32(header))
 		if messageLength <= 0 {
-			log.Printf("Invalid message length from %v: %d\n", conn.RemoteAddr(), messageLength)
+			log.Error("Invalid message length from %v: %d\n", conn.RemoteAddr(), messageLength)
 			continue
 		}
 		// 根据消息长度读取消息体
 		msg := make([]byte, messageLength)
 		_, err = io.ReadFull(reader, msg)
 		if err != nil {
-			log.Printf("Read body error from %v: %v\n", conn.RemoteAddr(), err)
+			log.Error("Read body error from %v: %v\n", conn.RemoteAddr(), err)
 			return
 		}
 		s.H.Hand(msg, conn)
@@ -196,10 +196,10 @@ func (s *Server) ConnectToPeer(addr string) (net.Conn, error) {
 	// 赋值给 Dialer 的 LocalAddr
 	conn, err := s.client.Dial("tcp", addr)
 	if err != nil {
-		//log.Printf("Failed to connect to %s: %v\n", addr, err)
+		log.Warn("Failed to connect to %s: %v\n", addr, err)
 		return nil, err
 	}
-	//log.Printf("%sConnected to %s\n", s.Config.ServerAddress, addr)
+	log.Warn("%sConnected to %s\n", s.Config.ServerAddress, addr)
 	metaData := membership.NewEmptyMetaData()
 	metaData.SetClient(conn)
 	s.Member.PutMemberIfNil(addr, metaData)
@@ -215,9 +215,9 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 	if metaData == nil {
 		conn, err = s.ConnectToPeer(ip)
 		if err != nil {
-			log.Println(s.Config.ServerAddress, "can't connect to ", ip)
+			log.Error(s.Config.ServerAddress, "can't connect to ", ip)
 			s.ReportLeave(tool.IPv4To6Bytes(ip))
-			log.Println(err)
+			log.Error(err)
 			return
 		}
 	} else {
@@ -227,7 +227,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 		//先建立一次链接进行尝试
 		newConn, err := s.ConnectToPeer(ip)
 		if err != nil {
-			log.Println(s.Config.ServerAddress, "can't connect to ", ip)
+			log.Error(s.Config.ServerAddress, "can't connect to ", ip)
 			s.ReportLeave(tool.IPv4To6Bytes(ip))
 			return
 		} else {
@@ -255,7 +255,7 @@ func (s *Server) replayMessage(conn net.Conn, msg []byte) {
 	length := uint32(len(msg))
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, length)
-	log.Println(conn.RemoteAddr().String())
+	log.Error(conn.RemoteAddr().String())
 	data := &SendData{
 		Conn:    conn,
 		Header:  header,
@@ -292,7 +292,7 @@ func (s *Server) Sender() {
 		go func() {
 			err := data.Conn.SetWriteDeadline(time.Now().Add(s.Config.TCPTimeout))
 			if err != nil {
-				log.Println(err)
+				log.Error(err)
 			}
 			if s.Config.Test && s.Config.Report {
 				bytes := append(data.Payload, data.Msg...)
@@ -300,20 +300,20 @@ func (s *Server) Sender() {
 			}
 			_, err = data.Conn.Write(data.Header)
 			if err != nil {
-				log.Printf("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
+				log.Error("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
 				s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
 				return
 			}
 			_, err = data.Conn.Write(data.Payload)
 			if err != nil {
 				s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
-				log.Printf("Error sending payload to %v: %v", data.Conn.RemoteAddr(), err)
+				log.Error("Error sending payload to %v: %v", data.Conn.RemoteAddr(), err)
 				return
 			}
 			_, err = data.Conn.Write(data.Msg)
 			if err != nil {
 				s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
-				log.Printf("Error sending message to %v: %v", data.Conn.RemoteAddr(), err)
+				log.Error("Error sending message to %v: %v", data.Conn.RemoteAddr(), err)
 				return
 			}
 		}()

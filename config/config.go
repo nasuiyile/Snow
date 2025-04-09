@@ -3,8 +3,8 @@ package config
 import (
 	"encoding/binary"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
-	"log"
 	"net"
 	"os"
 	"snow/common"
@@ -92,7 +92,7 @@ func (c *Config) GetLocalAddr() []byte {
 	ipBytes := net.ParseIP(ip).To4()
 	if ipBytes == nil {
 		// 处理无效的 IP 地址格式
-		log.Fatalf("Invalid IP address format: %s", ip)
+		log.Error("Invalid IP address format: %s", ip)
 	}
 	portBytes := make([]byte, 2)
 	binary.BigEndian.PutUint16(portBytes, uint16(port))

@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"math"
 	"net/http"
 	"os"
@@ -40,7 +40,7 @@ func putRing(w http.ResponseWriter, r *http.Request) {
 	message := Message{}
 	err := decoder.Decode(&message, r.URL.Query())
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 		return
 	}
 	// 类型15会生成一堆id，暂时排除影响

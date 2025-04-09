@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	. "snow/common"
@@ -62,7 +63,12 @@ func benchmark(n int, k int, rounds int) {
 			}
 			serverList = append(serverList, server)
 		}
-		time.Sleep(time.Duration(n/20) * time.Second)
+		time.Sleep(1 * time.Second)
+		for _, v := range serverList {
+			v.StartHeartBeat()
+		}
+		log.SetOutput(ioutil.Discard)
+		time.Sleep(time.Duration(n/200) * time.Second)
 		for i := range rounds {
 			// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
 			fmt.Printf("=== %d =====\n", i)

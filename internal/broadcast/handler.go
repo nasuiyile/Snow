@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net"
 	. "snow/common"
 	"snow/tool"
@@ -15,7 +15,7 @@ import (
 func (s *Server) Hand(msg []byte, conn net.Conn) {
 	// 检查消息长度
 	if len(msg) < 1 {
-		log.Printf("Message too short from %s\n", conn.RemoteAddr().String())
+		log.Warn("Message too short from %s\n", conn.RemoteAddr().String())
 		return
 	}
 
@@ -28,12 +28,12 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 	case PingMsg:
 		var ping Ping
 		if err := tool.DecodeMsgPayload(msg, &ping); err != nil {
-			log.Printf("[TCP] Failed to decode ping message: %v", err)
+			log.Info("[TCP] Failed to decode ping message: %v", err)
 			return
 		}
 
 		sourceIP := tool.ByteToIPv4Port(ping.Src)
-		log.Printf("[DEBUG] Received PING from %s (seq=%d)", sourceIP, ping.SeqNo)
+		log.Debug("[DEBUG] Received PING from %s (seq=%d)", sourceIP, ping.SeqNo)
 
 		// 构造丰富的 ACK 响应
 		ackResp := AckResp{
@@ -60,13 +60,13 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		// 处理间接 PING 消息
 		var ping Ping
 		if err := tool.DecodeMsgPayload(msg, &ping); err != nil {
-			log.Printf("[DEBUG] Failed to decode indirect ping message: %v", err)
+			log.Debug("[DEBUG] Failed to decode indirect ping message: %v", err)
 			return
 		}
 
 		targetAddr := tool.ByteToIPv4Port(ping.Addr)
 		sourceAddr := tool.ByteToIPv4Port(ping.Src)
-		log.Printf("[DEBUG] Received INDIRECT_PING for %s from %s (seq=%d)",
+		log.Debug("[DEBUG] Received INDIRECT_PING for %s from %s (seq=%d)",
 			targetAddr, sourceAddr, ping.SeqNo)
 
 		// 确认收到间接 PING 请求
@@ -95,18 +95,18 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			s.SendMessage(targetAddr, []byte{}, pingMsg)
 		}
 
-		log.Printf("[DEBUG] Forwarded ping to %s on behalf of %s", targetAddr, sourceAddr)
+		log.Debug("[DEBUG] Forwarded ping to %s on behalf of %s", targetAddr, sourceAddr)
 
 	case AckRespMsg:
 		// 处理 ACK 响应
 		var ackResp AckResp
 		if err := tool.DecodeMsgPayload(msg, &ackResp); err != nil {
-			log.Printf("[DEBUG] Failed to decode ack response: %v", err)
+			log.Debug("[DEBUG] Failed to decode ack response: %v", err)
 			return
 		}
 
 		sourceAddr := tool.ByteToIPv4Port(ackResp.Source)
-		log.Printf("[DEBUG] Received ACK (seq=%d) from %s", ackResp.SeqNo, sourceAddr)
+		log.Debug("[DEBUG] Received ACK (seq=%d) from %s", ackResp.SeqNo, sourceAddr)
 
 		// 更新节点状态
 		s.Member.Lock()
@@ -126,18 +126,18 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		// 处理怀疑节点消息
 		var suspect Suspect
 		if err := tool.DecodeMsgPayload(msg, &suspect); err != nil {
-			log.Printf("[DEBUG] Failed to decode suspect message: %v", err)
+			log.Debug("[DEBUG] Failed to decode suspect message: %v", err)
 			return
 		}
 
 		suspectAddr := tool.ByteToIPv4Port(suspect.Addr)
 		sourceAddr := tool.ByteToIPv4Port(suspect.Src)
-		log.Printf("[DEBUG] Received SUSPECT message for %s from %s",
+		log.Debug("[DEBUG] Received SUSPECT message for %s from %s",
 			suspectAddr, sourceAddr)
 
 		// 如果是针对本节点的怀疑消息，发送反驳
 		if suspectAddr == s.Config.ServerAddress {
-			log.Println("[WARN] Received suspect message for self, sending refutation")
+			log.Warn("[WARN] Received suspect message for self, sending refutation")
 			ackResp := AckResp{
 				SeqNo:     0, // 不需要对应序列号
 				Timestamp: time.Now().UnixNano(),
@@ -221,7 +221,7 @@ func (s *Server) sendAckResponse(conn net.Conn, ackResp AckResp) {
 	// 编码 ACK 响应
 	out, err := tool.Encode(AckRespMsg, PingAction, &ackResp, false)
 	if err != nil {
-		log.Printf("[ERROR] Failed to encode AckResp: %v", err)
+		log.Error("[ERROR] Failed to encode AckResp: %v", err)
 		return
 	}
 
@@ -245,9 +245,9 @@ func (s *Server) sendAckResponse(conn net.Conn, ackResp AckResp) {
 	}
 
 	if err != nil {
-		log.Printf("[ERROR] Error sending ACK response: %v", err)
+		log.Error("[ERROR] Error sending ACK response: %v", err)
 	} else {
-		log.Printf("[DEBUG] Sent ACK response (seq=%d) to %s",
+		log.Debug("[DEBUG] Sent ACK response (seq=%d) to %s",
 			ackResp.SeqNo, conn.RemoteAddr().String())
 	}
 }
@@ -314,6 +314,6 @@ func (s *UDPServer) Hand(msg []byte, conn net.Conn) {
 	if s.H != nil && s.H != s {
 		s.H.Hand(msg, conn)
 	} else {
-		log.Printf("[WARN] UDP: No handler set for message type: %d", msg[0])
+		log.Warn("[WARN] UDP: No handler set for message type: %d", msg[0])
 	}
 }

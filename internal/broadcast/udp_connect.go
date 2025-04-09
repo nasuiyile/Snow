@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"snow/common"
 	"snow/config"
@@ -52,7 +52,7 @@ func NewUDPServer(config *config.Config) (*UDPServer, error) {
 	}
 	server.H = server
 
-	log.Printf("UDPServer running on %s\n", config.ServerAddress)
+	log.Info("UDPServer running on %s\n", config.ServerAddress)
 
 	// 启动读取和发送消息的协程
 	go server.startReading()
@@ -102,7 +102,7 @@ func (u *udpConnWrapper) SetWriteDeadline(t time.Time) error {
 
 // startReading 循环读取 UDP 消息
 func (s *UDPServer) startReading() {
-	defer log.Println("[UDPServer] Reading loop exited")
+	defer log.Info("[UDPServer] Reading loop exited")
 
 	buf := make([]byte, 65535) // UDP 理论最大长度
 	for {
@@ -114,7 +114,7 @@ func (s *UDPServer) startReading() {
 
 		n, remoteAddr, err := s.conn.ReadFromUDP(buf)
 		if err != nil {
-			log.Printf("[UDPServer] ReadFromUDP error: %v", err)
+			log.Error("[UDPServer] ReadFromUDP error: %v", err)
 			// 如果错误不是临时错误（例如连接已关闭），则退出循环
 			var ne net.Error
 			if errors.As(err, &ne) && !ne.Temporary() {
@@ -125,7 +125,7 @@ func (s *UDPServer) startReading() {
 
 		// 至少需要 4 字节 header
 		if n < 4 {
-			log.Printf("Received packet too short from %s: %d bytes", remoteAddr.String(), n)
+			log.Warn("Received packet too short from %s: %d bytes", remoteAddr.String(), n)
 			continue
 		}
 
@@ -133,7 +133,7 @@ func (s *UDPServer) startReading() {
 		header := data[:4]
 		bodyLen := int(binary.BigEndian.Uint32(header))
 		if bodyLen != n-4 {
-			log.Printf("Packet length mismatch from %s: got %d, expected %d", remoteAddr.String(), bodyLen, n-4)
+			log.Warn("Packet length mismatch from %s: got %d, expected %d", remoteAddr.String(), bodyLen, n-4)
 			continue
 		}
 		body := data[4:]
@@ -156,15 +156,15 @@ func (s *UDPServer) sendUDPReply(addr *net.UDPAddr, msg []byte) {
 	packet := append(header, replyBody...)
 	_, err := s.conn.WriteToUDP(packet, addr)
 	if err != nil {
-		log.Printf("[UDPServer] Error sending to %s: %v", addr.String(), err)
+		log.Error("[UDPServer] Error sending to %s: %v", addr.String(), err)
 		return
 	}
-	log.Printf("[UDPServer] Sent ACK to %s", addr.String())
+	log.Debug("[UDPServer] Sent ACK to %s", addr.String())
 }
 
 // startSending 处理发送队列，将消息实际发送出去
 func (s *UDPServer) startSending() {
-	defer log.Println("[UDPServer] Sending loop exited")
+	defer log.Info("[UDPServer] Sending loop exited")
 	for {
 		select {
 		case <-s.stopCh:
@@ -182,7 +182,7 @@ func (s *UDPServer) sendPacket(d *UDPSendData) {
 	packet = append(packet, d.Msg...)
 	_, err := s.conn.WriteToUDP(packet, d.RemoteAddr)
 	if err != nil {
-		log.Printf("[UDPServer] Error sending to %s: %v", d.RemoteAddr.String(), err)
+		log.Error("[UDPServer] Error sending to %s: %v", d.RemoteAddr.String(), err)
 		return
 	}
 }
@@ -191,7 +191,7 @@ func (s *UDPServer) sendPacket(d *UDPSendData) {
 func (s *UDPServer) UDPSendMessage(remote string, payload, msg []byte) error {
 	rAddr, err := net.ResolveUDPAddr("udp", remote)
 	if err != nil {
-		log.Printf("[UDPServer] Cannot resolve addr %s: %v", remote, err)
+		log.Error("[UDPServer] Cannot resolve addr %s: %v", remote, err)
 		return fmt.Errorf("failed to resolve address %s: %v", remote, err)
 	}
 
@@ -211,9 +211,9 @@ func (s *UDPServer) UDPSendMessage(remote string, payload, msg []byte) error {
 
 // Close 优雅关闭 UDP 服务
 func (s *UDPServer) Close() {
-	log.Println("[UDPServer] Closing...")
+	log.Info("[UDPServer] Closing...")
 	close(s.stopCh)
 	if err := s.conn.Close(); err != nil {
-		log.Printf("Error closing UDP connection: %v", err)
+		log.Error("Error closing UDP connection: %v", err)
 	}
 }
