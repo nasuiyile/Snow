@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="./echarts.js"></script>
+</head>
+<style type="text/css">
+    .chart {
+        width: 33%;
+        height: 550px;
+        justify-content: space-around;
+    }
+</style>
+
+<body>
+    <div>
+        <span>fanout:
+            <select id="fanout" style="width: 100px;margin: 10px;">
+                <option value=""></option>
+                <option value="2">2</option>
+                <option value="4">4</option>
+                <option value="6">6</option>
+                <option value="8">8</option>
+            </select>
+        </span>
+        <button id="search" onclick="search()">search</button>
+    </div>
+    <div style="display: flex;">
+        <div class="chart" id="LDT"></div>
+        <div class="chart" id="RMR"></div>
+        <div class="chart" id="Reliability"></div>
+    </div>
+</body>
+
+</html>
+
+<script type="text/javascript">
+    let LDT_avg = {}
+    let RMR_avg = {}
+    let Reliability_avg = {}
+    let xData = {}
+    let chartDom = {}
+    let types = []
+
+    function clearData() {
+        LDT_avg = {}
+        RMR_avg = {}
+        Reliability_avg = {}
+        xData = {}
+        types = []
+    }
+
+    function dealData(num, dataArr) {
+        types = Object.keys(dataArr)
+        for (type of types) {
+            if (!LDT_avg[type]) LDT_avg[type] = []
+            if (!RMR_avg[type]) RMR_avg[type] = []
+            if (!Reliability_avg[type]) Reliability_avg[type] = []
+        }
+        xData[num] = 1
+        for ([type, v] of Object.entries(dataArr)) {
+            let n = 0
+            let LDT_sum = 0
+            let RMR_sum = 0
+            let Reliability_sum = 0
+            for ([cycle, m] of Object.entries(v)) {
+                n++
+                LDT_sum += m.LDT
+                RMR_sum += m.RMR
+                Reliability_sum += m.Reliability
+            }
+            LDT_avg[type].push(n > 0 ? (LDT_sum / n).toFixed(0) : 0)
+            RMR_avg[type].push(n > 0 ? (RMR_sum / n).toFixed(0) : 0)
+            Reliability_avg[type].push(n > 0 ? (Reliability_sum / n).toFixed(2) : 0)
+        }
+    }
+
+    function draw(chart, dataArr) {
+        if (chartDom[chart]) {
+            chartDom[chart].dispose()
+        }
+        let myChart = echarts.init(document.getElementById(chart));
+        chartDom[chart] = myChart
+
+        var option = {
+            title: {
+                text: chart,
+                textStyle: {  // 标题样式配置
+                    fontSize: 17,  // 设置标题字体大小（单位：px）
+                    fontWeight: 'bold',  // 可选：加粗标题
+                }
+            },
+            tooltip: {
+                trigger: 'axis'
+            },
+            xAxis: {
+                type: 'category',
+                interval: 0,
+                data: Object.keys(xData),
+                axisLabel: {
+                    color: 'black',
+                    fontSize: '18px',
+                    fontWeight: 'bold'
+
+                }
+            },
+            yAxis: {
+                type: 'value',
+                min: 0,
+                max: 'dataMax',
+                axisLabel: {
+                    color: 'black',
+                    fontSize: '18px',
+                    fontWeight: 'bold'
+
+                }
+            },
+            legend: {
+                data: ['Coloring', 'Snow-Standard', 'Gossip', 'Plumtree'],
+                textStyle: {
+                    fontSize: '16px',
+                    fontWeight: 'bold'
+
+                }
+            },
+            series: [
+                {
+                    name: 'Coloring',
+                    type: 'line',
+                    data: dataArr[types[0]]
+                },
+                {
+                    name: 'Snow-Standard',
+                    type: 'line',
+                    data: dataArr[types[1]]
+                },
+                {
+                    name: 'Gossip',
+                    type: 'line',
+                    data: dataArr[types[2]]
+                },
+                {
+                    name: 'Plumtree',
+                    type: 'line',
+                    data: dataArr[types[3]]
+                },
+            ]
+        };
+
+        myChart.setOption(option);
+    }
+
+    function getPromiseData(num) {
+        return new Promise((resolve, reject) => {
+            let fanout = document.getElementById("fanout").value
+            let param = "?Fanout=" + fanout + "&Num=" + num
+            let url = "/getCycleStatistics" + param
+            let request = new XMLHttpRequest()
+            request.open("GET", url, true)
+            request.onreadystatechange = function () {
+                if (request.readyState === 4) {
+                    if (request.status == 200) {
+                        let response = JSON.parse(request.responseText)
+                        dealData(num, response)
+                        resolve('success');
+                    } else {
+                        reject('failed');
+                    }
+
+                }
+            }
+            request.send()
+        })
+    }
+
+    async function search() {
+        clearData()
+
+        await Promise.all([100, 200, 300, 400, 500, 600].map(num => getPromiseData(num)))
+            .then(results => {
+                console.log(results)
+            })
+            .catch(error => {
+                console.error(error);
+            });
+
+        draw('LDT', LDT_avg)
+        draw('RMR', RMR_avg)
+        draw('Reliability', Reliability_avg)
+    }
+
+    search()
+</script>
