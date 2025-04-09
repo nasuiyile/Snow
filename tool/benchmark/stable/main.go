@@ -93,7 +93,6 @@ func benchmark(n int, k int, rounds int) {
 			v.Close()
 		}
 		time.Sleep(20 * time.Second)
-
 	}
 }
 

@@ -50,6 +50,7 @@ type Heartbeat struct {
 	server             interface {                // 服务器接口，用于发送TCP消息和建立连接
 		SendMessage(ip string, payload []byte, msg []byte)
 		ConnectToPeer(addr string) (net.Conn, error)
+		ReportLeave(ip []byte)
 	}
 	udpServer interface { // UDP服务器接口，用于发送UDP消息
 		UDPSendMessage(remote string, payload, msg []byte) error
@@ -67,6 +68,7 @@ func NewHeartbeat(
 	server interface {
 		SendMessage(ip string, payload []byte, msg []byte)
 		ConnectToPeer(addr string) (net.Conn, error)
+		ReportLeave(ip []byte)
 	},
 	udpServer interface {
 		UDPSendMessage(remote string, payload, msg []byte) error
@@ -93,12 +95,7 @@ func (h *Heartbeat) Start() {
 	}
 	h.running = true
 
-	randomDelay := time.Duration(rand.Intn(1000)) * time.Millisecond
-
-	log.Printf("[INFO] Heartbeat service starting with %d ms initial delay", randomDelay)
-
 	go func() {
-		time.Sleep(randomDelay)
 		h.probeLoop()
 	}()
 }
@@ -354,12 +351,13 @@ func (h *Heartbeat) handleRemoteFailure(addr []byte, p Ping) {
 
 		// 标记节点为可疑
 		log.Printf("[INFO] heartbeat: Node %s is suspected to have failed, no acks received\n", targetAddr)
-		s := Suspect{
+		/*s := Suspect{
 			Incarnation: 0,
 			Addr:        addr,
 			Src:         h.config.GetLocalAddr(),
 		}
-		h.markNodeSuspect(&s)
+		h.markNodeSuspect(&s)*/
+		h.server.ReportLeave(addr)
 	}
 }
 
@@ -446,5 +444,4 @@ func (h *Heartbeat) markNodeSuspect(s *Suspect) {
 	// 广播可疑消息
 	encode, _ := tool.Encode(common.SuspectMsg, common.NodeSuspected, s, false)
 	h.server.SendMessage(node, []byte{}, encode)
-	log.Println("[INFO] Marking", node, "as suspect")
 }
