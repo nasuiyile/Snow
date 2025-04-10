@@ -87,7 +87,7 @@ func benchmark(n int, k int, rounds int) {
 				port := serverList[dport].Server.Config.Port
 				tool.DisableNode(port)
 				time.Sleep(1000 * time.Millisecond)
-				serverList[dport].Server.Close()
+				//serverList[dport].Server.Close()
 			}
 
 		}

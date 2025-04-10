@@ -256,6 +256,9 @@ func (s *Server) replayMessage(conn net.Conn, msg []byte) {
 func (s *Server) Close() {
 	s.Member.Lock()
 	defer s.Member.Unlock()
+	if s.IsClosed == true {
+		return
+	}
 	s.IsClosed = true
 
 	for _, v := range s.Member.MetaData {
