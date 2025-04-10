@@ -46,25 +46,28 @@
         <div class="chart" id="RMR"></div>
         <div class="chart" id="Reliability"></div>
     </div>
+    <div style="margin-top: 20px;">
+        <button class="btn" id="clean" onclick="clean()">clean</button>
+        <button class="btn" id="clean" onclick="exportDataset()">export</button>
+        <button class="btn" id="clean" onclick="loadDataset()">load</button>
+    </div>
 </body>
 
 </html>
 
 <script type="text/javascript">
-    let titleArr = document.getElementsByClassName("title")
-    for (title of titleArr) {
-        console.log(title.innerText)
-    }
-
     let LDT_arr = {}
     let RMR_arr = {}
     let Reliability_arr = {}
-    let LDT_avg = {}
+    let LDT_avg = []
     let RMR_avg = {}
     let Reliability_avg = {}
     let xData = {}
     let chartDom = {}
     let types = []
+    for (title of document.getElementsByClassName("title")) {
+        types.push(title.innerText)
+    }
 
     function clearData() {
         LDT_arr = {}
@@ -75,34 +78,38 @@
         Reliability_avg = {}
         xData = {}
         chartDom = {}
-        types = []
     }
 
     function dealData(dataArr) {
-        types = Object.keys(dataArr)
-        for ([type, v] of Object.entries(dataArr)) {
+        for (type of types) {
             LDT_arr[type] = []
             RMR_arr[type] = []
             Reliability_arr[type] = []
-            let LDT_sum = 0
-            let RMR_sum = 0
-            let Reliability_sum = 0
-            let count = 0
-            for ([cycle, message] of Object.entries(v)) {
-                xData[cycle] = 1
-                count += 1
-                LDT_arr[type].push(message.LDT)
-                RMR_arr[type].push(message.RMR)
-                Reliability_arr[type].push(message.Reliability.toFixed(2))
 
-                LDT_sum += message.LDT
-                RMR_sum += message.RMR
-                Reliability_sum += message.Reliability
+            if (dataArr[type]) {
+                let LDT_sum = 0
+                let RMR_sum = 0
+                let Reliability_sum = 0
+                let count = 0
+                for ([cycle, message] of Object.entries(dataArr[type])) {
+                    xData[cycle] = 1
+                    count += 1
+                    LDT_arr[type].push(message.LDT)
+                    RMR_arr[type].push(message.RMR)
+                    Reliability_arr[type].push(message.Reliability.toFixed(2))
 
+                    LDT_sum += message.LDT
+                    RMR_sum += message.RMR
+                    Reliability_sum += message.Reliability
+                }
+                LDT_avg[type] = (LDT_sum / count).toFixed(0)
+                RMR_avg[type] = (RMR_sum / count).toFixed(0)
+                Reliability_avg[type] = (Reliability_sum / count).toFixed(2)
+            } else {
+                LDT_avg[type] = 0
+                RMR_avg[type] = 0
+                Reliability_avg[type] = 0
             }
-            LDT_avg[type] = count > 0 ? (LDT_sum / count).toFixed(0) : 0
-            RMR_avg[type] = count > 0 ? (RMR_sum / count).toFixed(0) : 0
-            Reliability_avg[type] = count > 0 ? (Reliability_sum / count).toFixed(2) : 0
         }
     }
 
@@ -121,7 +128,7 @@
                     fontWeight: 'bold'
                 }
             }, {
-                subtext: 'Snow-Standard Avg: ' + (avgData[8] ? avgData[8] : 0),
+                subtext: 'Snow-Standard Avg: ' + avgData[types[0]],
                 left: '0%',
                 bottom: '0%',
                 subtextStyle: {
@@ -130,7 +137,7 @@
                     fontWeight: 'bold'
                 }
             }, {
-                subtext: 'Coloring Avg: ' + (avgData[7] ? avgData[7] : 0),
+                subtext: 'Coloring Avg: ' + avgData[types[1]],
                 left: '30%',
                 bottom: '0%',
                 subtextStyle: {
@@ -139,7 +146,7 @@
                     fontWeight: 'bold'
                 }
             }, {
-                subtext: 'Gossip Avg: ' + (avgData[11] ? avgData[11] : 0),
+                subtext: 'Gossip Avg: ' + avgData[types[2]],
                 left: '53%',
                 bottom: '0%',
                 subtextStyle: {
@@ -148,7 +155,7 @@
                     fontWeight: 'bold'
                 }
             }, {
-                subtext: 'Plumtree Avg: ' + (avgData[12] ? avgData[12] : 0),
+                subtext: 'Plumtree Avg: ' + avgData[types[3]],
                 left: '75%',
                 bottom: '0%',
                 subtextStyle: {
@@ -226,6 +233,28 @@
         request.onreadystatechange = function () {
             if (request.readyState === 4 && request.status == 200) {
                 console.log("clean over")
+            }
+        }
+        request.send()
+    }
+
+    function exportDataset() {
+        let request = new XMLHttpRequest()
+        request.open("GET", "/exportDataset")
+        request.onreadystatechange = function () {
+            if (request.readyState === 4 && request.status == 200) {
+                console.log("export over")
+            }
+        }
+        request.send()
+    }
+
+    function loadDataset() {
+        let request = new XMLHttpRequest()
+        request.open("GET", "/loadDataset")
+        request.onreadystatechange = function () {
+            if (request.readyState === 4 && request.status == 200) {
+                console.log("load over")
             }
         }
         request.send()
