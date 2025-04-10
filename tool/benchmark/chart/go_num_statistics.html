@@ -2,17 +2,18 @@
 <html>
 
 <head>
-    <script src="./echarts.js"></script>
+    <script src="./chart/echarts.js"></script>
 </head>
 <style type="text/css">
     .chart {
-        width: 33%;
+        min-width: 33%;
         height: 550px;
         justify-content: space-around;
     }
 </style>
 
 <body>
+    <div style="display: none;">{{range .}}<span class="title">{{.}}</span></iframe>{{end}}</div>
     <div>
         <span>fanout:
             <select id="fanout" style="width: 100px;margin: 10px;">
@@ -41,37 +42,45 @@
     let xData = {}
     let chartDom = {}
     let types = []
+    for (title of document.getElementsByClassName("title")) {
+        types.push(title.innerText)
+    }
 
     function clearData() {
         LDT_avg = {}
         RMR_avg = {}
         Reliability_avg = {}
         xData = {}
-        types = []
     }
 
     function dealData(num, dataArr) {
-        types = Object.keys(dataArr)
+        xData[num] = 1
         for (type of types) {
             if (!LDT_avg[type]) LDT_avg[type] = []
             if (!RMR_avg[type]) RMR_avg[type] = []
             if (!Reliability_avg[type]) Reliability_avg[type] = []
-        }
-        xData[num] = 1
-        for ([type, v] of Object.entries(dataArr)) {
-            let n = 0
-            let LDT_sum = 0
-            let RMR_sum = 0
-            let Reliability_sum = 0
-            for ([cycle, m] of Object.entries(v)) {
-                n++
-                LDT_sum += m.LDT
-                RMR_sum += m.RMR
-                Reliability_sum += m.Reliability
+
+            if (dataArr[type]) {
+                let n = 0
+                let LDT_sum = 0
+                let RMR_sum = 0
+                let Reliability_sum = 0
+                for ([cycle, message] of Object.entries(dataArr[type])) {
+                    n++
+                    LDT_sum += message.LDT
+                    RMR_sum += message.RMR
+                    Reliability_sum += message.Reliability
+                }
+                if (n > 0) {
+                    LDT_avg[type].push((LDT_sum / n).toFixed(0))
+                    RMR_avg[type].push((RMR_sum / n).toFixed(0))
+                    Reliability_avg[type].push((Reliability_sum / n).toFixed(2))
+                } else {
+                    LDT_avg[type].push(0)
+                    RMR_avg[type].push(0)
+                    Reliability_avg[type].push(0)
+                }
             }
-            LDT_avg[type].push(n > 0 ? (LDT_sum / n).toFixed(0) : 0)
-            RMR_avg[type].push(n > 0 ? (RMR_sum / n).toFixed(0) : 0)
-            Reliability_avg[type].push(n > 0 ? (Reliability_sum / n).toFixed(2) : 0)
         }
     }
 
@@ -127,22 +136,22 @@
                 {
                     name: 'Snow-Standard',
                     type: 'line',
-                    data: dataArr[8]
+                    data: dataArr[types[0]]
                 },
                 {
                     name: 'Coloring',
                     type: 'line',
-                    data: dataArr[7]
+                    data: dataArr[types[1]]
                 },
                 {
                     name: 'Gossip',
                     type: 'line',
-                    data: dataArr[11]
+                    data: dataArr[types[2]]
                 },
                 {
                     name: 'Plumtree',
                     type: 'line',
-                    data: dataArr[12]
+                    data: dataArr[types[3]]
                 },
             ]
         };
