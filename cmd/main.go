@@ -35,7 +35,7 @@ func main() {
 	go func() {
 		for i := 0; i < 50000000000000; i++ {
 			time.Sleep(1 * time.Second)
-			serverList[0].RegularMessage([]byte("hello from server!"), 0)
+			serverList[0].ReliableMessage([]byte("hello from server!"), 0, nil)
 
 			//time.Sleep(2 * time.Second)
 		}
