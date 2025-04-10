@@ -43,7 +43,7 @@ func putRing(w http.ResponseWriter, r *http.Request) {
 	message := Message{}
 	err := decoder.Decode(&message, r.URL.Query())
 	if err != nil {
-		log.Errorf(err)
+		log.Error(err)
 		return
 	}
 	//fmt.Println(message)
