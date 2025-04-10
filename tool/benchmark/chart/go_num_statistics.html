@@ -116,7 +116,7 @@
                 }
             },
             legend: {
-                data: ['Coloring', 'Snow-Standard', 'Gossip', 'Plumtree'],
+                data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
                 textStyle: {
                     fontSize: '16px',
                     fontWeight: 'bold'
@@ -125,24 +125,24 @@
             },
             series: [
                 {
-                    name: 'Coloring',
-                    type: 'line',
-                    data: dataArr[types[0]]
-                },
-                {
                     name: 'Snow-Standard',
                     type: 'line',
-                    data: dataArr[types[1]]
+                    data: dataArr[8]
+                },
+                {
+                    name: 'Coloring',
+                    type: 'line',
+                    data: dataArr[7]
                 },
                 {
                     name: 'Gossip',
                     type: 'line',
-                    data: dataArr[types[2]]
+                    data: dataArr[11]
                 },
                 {
                     name: 'Plumtree',
                     type: 'line',
-                    data: dataArr[types[3]]
+                    data: dataArr[12]
                 },
             ]
         };
@@ -156,7 +156,7 @@
             let param = "?Fanout=" + fanout + "&Num=" + num
             let url = "/getCycleStatistics" + param
             let request = new XMLHttpRequest()
-            request.open("GET", url, true)
+            request.open("GET", url, false)
             request.onreadystatechange = function () {
                 if (request.readyState === 4) {
                     if (request.status == 200) {
