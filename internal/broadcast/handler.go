@@ -173,13 +173,16 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 	case ColoringMsg:
 		body := tool.CutBytes(msg)
 		first := IsFirst(body, msgType, msgAction, s)
+		if first {
+			if msgAction == ReportLeave {
+				s.Member.RemoveMember(tool.CutTimestamp(body), false)
+			}
+		}
 		forward(msg, s, parentIP)
 		if !first {
 			return
 		}
-		if msgAction == ReportLeave {
-			s.Member.RemoveMember(tool.CutTimestamp(body), false)
-		}
+
 	case ReliableMsg:
 		body := tool.CutBytes(msg)
 		if !IsFirst(body, msgType, msgAction, s) {
@@ -221,7 +224,7 @@ func (s *Server) sendAckResponse(conn net.Conn, ackResp AckResp) {
 	// 编码 ACK 响应
 	out, err := tool.Encode(AckRespMsg, PingAction, &ackResp, false)
 	if err != nil {
-		log.Error("[ERROR] Failed to encode AckResp: %v", err)
+		log.Errorf("[ERROR] Failed to encode AckResp: %v", err)
 		return
 	}
 
@@ -245,7 +248,7 @@ func (s *Server) sendAckResponse(conn net.Conn, ackResp AckResp) {
 	}
 
 	if err != nil {
-		log.Error("[ERROR] Error sending ACK response: %v", err)
+		log.Errorf("[ERROR] Error sending ACK response: %v", err)
 	} else {
 		log.Debugf("[DEBUG] Sent ACK response (seq=%d) to %s",
 			ackResp.SeqNo, conn.RemoteAddr().String())

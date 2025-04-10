@@ -216,7 +216,6 @@ func getCycleTypeStatistics(message Message) map[byte]map[string]*MessageCycle {
 		}
 		cycleTypeMap[msgType] = cycleMap
 	}
-
 	for b, m := range cycleTypeMap {
 		if b == Graft || b == LazyPush {
 			for s := range m {

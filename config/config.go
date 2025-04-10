@@ -92,7 +92,7 @@ func (c *Config) GetLocalAddr() []byte {
 	ipBytes := net.ParseIP(ip).To4()
 	if ipBytes == nil {
 		// 处理无效的 IP 地址格式
-		log.Error("Invalid IP address format: %s", ip)
+		log.Errorf("Invalid IP address format: %s", ip)
 	}
 	portBytes := make([]byte, 2)
 	binary.BigEndian.PutUint16(portBytes, uint16(port))

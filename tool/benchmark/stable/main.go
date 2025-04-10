@@ -15,7 +15,7 @@ import (
 
 func main() {
 	////测试轮数
-	rounds := 100
+	rounds := 200
 	//benchmark(600, 6, rounds)
 	//benchmark(600, 8, rounds)
 	//benchmark(600, 4, rounds)

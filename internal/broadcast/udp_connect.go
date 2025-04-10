@@ -156,7 +156,7 @@ func (s *UDPServer) sendUDPReply(addr *net.UDPAddr, msg []byte) {
 	packet := append(header, replyBody...)
 	_, err := s.conn.WriteToUDP(packet, addr)
 	if err != nil {
-		log.Error("[UDPServer] Error sending to %s: %v", addr.String(), err)
+		log.Errorf("[UDPServer] Error sending to %s: %v", addr.String(), err)
 		return
 	}
 	log.Debugf("[UDPServer] Sent ACK to %s", addr.String())
@@ -182,7 +182,7 @@ func (s *UDPServer) sendPacket(d *UDPSendData) {
 	packet = append(packet, d.Msg...)
 	_, err := s.conn.WriteToUDP(packet, d.RemoteAddr)
 	if err != nil {
-		log.Error("[UDPServer] Error sending to %s: %v", d.RemoteAddr.String(), err)
+		log.Errorf("[UDPServer] Error sending to %s: %v", d.RemoteAddr.String(), err)
 		return
 	}
 }
@@ -191,7 +191,7 @@ func (s *UDPServer) sendPacket(d *UDPSendData) {
 func (s *UDPServer) UDPSendMessage(remote string, payload, msg []byte) error {
 	rAddr, err := net.ResolveUDPAddr("udp", remote)
 	if err != nil {
-		log.Error("[UDPServer] Cannot resolve addr %s: %v", remote, err)
+		log.Errorf("[UDPServer] Cannot resolve addr %s: %v", remote, err)
 		return fmt.Errorf("failed to resolve address %s: %v", remote, err)
 	}
 
@@ -214,6 +214,6 @@ func (s *UDPServer) Close() {
 	log.Infof("[UDPServer] Closing...")
 	close(s.stopCh)
 	if err := s.conn.Close(); err != nil {
-		log.Error("Error closing UDP connection: %v", err)
+		log.Errorf("Error closing UDP connection: %v", err)
 	}
 }
