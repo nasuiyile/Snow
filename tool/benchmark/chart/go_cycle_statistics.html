@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <script src="./echarts.js"></script>
+    <script src="./chart/echarts.js"></script>
     <style type="text/css">
         .chart {
             width: 33%;
@@ -17,6 +17,7 @@
 </head>
 
 <body>
+    <div style="display: none;">{{range .}}<span class="title">{{.}}</span></iframe>{{end}}</div>
     <div>
         <span>n:
             <select id="num" style="width: 100px;margin: 10px;">
@@ -50,6 +51,11 @@
 </html>
 
 <script type="text/javascript">
+    let titleArr = document.getElementsByClassName("title")
+    for (title of titleArr) {
+        console.log(title.innerText)
+    }
+
     let LDT_arr = {}
     let RMR_arr = {}
     let Reliability_arr = {}
