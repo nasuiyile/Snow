@@ -43,7 +43,7 @@ func putRing(w http.ResponseWriter, r *http.Request) {
 	message := Message{}
 	err := decoder.Decode(&message, r.URL.Query())
 	if err != nil {
-		log.Error(err)
+		log.Errorf(err)
 		return
 	}
 	//fmt.Println(message)
@@ -215,7 +215,6 @@ func getCycleTypeStatistics(message Message) map[byte]map[string]*MessageCycle {
 		}
 		cycleTypeMap[msgType] = cycleMap
 	}
-
 	for b, m := range cycleTypeMap {
 		if b == Graft || b == LazyPush {
 			for s := range m {

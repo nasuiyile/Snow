@@ -175,7 +175,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 		if metaData == nil {
 			conn, err = s.ConnectToPeer(ip)
 			if err != nil {
-				log.Error(s.Config.ServerAddress, "can't connect to ", ip)
+				log.Errorf(s.Config.ServerAddress, "can't connect to ", ip)
 				s.EagerPush.Remove(ip)
 				s.ReportLeave(tool.IPv4To6Bytes(ip))
 				log.Error(err)
@@ -188,7 +188,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 			//先建立一次链接进行尝试
 			newConn, err := s.ConnectToPeer(ip)
 			if err != nil {
-				log.Error(s.Config.ServerAddress, "can't connect to ", ip)
+				log.Errorf(s.Config.ServerAddress, "can't connect to ", ip)
 				s.EagerPush.Remove(ip)
 				s.ReportLeave(tool.IPv4To6Bytes(ip))
 				return
