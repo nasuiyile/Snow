@@ -9,6 +9,7 @@ import (
 )
 
 type MetaData struct {
+	tool.ReentrantLock
 	client     net.Conn
 	server     net.Conn
 	State      NodeState
@@ -134,6 +135,7 @@ func NewEmptyMetaData() *MetaData {
 		Version:    0,
 		UpdateTime: time.Now().Unix(),
 		client:     nil,
+		server:     nil,
 		State:      NodePrepare,
 	}
 }
@@ -184,9 +186,13 @@ func (m *MemberShipList) RemoveMember(ip []byte, close bool) {
 	//m.IPTable = tool.DeleteAtIndexes(m.IPTable, idx)
 	m.IPTable = append(m.IPTable[:idx], m.IPTable[idx+1:]...)
 }
-func (m *MemberShipList) GetMember(key string) *MetaData {
+func (m *MemberShipList) GetOrPutMember(key string) *MetaData {
 	m.Lock()
 	defer m.Unlock()
+	//缩小锁的范围
+	if m.MetaData[key] == nil {
+		m.MetaData[key] = NewEmptyMetaData()
+	}
 	return m.MetaData[key]
 }
 func (m *MemberShipList) PutMemberIfNil(key string, value *MetaData) {

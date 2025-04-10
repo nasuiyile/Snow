@@ -153,7 +153,7 @@ func (s *Server) PlumTreeMessage(msg []byte) {
 	if !s.isInitialized.Load() {
 		s.eagerLock.Lock()
 		//如果树还没初始化过就先进行初始化，初始化的f个节点直接使用扇出来做
-		nodes := s.Server.KRandomNodes(s.Server.Config.FanOut)
+		nodes := s.Server.KRandomNodes(s.Server.Config.FanOut, nil)
 		s.EagerPush = tool.NewSafeSetFromSlice(nodes)
 		s.isInitialized.Store(true)
 		s.eagerLock.Unlock()
@@ -169,7 +169,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 		return
 	}
 	go func() {
-		metaData := s.Member.GetMember(ip)
+		metaData := s.Member.GetOrPutMember(ip)
 		var conn net.Conn
 		var err error
 		if metaData == nil {

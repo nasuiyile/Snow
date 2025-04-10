@@ -14,6 +14,8 @@ import (
 )
 
 func main() {
+	tool.DebugLog()
+
 	////测试轮数
 	rounds := 200
 	//benchmark(600, 6, rounds)
