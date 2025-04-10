@@ -313,13 +313,23 @@ func loadDataset(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func goChart(w http.ResponseWriter, r *http.Request) {
+func goChart1(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles(fmt.Sprintf("%s%s", chartPath, "go_cycle_statistics.html"))
+	if err != nil {
+		fmt.Println("go chart, err:", err)
+		return
+	}
+	info := []byte{RegularMsg, ColoringMsg, GossipMsg, EagerPush}
+	tmpl.Execute(w, info)
+}
+
+func goChart2(w http.ResponseWriter, r *http.Request) {
 	tmpl, err := template.ParseFiles(fmt.Sprintf("%s%s", chartPath, "go_chart.html"))
 	if err != nil {
 		fmt.Println("go chart, err:", err)
 		return
 	}
-	info := []string{"./chart/go_cycle_statistics.html", "./chart/go_num_statistics.html", "./chart/go_fanout_statistics.html"}
+	info := []byte{RegularMsg, ColoringMsg, GossipMsg, EagerPush}
 	tmpl.Execute(w, info)
 }
 
@@ -344,7 +354,8 @@ func CreateWeb() {
 	http.HandleFunc("/lack", lack)
 	http.HandleFunc("/exportDataset", exportDataset)
 	http.HandleFunc("/loadDataset", loadDataset)
-	http.HandleFunc("/goChart", goChart)
+	http.HandleFunc("/goChart", goChart1)
+	http.HandleFunc("/goChart2", goChart2)
 	http.HandleFunc("/", index)
 
 	fs := http.FileServer(http.Dir(chartPath))
