@@ -113,7 +113,7 @@ func (s *Server) startAcceptingConnections() {
 				log.Infof("Listener closed, stopping connection acceptance.")
 				return
 			}
-			log.Error("Error accepting connection:", err)
+			log.Errorf("Error accepting connection:", err)
 			continue
 		}
 		//log.Printf("get connect from %s", conn.RemoteAddr().String())
@@ -206,43 +206,45 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 	if s.IsClosed {
 		return
 	}
-	metaData := s.Member.GetMember(ip)
-	var conn net.Conn
-	var err error
-	if metaData == nil {
-		conn, err = s.ConnectToPeer(ip)
-		if err != nil {
-			log.Error(s.Config.ServerAddress, "can't connect to ", ip)
-			s.ReportLeave(tool.IPv4To6Bytes(ip))
-			log.Error(err)
-			return
-		}
-	} else {
-		conn = metaData.GetClient()
-	}
-	if conn == nil {
-		//先建立一次链接进行尝试
-		newConn, err := s.ConnectToPeer(ip)
-		if err != nil {
-			log.Error(s.Config.ServerAddress, "can't connect to ", ip)
-			s.ReportLeave(tool.IPv4To6Bytes(ip))
-			return
+	go func() {
+		metaData := s.Member.GetMember(ip)
+		var conn net.Conn
+		var err error
+		if metaData == nil {
+			conn, err = s.ConnectToPeer(ip)
+			if err != nil {
+				log.Errorf(s.Config.ServerAddress, "can't connect to ", ip)
+				s.ReportLeave(tool.IPv4To6Bytes(ip))
+				log.Error(err)
+				return
+			}
 		} else {
-			conn = newConn
+			conn = metaData.GetClient()
 		}
-	}
-	// 创建消息头，存储消息长度 (4字节大端序)
-	length := uint32(len(payload) + len(msg))
+		if conn == nil {
+			//先建立一次链接进行尝试
+			newConn, err := s.ConnectToPeer(ip)
+			if err != nil {
+				log.Errorf(s.Config.ServerAddress, "can't connect to ", ip)
+				s.ReportLeave(tool.IPv4To6Bytes(ip))
+				return
+			} else {
+				conn = newConn
+			}
+		}
+		// 创建消息头，存储消息长度 (4字节大端序)
+		length := uint32(len(payload) + len(msg))
 
-	header := make([]byte, 4)
-	binary.BigEndian.PutUint32(header, length)
-	data := &SendData{
-		Conn:    conn,
-		Header:  header,
-		Payload: payload,
-		Msg:     msg,
-	}
-	s.SendChan <- data
+		header := make([]byte, 4)
+		binary.BigEndian.PutUint32(header, length)
+		data := &SendData{
+			Conn:    conn,
+			Header:  header,
+			Payload: payload,
+			Msg:     msg,
+		}
+		s.SendChan <- data
+	}()
 
 }
 
@@ -252,7 +254,7 @@ func (s *Server) replayMessage(conn net.Conn, msg []byte) {
 	length := uint32(len(msg))
 	header := make([]byte, 4)
 	binary.BigEndian.PutUint32(header, length)
-	log.Error(conn.RemoteAddr().String())
+	log.Errorf(conn.RemoteAddr().String())
 	data := &SendData{
 		Conn:    conn,
 		Header:  header,
@@ -303,20 +305,20 @@ func (s *Server) Sender() {
 			}
 			_, err = data.Conn.Write(data.Header)
 			if err != nil {
-				log.Error("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
+				log.Errorf("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
 				s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
 				return
 			}
 			_, err = data.Conn.Write(data.Payload)
 			if err != nil {
 				s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
-				log.Error("Error sending payload to %v: %v", data.Conn.RemoteAddr(), err)
+				log.Errorf("Error sending payload to %v: %v", data.Conn.RemoteAddr(), err)
 				return
 			}
 			_, err = data.Conn.Write(data.Msg)
 			if err != nil {
 				s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
-				log.Error("Error sending message to %v: %v", data.Conn.RemoteAddr(), err)
+				log.Errorf("Error sending message to %v: %v", data.Conn.RemoteAddr(), err)
 				return
 			}
 		}()

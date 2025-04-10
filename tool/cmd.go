@@ -21,11 +21,16 @@ func CheckPortInUse(port int) bool {
 
 func DisablePort(port int) error {
 	portStr := strconv.Itoa(port)
-	cmdStr := "sudo iptables -A INPUT  -p tcp --dport {port} -j DROP &&" +
-		"sudo iptables -A OUTPUT -p tcp --dport {port} -j DROP && " +
-		"sudo iptables -A INPUT -p tcp --sport {port} -j DROP && " +
-		"sudo iptables -A OUTPUT -p tcp --sport {port} -j DROP"
-
+	cmdStr := ` 
+		sudo iptables -A INPUT  -p tcp --dport {port} -j DROP &&
+		sudo iptables -A OUTPUT -p tcp --dport {port} -j DROP &&
+		sudo iptables -A INPUT  -p tcp --sport {port} -j DROP &&
+		sudo iptables -A OUTPUT -p tcp --sport {port} -j DROP &&
+		sudo iptables -A INPUT  -p udp --dport {port} -j DROP &&
+		sudo iptables -A OUTPUT -p udp --dport {port} -j DROP &&
+		sudo iptables -A INPUT  -p udp --sport {port} -j DROP &&
+		sudo iptables -A OUTPUT -p udp --sport {port} -j DROP
+	`
 	cmd := strings.Replace(cmdStr, "{port}", portStr, -1)
 	// 执行命令
 	out, err := exec.Command("bash", "-c", cmd).Output()
