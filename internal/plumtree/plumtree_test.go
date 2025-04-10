@@ -3,148 +3,113 @@ package plumtree
 import (
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"net/http"
-	"snow/common"
-	"snow/config"
-	"snow/internal/broadcast"
-	"snow/tool"
-	"strconv"
-	"strings"
-	"sync"
+	"net/url"
 	"testing"
 	"time"
 )
 
-var lock sync.Mutex
-var serverMap map[int]*Server
-var portMap map[int]int
+type PlumServer struct {
+	member  map[string]int
+	message map[string]int
+}
 
-func TestPlumServer(t *testing.T) {
-	serverMap = make(map[int]*Server)
-	portMap = make(map[int]int)
+var pServerMap map[string]PlumServer
 
-	createServer()
-	defer closeServer()
-	startServer()
+func randomNum(count int, fanout int) []int {
+	numMap := make(map[int]int)
+	for i := range count {
+		numMap[i] = 1
+	}
+
+	res := make([]int, 0)
+	for range fanout {
+		if len(numMap) == 0 {
+			break
+		}
+		r := rand.IntN(len(numMap))
+		j := 0
+		for k, _ := range numMap {
+			if j == r {
+				res = append(res, k)
+				delete(numMap, k)
+				break
+			}
+			j++
+		}
+	}
+	return res
+}
+
+func nextNodes(host string) []string {
+	member := pServerMap[host].member
+
+	memberList := make([]string, 0)
+	for addr, _ := range member {
+		if host != addr {
+			memberList = append(memberList, addr)
+		}
+	}
+
+	tAddr := make([]string, 0)
+	for n := range randomNum(len(memberList), 3) {
+		tAddr = append(tAddr, memberList[n])
+	}
+	return tAddr
+}
+
+func plumBroadcast(host string, route *url.URL) {
+	nodes := nextNodes(host)
+	for _, node := range nodes {
+		http.Get("http://" + node + route.RequestURI())
+	}
+}
+
+func sendMessage(w http.ResponseWriter, r *http.Request) {
+	host := r.Host
+	log.Println(host, "sendMessage")
+	msg := r.URL.Query().Get("msg")
+	r.URL.RequestURI()
+	if _, exisit := pServerMap[host].message[msg]; !exisit {
+		pServerMap[host].message[msg] = 1
+		plumBroadcast(host, r.URL)
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("success"))
+}
+
+func TestServer(t *testing.T) {
+	pServerMap = make(map[string]PlumServer)
+	pMember := make(map[string]int)
+	for i := range 5 {
+		lAttr := fmt.Sprintf("localhost:%d", 40000+i)
+		pMember[lAttr] = 1
+	}
+
+	for k, _ := range pMember {
+		pServerMap[k] = PlumServer{member: pMember, message: make(map[string]int)}
+	}
+
+	http.HandleFunc("/applyLeave", applyLeave)
+	http.HandleFunc("/sendMessage", sendMessage)
+	for k, _ := range pServerMap {
+		go startServer(k)
+	}
 
 	for {
+		time.Sleep(1 * time.Second)
 		time.Sleep(1 * time.Second)
 	}
 }
 
-func closeServer() {
-	for _, v := range serverMap {
-		go func() {
-			v.Close()
-		}()
-	}
-	time.Sleep(3 * time.Second)
-}
-
-func createServer() {
-	configPath := "..\\..\\config\\config.yml"
-	n := 5
-	k := 2
-	initPort := 40000
-	serversAddresses := initAddress(n, initPort)
-	for i := range n {
-		action := createAction(i + 1)
-		f := func(config *config.Config) {
-			config.Port = initPort + i
-			config.FanOut = k
-			config.DefaultServer = serversAddresses
-		}
-		config, err := config.NewConfig(configPath, f)
-		if err != nil {
-			panic(err)
-		}
-		server, err := NewServer(config, action)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		serverMap[initPort+i] = server
-	}
-}
-
-func startServer() {
-	http.HandleFunc("/applyLeave", applyLeave)
-	http.HandleFunc("/plumBroadcast", plumBroadcast)
-
-	for k, _ := range serverMap {
-		go func() {
-			lock.Lock()
-			port := k + 100
-			portMap[port] = k
-			lock.Unlock()
-
-			addr := fmt.Sprintf("localhost:%d", port)
-			log.Println("http start " + addr)
-			if err := http.ListenAndServe(addr, nil); err != nil {
-				log.Printf("Error starting server: %s\n", err)
-			}
-		}()
+func startServer(lAttr string) {
+	log.Println("http start ", lAttr)
+	if err := http.ListenAndServe(lAttr, nil); err != nil {
+		log.Printf("Error starting server: %s\n", err)
 	}
 }
 
 func applyLeave(w http.ResponseWriter, r *http.Request) {
-	port := r.URL.Port()
-	p, err := strconv.Atoi(port)
-	if err != nil {
-		log.Println("applyLeave err", err)
-	}
-	server := serverMap[p]
-	server.ApplyLeave()
-}
 
-func plumBroadcast(w http.ResponseWriter, r *http.Request) {
-	host := r.Host
-	log.Println(host, "plumBroadcast")
-
-	port, err := strconv.Atoi(strings.Split(host, ":")[1])
-	if err != nil {
-		log.Println("Atoi err", err)
-	}
-
-	msg := "hello world"
-	server := serverMap[portMap[port]]
-	server.PlumTreeBroadcast([]byte(msg), common.UserMsg)
-}
-
-// 编号从0开始
-func createAction(num int) broadcast.Action {
-	syncAction := func(bytes []byte) bool {
-		//随机睡眠时间，百分之5的节点是掉队者节点
-		if num%20 == 0 {
-			time.Sleep(1 * time.Second)
-		} else {
-			randInt := tool.RandInt(10, 200)
-			time.Sleep(time.Duration(randInt) * time.Millisecond)
-		}
-
-		return true
-	}
-	asyncAction := func(bytes []byte) {
-		//s := string(bytes)
-		//fmt.Println("这里是异步处理消息的逻辑：", s)
-	}
-	reliableCallback := func(isConverged bool) {
-		fmt.Println("这里是：可靠消息回调------------------------------", isConverged)
-	}
-	action := broadcast.Action{
-		SyncAction:       &syncAction,
-		AsyncAction:      &asyncAction,
-		ReliableCallback: &reliableCallback,
-	}
-	return action
-}
-
-func initAddress(n int, port int) []string {
-	strings := make([]string, 0)
-	for i := 0; i < n; i++ {
-		addr := fmt.Sprintf("127.0.0.1:%d", port+i)
-		strings = append(strings, addr)
-	}
-	return strings
 }
