@@ -2,7 +2,6 @@ package broadcast
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"net"
@@ -228,13 +227,6 @@ func (s *Server) sendAckResponse(conn net.Conn, ackResp AckResp) {
 		return
 	}
 
-	// 创建 4 字节 header 表示消息体长度
-	header := make([]byte, 4)
-	binary.BigEndian.PutUint32(header, uint32(len(out)))
-
-	// 合并 header 和消息体
-	packet := append(header, out...)
-
 	// 根据连接类型不同，使用不同的发送方式
 	if udpConn, ok := conn.(*udpConnWrapper); ok {
 		// UDP 连接
@@ -244,7 +236,7 @@ func (s *Server) sendAckResponse(conn net.Conn, ackResp AckResp) {
 		}
 	} else {
 		// TCP 连接
-		_, err = conn.Write(packet)
+		s.replayMessage(conn, out)
 	}
 
 	if err != nil {
