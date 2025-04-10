@@ -3,7 +3,6 @@ package broadcast
 import (
 	"bytes"
 	log "github.com/sirupsen/logrus"
-	"math/rand"
 	"net"
 	"snow/common"
 	"snow/config"
@@ -51,6 +50,7 @@ type Heartbeat struct {
 		SendMessage(ip string, payload []byte, msg []byte)
 		ConnectToPeer(addr string) (net.Conn, error)
 		ReportLeave(ip []byte)
+		KRandomNodes(k int, exclude []byte) []string
 	}
 	udpServer interface { // UDP服务器接口，用于发送UDP消息
 		UDPSendMessage(remote string, payload, msg []byte) error
@@ -69,6 +69,7 @@ func NewHeartbeat(
 		SendMessage(ip string, payload []byte, msg []byte)
 		ConnectToPeer(addr string) (net.Conn, error)
 		ReportLeave(ip []byte)
+		KRandomNodes(k int, exclude []byte) []string
 	},
 	udpServer interface {
 		UDPSendMessage(remote string, payload, msg []byte) error
@@ -293,7 +294,7 @@ func (h *Heartbeat) handleRemoteFailure(addr []byte, p Ping) {
 	log.Warnf("[WARN] heartbeat: No ack received from %s, initiating indirect probes\n", targetAddr)
 
 	// 间接探测：选择 3 个随机节点，发送间接 pinglog.debug
-	peers := h.selectKRandomNodes(h.config.IndirectChecks, addr)
+	peers := h.server.KRandomNodes(h.config.IndirectChecks, addr)
 	indirect := Ping{
 		SeqNo: p.SeqNo,
 		Addr:  addr,
@@ -302,7 +303,7 @@ func (h *Heartbeat) handleRemoteFailure(addr []byte, p Ping) {
 
 	// 设置间接探测的通道和超时
 	indirectSuccess := make(chan struct{}, 1)
-	indirectTimeout := time.After(5 * time.Second)
+	indirectTimeout := time.After(3 * time.Second)
 
 	// 注册间接 ACK 处理器
 	h.registerAckHandler(p.SeqNo, func(ackResp AckResp) {
@@ -316,8 +317,8 @@ func (h *Heartbeat) handleRemoteFailure(addr []byte, p Ping) {
 	// 发送间接 UDP PING
 	out, _ := tool.Encode(common.IndirectPingMsg, common.PingAction, &indirect, false)
 	for _, peer := range peers {
-		if err := h.udpServer.UDPSendMessage(tool.ByteToIPv4Port(peer), []byte{}, out); err != nil {
-			log.Errorf("[ERR] heartbeat: Failed to send indirect ping to %s: %v\n", tool.ByteToIPv4Port(peer[:]), err)
+		if err := h.udpServer.UDPSendMessage(peer, []byte{}, out); err != nil {
+			log.Errorf("[ERR] heartbeat: Failed to send indirect ping to %s: %v\n", peer, err)
 		}
 	}
 
@@ -328,7 +329,7 @@ func (h *Heartbeat) handleRemoteFailure(addr []byte, p Ping) {
 		return
 	case <-indirectTimeout:
 		// 间接探测超时，进行 TCP 后备探测
-		log.Warnf("[Warn] heartbeat: Indirect probes for %s timed out, attempting TCP fallback", targetAddr)
+		log.Infof("[Warn] heartbeat: Indirect probes for %s timed out, attempting TCP fallback", targetAddr)
 
 		// TCP 后备探测
 		tcpSuccess := make(chan bool, 1)
@@ -394,53 +395,26 @@ func (h *Heartbeat) nextSeqNo() int {
 	return h.probeIndex
 }
 
-// selectKRandomNodes 从 ipTable 中随机选择 k 个节点，排除指定的目标 addr
-func (h *Heartbeat) selectKRandomNodes(k int, exclude []byte) [][]byte {
-	h.Lock()
-	defer h.Unlock()
-	var candidates [][]byte
-	for _, a := range h.memberList.IPTable {
-		if tool.ByteToIPv4Port(a[:]) == tool.ByteToIPv4Port(exclude[:]) {
-			continue
-		}
-		candidates = append(candidates, a)
-	}
-	rand.Seed(time.Now().UnixNano())
-	rand.Shuffle(len(candidates), func(i, j int) {
-		candidates[i], candidates[j] = candidates[j], candidates[i]
-	})
-	if len(candidates) > k {
-		return candidates[:k]
-	}
-	return candidates
-}
-
 // markNodeSuspect 将节点标记为可疑
 func (h *Heartbeat) markNodeSuspect(s *Suspect) {
 	node := tool.ByteToIPv4Port(s.Addr)
-
 	h.memberList.Lock()
-	defer h.memberList.Unlock()
-
 	meta, ok := h.memberList.MetaData[node]
 	if !ok {
 		return
 	}
-
 	if meta.State != common.NodeSurvival {
 		return
 	}
-
 	// 如果是本节点被怀疑，发送反驳
 	if node == h.config.ServerAddress {
 		log.Warn("[WARN] Refuting suspect message for self")
 		return
 	}
-
 	// 标记为可疑状态
 	meta.State = common.NodeSuspected
 	meta.UpdateTime = time.Now().Unix()
-
+	h.memberList.Unlock()
 	// 广播可疑消息
 	encode, _ := tool.Encode(common.SuspectMsg, common.NodeSuspected, s, false)
 	h.server.SendMessage(node, []byte{}, encode)

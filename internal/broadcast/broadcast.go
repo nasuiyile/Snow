@@ -34,7 +34,7 @@ func (s *Server) GossipMessage(msg []byte, msgAction MsgAction) {
 }
 
 func (s *Server) SendGossip(msg []byte) {
-	nodes := s.KRandomNodes(s.Config.FanOut)
+	nodes := s.KRandomNodes(s.Config.FanOut, nil)
 	for _, v := range nodes {
 		s.SendMessage(v, []byte{}, msg)
 	}
@@ -75,13 +75,20 @@ func (s *Server) ReliableMessage(message []byte, msgAction MsgAction, action *fu
 	}
 }
 
-func (s *Server) KRandomNodes(k int) []string {
+func (s *Server) KRandomNodes(k int, exclude []byte) []string {
 	s.Member.Lock()
 	defer s.Member.Unlock()
 	ip := make([]string, 0)
 	//当前节点的ID，需要被排除
 	idx := s.Member.Find(s.Config.IPBytes())
-	randomNodes := tool.KRandomNodes(0, s.Member.MemberLen()-1, []int{idx}, k)
+	var randomNodes []int
+	if exclude != nil && len(exclude) != 0 {
+		excludeIdx := s.Member.Find(exclude)
+		randomNodes = tool.KRandomNodes(0, s.Member.MemberLen()-1, []int{idx, excludeIdx}, k)
+	} else {
+		randomNodes = tool.KRandomNodes(0, s.Member.MemberLen()-1, []int{idx}, k)
+	}
+
 	for _, v := range randomNodes {
 		ip = append(ip, tool.ByteToIPv4Port(s.Member.IPTable[v]))
 	}
@@ -116,7 +123,7 @@ func (s *Server) pushTrigger(stop <-chan struct{}) {
 // with the other node.
 func (s *Server) PushState() {
 	// Get a random live node
-	nodes := s.KRandomNodes(1)
+	nodes := s.KRandomNodes(1, nil)
 	// If no nodes, bail
 	if len(nodes) == 0 {
 		return

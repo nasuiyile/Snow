@@ -161,7 +161,8 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 				log.Warn("Normal EOF: connection closed by client")
 			}
 			member := tool.IPv4To6Bytes(conn.RemoteAddr().String())
-			s.Member.RemoveMember(member, false)
+			s.ReportLeave(member)
+			//s.Member.RemoveMember(member, false)
 			return
 		}
 
@@ -184,10 +185,10 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 }
 
 func (s *Server) ConnectToPeer(addr string) (net.Conn, error) {
-	s.Member.Lock()
-	defer s.Member.Unlock()
-	member := s.Member.GetMember(addr)
-	if member != nil && member.GetClient() != nil {
+	member := s.Member.GetOrPutMember(addr)
+	member.Lock()
+	defer member.Unlock()
+	if member.GetClient() != nil {
 		return member.GetClient(), nil
 	}
 	// 赋值给 Dialer 的 LocalAddr
@@ -197,9 +198,7 @@ func (s *Server) ConnectToPeer(addr string) (net.Conn, error) {
 		return nil, err
 	}
 	//log.Debugff("%sConnected to %s\n", s.Config.ServerAddress, addr)
-	metaData := membership.NewEmptyMetaData()
-	metaData.SetClient(conn)
-	s.Member.PutMemberIfNil(addr, metaData)
+	member.SetClient(conn)
 	return conn, nil
 }
 func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
@@ -207,20 +206,9 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 		return
 	}
 	go func() {
-		metaData := s.Member.GetMember(ip)
+		metaData := s.Member.GetOrPutMember(ip)
 		var conn net.Conn
-		var err error
-		if metaData == nil {
-			conn, err = s.ConnectToPeer(ip)
-			if err != nil {
-				log.Errorf(s.Config.ServerAddress, "can't connect to ", ip)
-				s.ReportLeave(tool.IPv4To6Bytes(ip))
-				log.Error(err)
-				return
-			}
-		} else {
-			conn = metaData.GetClient()
-		}
+		conn = metaData.GetClient()
 		if conn == nil {
 			//先建立一次链接进行尝试
 			newConn, err := s.ConnectToPeer(ip)
