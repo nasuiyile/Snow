@@ -202,8 +202,9 @@ func lack(w http.ResponseWriter, r *http.Request) {
 
 func getCycleTypeStatistics(message Message) map[byte]map[string]*MessageCycle {
 	cycleTypeMap := make(map[byte]map[string]*MessageCycle)
-	msgTypes := []byte{RegularMsg, ColoringMsg, GossipMsg, EagerPush, Graft, LazyPush}
-	for _, msgType := range msgTypes {
+	// msgTypes := []byte{RegularMsg, ColoringMsg, GossipMsg, EagerPush, Graft, LazyPush}
+	// for _, msgType := range msgTypes {
+	for msgType, _ := range msgIdMap {
 		cycleMap := make(map[string]*MessageCycle)
 		for k, v := range cacheMap {
 			messageGroup := v.getMessagesByGroup(msgType, message)
