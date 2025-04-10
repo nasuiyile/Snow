@@ -82,13 +82,13 @@ func benchmark(n int, k int, rounds int) {
 			} else if mode == EagerPush {
 				serverList[0].PlumTreeBroadcast(msg, UserMsg)
 			}
-			if i == 5 {
-				dport := 26
-				port := serverList[dport].Server.Config.Port
-				tool.DisableNode(port)
-				time.Sleep(1000 * time.Millisecond)
-				//serverList[dport].Server.Close()
-			}
+			//if i == 5 {
+			//	dport := 26
+			//	port := serverList[dport].Server.Config.Port
+			//	tool.DisableNode(port)
+			//	time.Sleep(1000 * time.Millisecond)
+			//	//serverList[dport].Server.Close()
+			//}
 
 		}
 		time.Sleep(8 * time.Second)
