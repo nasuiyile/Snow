@@ -289,7 +289,7 @@ func forward(msg []byte, s *Server, parentIp string) {
 			// 叶子节点ip
 			newMsg = append(newMsg, s.Config.IPBytes()...)
 			//根节点ip
-			newMsg = append(newMsg, msg[len(msg)-IpLen:]...)
+			//newMsg = append(newMsg, msg[len(msg)-IpLen:]...)
 			s.SendMessage(parentIp, []byte{}, newMsg)
 		} else {
 			//不是发送节点的化，不需要任何回调
