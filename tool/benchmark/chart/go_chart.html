@@ -16,7 +16,10 @@
 </head>
 
 <body>
-    {{range .}}<iframe src="{{.}}"></iframe>{{end}}
+    <!-- {{range .}}<iframe src="{{.}}"></iframe>{{end}} -->
+    <iframe src="./chart/go_num_statistics.html"></iframe>
+    <iframe src="./chart/go_fanout_statistics.html"></iframe>
+
     <div style="margin-top: 20px;">
         <button class="btn" id="clean" onclick="clean()">clean</button>
         <button class="btn" id="clean" onclick="exportDataset()">export</button>
