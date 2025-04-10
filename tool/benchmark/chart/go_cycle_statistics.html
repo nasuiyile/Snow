@@ -115,7 +115,7 @@
                     fontWeight: 'bold'
                 }
             }, {
-                subtext: 'Coloring Avg: ' + avgData[types[0]],
+                subtext: 'Snow-Standard Avg: ' + (avgData[8] ? avgData[8] : 0),
                 left: '0%',
                 bottom: '0%',
                 subtextStyle: {
@@ -124,7 +124,7 @@
                     fontWeight: 'bold'
                 }
             }, {
-                subtext: 'Snow-Standard Avg: ' + avgData[types[1]],
+                subtext: 'Coloring Avg: ' + (avgData[7] ? avgData[7] : 0),
                 left: '30%',
                 bottom: '0%',
                 subtextStyle: {
@@ -133,7 +133,7 @@
                     fontWeight: 'bold'
                 }
             }, {
-                subtext: 'Gossip Avg: ' + avgData[types[2]],
+                subtext: 'Gossip Avg: ' + (avgData[11] ? avgData[11] : 0),
                 left: '53%',
                 bottom: '0%',
                 subtextStyle: {
@@ -142,7 +142,7 @@
                     fontWeight: 'bold'
                 }
             }, {
-                subtext: 'Plumtree Avg: ' + avgData[types[3]],
+                subtext: 'Plumtree Avg: ' + (avgData[12] ? avgData[12] : 0),
                 left: '75%',
                 bottom: '0%',
                 subtextStyle: {
@@ -161,7 +161,8 @@
                 axisLabel: {
                     color: 'black',
                     fontSize: '18px',
-                    fontWeight: 'bold'
+                    fontWeight: 'bold',
+                    interval: 9,
                 }
             },
             yAxis: {
@@ -180,7 +181,7 @@
                 }
             },
             legend: {
-                data: ['Coloring', 'Snow-Standard', 'Gossip', 'Plumtree'],
+                data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
                 textStyle: {
                     fontSize: '16px',
                     fontWeight: 'bold'
@@ -188,24 +189,24 @@
             },
             series: [
                 {
-                    name: 'Coloring',
-                    type: 'line',
-                    data: dataArr[types[0]]
-                },
-                {
                     name: 'Snow-Standard',
                     type: 'line',
-                    data: dataArr[types[1]]
+                    data: dataArr[8]
+                },
+                {
+                    name: 'Coloring',
+                    type: 'line',
+                    data: dataArr[7]
                 },
                 {
                     name: 'Gossip',
                     type: 'line',
-                    data: dataArr[types[2]]
+                    data: dataArr[11]
                 },
                 {
                     name: 'Plumtree',
                     type: 'line',
-                    data: dataArr[types[3]]
+                    data: dataArr[12]
                 },
             ]
         };
@@ -235,7 +236,6 @@
             if (request.readyState === 4 && request.status == 200) {
                 let response = JSON.parse(request.responseText)
                 dealData(response)
-
             }
         }
         request.send()
