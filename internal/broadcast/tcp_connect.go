@@ -3,6 +3,7 @@ package broadcast
 import (
 	"bufio"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"snow/internal/membership"
 	"snow/internal/state"
 	"snow/tool"
+	"strings"
 	"time"
 )
 
@@ -134,6 +136,7 @@ func (s *Server) startAcceptingConnections() {
 // handleConnection 处理客户端连接
 func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 	defer func() {
+		safeCloseConnection(conn)
 		addr := conn.RemoteAddr().String()
 		s.Member.Lock()
 		if !isServer {
@@ -214,11 +217,27 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 			newConn, err := s.ConnectToPeer(ip)
 			if err != nil {
 				log.Errorf(s.Config.ServerAddress, "can't connect to ", ip)
-				s.ReportLeave(tool.IPv4To6Bytes(ip))
+				// 避免递归调用导致的堆栈增长
+				if !s.IsClosed {
+					go s.ReportLeave(tool.IPv4To6Bytes(ip))
+				}
 				return
 			} else {
 				conn = newConn
 			}
+		} else if !isConnectionAlive(conn) {
+			// 连接存在但无效，尝试重新连接
+			safeCloseConnection(conn)
+
+			newConn, err := s.ConnectToPeer(ip)
+			if err != nil {
+				log.Errorf("[ERROR] %s can't reconnect to %s: %v", s.Config.ServerAddress, ip, err)
+				if !s.IsClosed {
+					go s.ReportLeave(tool.IPv4To6Bytes(ip))
+				}
+				return
+			}
+			conn = newConn
 		}
 		// 创建消息头，存储消息长度 (4字节大端序)
 		length := uint32(len(payload) + len(msg))
@@ -234,6 +253,61 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 		s.SendChan <- data
 	}()
 
+}
+
+// 检查连接是否有效
+func isConnectionAlive(conn net.Conn) bool {
+	if conn == nil {
+		return false
+	}
+
+	// 设置一个非常短的读取超时
+	err := conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+	if err != nil {
+		return false
+	}
+
+	// 尝试读取一个字节，但不期望有数据
+	one := make([]byte, 1)
+	if _, err := conn.Read(one); err != nil {
+		if err == io.EOF || strings.Contains(err.Error(), "use of closed network connection") {
+			return false // 连接已关闭
+		}
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
+			// 重置读取超时
+			_ = conn.SetReadDeadline(time.Time{})
+			return true // 超时但连接可能仍然有效
+		}
+		return false
+	}
+
+	// 重置读取超时
+	_ = conn.SetReadDeadline(time.Time{})
+	return true
+}
+
+// safeCloseConnection 安全地关闭一个TCP连接
+func safeCloseConnection(conn net.Conn) {
+	if conn == nil {
+		return
+	}
+
+	// 尝试转换为TCP连接，设置Linger为0表示立即关闭
+	if tcpConn, ok := conn.(*net.TCPConn); ok {
+		// 设置SO_LINGER选项为0，使Close()立即返回，操作系统会发送RST而不是FIN
+		err := tcpConn.SetLinger(0)
+		if err != nil {
+			return
+		}
+
+		// 关闭读写
+		_ = tcpConn.CloseRead()
+		_ = tcpConn.CloseWrite()
+	}
+
+	// 关闭连接，忽略可能的错误
+	_ = conn.Close()
 }
 
 // 这个方法只能用来回复消息
@@ -264,12 +338,14 @@ func (s *Server) Close() {
 	for _, v := range s.Member.MetaData {
 		client := v.GetClient()
 		if client != nil {
-			client.Close()
+			safeCloseConnection(client)
+			v.SetClient(nil)
 
 		}
 		server := v.GetServer()
 		if server != nil {
-			server.Close()
+			safeCloseConnection(client)
+			v.SetClient(nil)
 		}
 	}
 	if s.HeartbeatService != nil {

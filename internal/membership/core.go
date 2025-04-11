@@ -163,16 +163,24 @@ func (m *MemberShipList) RemoveMember(ip []byte, close bool) {
 		if close {
 			if data.client != nil {
 				time.AfterFunc(3*time.Second, func() {
-					tcpConn := (data.client).(*net.TCPConn)
-					tcpConn.SetLinger(0)
-					tcpConn.Close()
+					if tcpConn, ok := data.client.(*net.TCPConn); ok {
+						// 设置SO_LINGER为0，立即关闭连接并发送RST而不是FIN
+						tcpConn.SetLinger(0)
+						_ = tcpConn.CloseRead()
+						_ = tcpConn.CloseWrite()
+					}
+					_ = data.client.Close()
 				})
 			}
 			if data.server != nil {
 				time.AfterFunc(3*time.Second, func() {
-					tcpConn := (data.server).(*net.TCPConn)
-					tcpConn.SetLinger(0)
-					tcpConn.Close()
+					if tcpConn, ok := data.server.(*net.TCPConn); ok {
+						// 设置SO_LINGER为0，立即关闭连接并发送RST而不是FIN
+						tcpConn.SetLinger(0)
+						_ = tcpConn.CloseRead()
+						_ = tcpConn.CloseWrite()
+					}
+					_ = data.server.Close()
 				})
 			}
 			//扇出后还是可能短暂的发送消息
