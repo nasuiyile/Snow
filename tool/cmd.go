@@ -69,6 +69,11 @@ func ResetIPTable() error {
 	fmt.Println(string(out))
 	return err
 }
+func DisableNodes(start int, end int) {
+	for ; start < end; start++ {
+		DisableNode(start)
+	}
+}
 func ClearConntrackEntries(port int) error {
 	portStr := strconv.Itoa(port)
 	cmdStr := "sudo conntrack -D -p tcp --src 127.0.0.1 --sport " + portStr + " && " +
