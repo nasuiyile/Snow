@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
-	"os"
 	. "snow/common"
 	"snow/tool"
 	"strings"
@@ -252,64 +252,80 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 
 func exportDataset(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	cacheData := make(map[string]string)
 
 	dataSet := make(map[string][]Message)
 	for k, v := range cacheMap {
 		dataSet[k] = v.getMessages()
 	}
-
-	if _, err := os.Stat("./dataset"); os.IsNotExist(err) {
-		err := os.MkdirAll("./dataset", os.ModePerm)
-		if err != nil {
-			fmt.Printf("创建文件夹失败: %v\n", err)
-			return
-		}
-	}
-
 	data, err := json.Marshal(dataSet)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println("export dataSet", err)
+		return
 	}
-	err = os.WriteFile("./dataset/cacheMap.json", data, 0644)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	cacheData["dataSet"] = string(data)
 
 	data, err = json.Marshal(msgIdMap)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println("export Marshal", err)
+		return
 	}
-	err = os.WriteFile("./dataset/msgIdMap.json", data, 0644)
+	cacheData["msgIdMap"] = string(data)
+
+	data, err = json.Marshal(cacheData)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println("export Marshal", err)
+		return
 	}
+
+	h := w.Header()
+	h.Set("Content-type", "application/octet-stream")
+	h.Set("CharacterEncoding", "utf-8")
+	h.Set("Content-Disposition", "attachment;filename=cacheData.json")
+	w.Write(data)
 }
 
 func loadDataset(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	byteValue, err := os.ReadFile("./dataset/cacheMap.json")
+	file, _, err := r.FormFile("file")
 	if err != nil {
-		log.Fatalln(err)
+		log.Println("load FormFile", err)
+		return
 	}
-	dataSet := make(map[string][]Message)
-	err = json.Unmarshal(byteValue, &dataSet)
+
+	data, err := io.ReadAll(file)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println("load ReadAll", err)
+		return
+	}
+	cacheData := make(map[string]string)
+	err = json.Unmarshal(data, &cacheData)
+	if err != nil {
+		log.Println("load cacheData", err)
+		return
+	}
+
+	dataSetStr := cacheData["dataSet"]
+	dataSet := make(map[string][]Message)
+	err = json.Unmarshal([]byte(dataSetStr), &dataSet)
+	if err != nil {
+		log.Println("load dataSet", err)
+		return
 	}
 	for k, v := range dataSet {
 		cacheMap[k] = new(MessageCache)
 		cacheMap[k].messages = v
 	}
 
-	byteValue, err = os.ReadFile("./dataset/msgIdMap.json")
+	msgIdMapStr := cacheData["msgIdMap"]
+	err = json.Unmarshal([]byte(msgIdMapStr), &msgIdMap)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println("load msgIdMap", err)
+		return
 	}
-	err = json.Unmarshal(byteValue, &msgIdMap)
-	if err != nil {
-		log.Fatalln(err)
-	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("success"))
 }
 
 func goChart1(w http.ResponseWriter, r *http.Request) {
