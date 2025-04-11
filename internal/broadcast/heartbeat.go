@@ -18,13 +18,12 @@ type Ping struct {
 	Src   []byte // 源地址（IP+端口）
 }
 
-// AckResp 定义了更丰富的 ack 响应消息
+// AckResp 定义了ack响应消息
 type AckResp struct {
 	SeqNo     int              // 消息序列号，与请求对应
 	Timestamp int64            // 响应时间戳
 	NodeState common.NodeState // 节点当前状态
 	Source    []byte           // 响应来源节点信息
-	Payload   []byte           // 自定义负载数据
 }
 
 // ackHandler 定义了处理 ACK 的回调机制
@@ -32,13 +31,6 @@ type ackHandler struct {
 	ackFn   func(ackResp AckResp) // ACK 回调函数
 	timeOut time.Time             // 超时时间
 	timer   *time.Timer           // 超时定时器
-}
-
-// Suspect 定义了怀疑节点的信息
-type Suspect struct {
-	Incarnation int
-	Addr        []byte // 被怀疑节点的地址
-	Src         []byte // 发送怀疑信息的源地址
 }
 
 // Heartbeat 负责心跳消息的发送与探测
@@ -58,7 +50,7 @@ type Heartbeat struct {
 	probeIndex  int                 // 当前探测的索引
 	running     bool                // 服务是否在运行
 	ackHandlers map[int]*ackHandler // 序列号到对应处理程序的映射
-	stopCh      chan struct{}       // 增加 stopCh 用来停止心跳探测循环
+	stopCh      chan struct{}       // 用来停止心跳探测循环
 }
 
 // NewHeartbeat 创建心跳服务
@@ -86,7 +78,7 @@ func NewHeartbeat(
 	return h
 }
 
-// Start 启动定时探测，每秒触发一次
+// Start 启动定时探测
 func (h *Heartbeat) Start() {
 	h.Lock()
 	defer h.Unlock()
@@ -99,7 +91,7 @@ func (h *Heartbeat) Start() {
 	go h.probeLoop()
 }
 
-// Stop 停止心跳探测，退出 probeLoop
+// Stop 停止心跳探测
 func (h *Heartbeat) Stop() {
 	h.Lock()
 	defer h.Unlock()
@@ -110,7 +102,7 @@ func (h *Heartbeat) Stop() {
 	}
 }
 
-// probeLoop 心跳探测主循环（增加了 stopCh 的监听）
+// probeLoop 心跳探测主循环
 func (h *Heartbeat) probeLoop() {
 	ticker := time.NewTicker(h.config.HeartbeatInterval)
 	defer ticker.Stop()
@@ -156,6 +148,7 @@ func (h *Heartbeat) probe() {
 		}
 		h.memberList.Unlock()
 		if len(target) == 0 {
+			h.Unlock()
 			return
 		}
 		// 跳过本机
@@ -203,11 +196,10 @@ func (h *Heartbeat) probeNode(addr []byte) {
 	// 发送 UDP ping 消息
 	out, _ := tool.Encode(common.PingMsg, common.PingAction, &p, false)
 	if err := h.udpServer.UDPSendMessage(targetAddr, []byte{}, out); err != nil {
-		log.Errorf("[ERR] heartbeat: Failed to send UDP ping to %s: %v\n", tool.ByteToIPv4Port(addr[:]), err)
-		h.handleRemoteFailure(addr, p)
+		log.Errorf("[ERR] heartbeat: Failed to send UDP ping to %s: %v", targetAddr, err)
+		h.checkNodeFailure(addr, p)
 		return
 	}
-	log.Debugf("[UDPServer] Successfully sent from %s to %s", tool.ByteToIPv4Port(h.config.GetLocalAddr()), tool.ByteToIPv4Port(addr))
 
 	// 等待 ACK 响应或超时
 	select {
@@ -217,7 +209,7 @@ func (h *Heartbeat) probeNode(addr []byte) {
 	case <-time.After(h.config.HeartbeatInterval):
 		// 超时，启动故障处理流程
 		log.Warnf("[WARN] heartbeat: ACK timeout for %s (seq=%d)", targetAddr, seqNo)
-		h.handleRemoteFailure(addr, p)
+		h.checkNodeFailure(addr, p)
 	}
 }
 
@@ -262,8 +254,6 @@ func (h *Heartbeat) registerAckHandler(seqNo int, callback func(AckResp), timeou
 			delete(h.ackHandlers, seqNo)
 		}
 	})
-
-	h.ackHandlers[seqNo] = handler
 }
 
 // handleAckResponse 处理收到的 ACK 响应
@@ -288,37 +278,44 @@ func (h *Heartbeat) handleAckResponse(ackResp AckResp) {
 	delete(h.ackHandlers, ackResp.SeqNo)
 }
 
-// handleRemoteFailure 当探测失败时调用，通过回调通知上层标记该节点为 suspect
-func (h *Heartbeat) handleRemoteFailure(addr []byte, p Ping) {
+// checkNodeFailure 检查节点故障，通过额外的探测方式确认节点是否真的下线
+func (h *Heartbeat) checkNodeFailure(addr []byte, p Ping) {
 	targetAddr := tool.ByteToIPv4Port(addr)
-	log.Warnf("[WARN] heartbeat: No ack received from %s, initiating indirect probes\n", targetAddr)
+	log.Warnf("[WARN] heartbeat: No ack received from %s, initiating additional checks", targetAddr)
 
-	// 间接探测：选择 3 个随机节点，发送间接 pinglog.debug
+	// 间接探测：选择K个随机节点，让它们帮忙探测
 	peers := h.server.KRandomNodes(h.config.IndirectChecks, addr)
-	indirect := Ping{
-		SeqNo: p.SeqNo,
-		Addr:  addr,
-		Src:   h.config.GetLocalAddr(),
+	if len(peers) == 0 {
+		log.Warnf("[WARN] heartbeat: No peers available for indirect probe, marking node %s as failed", targetAddr)
+		h.reportNodeDown(addr)
+		return
 	}
 
 	// 设置间接探测的通道和超时
 	indirectSuccess := make(chan struct{}, 1)
-	indirectTimeout := time.After(3 * time.Second)
+	indirectTimeout := time.After(2 * time.Second)
 
-	// 注册间接 ACK 处理器
+	// 注册间接ACK处理
 	h.registerAckHandler(p.SeqNo, func(ackResp AckResp) {
 		log.Debugf("[DEBUG] heartbeat: Received indirect ACK for %s", targetAddr)
 		select {
 		case indirectSuccess <- struct{}{}:
 		default:
 		}
-	}, 1*time.Second)
+	}, 2*time.Second)
 
-	// 发送间接 UDP PING
+	// 发送间接探测请求 - 使用原有Ping结构体
+	indirect := Ping{
+		SeqNo: p.SeqNo,
+		Addr:  addr,
+		Src:   h.config.GetLocalAddr(),
+	}
+
 	out, _ := tool.Encode(common.IndirectPingMsg, common.PingAction, &indirect, false)
 	for _, peer := range peers {
 		if err := h.udpServer.UDPSendMessage(peer, []byte{}, out); err != nil {
-			log.Errorf("[ERR] heartbeat: Failed to send indirect ping to %s: %v\n", peer, err)
+			log.Errorf("[ERR] heartbeat: Failed to send indirect ping to %s: %v", peer, err)
+			continue
 		}
 	}
 
@@ -328,94 +325,69 @@ func (h *Heartbeat) handleRemoteFailure(addr []byte, p Ping) {
 		log.Infof("[INFO] heartbeat: Node %s confirmed alive via indirect ping", targetAddr)
 		return
 	case <-indirectTimeout:
-		// 间接探测超时，进行 TCP 后备探测
-		log.Infof("[Warn] heartbeat: Indirect probes for %s timed out, attempting TCP fallback", targetAddr)
+		// 间接探测失败，尝试TCP探测作为最后尝试
+		log.Warnf("[WARN] heartbeat: Indirect probes for %s timed out, attempting TCP fallback", targetAddr)
 
-		// TCP 后备探测
-		tcpSuccess := make(chan bool, 1)
-		go func() {
-			success := h.tcpFallbackProbe(addr, p)
-			tcpSuccess <- success
-		}()
-
-		// 等待 TCP 探测结果
-		select {
-		case success := <-tcpSuccess:
-			if success {
-				log.Warnf("[WARN] heartbeat: TCP fallback succeeded for %s", targetAddr)
-				return
-			}
-		case <-time.After(3 * time.Second):
-			// TCP 探测也失败
-			log.Infof("[INFO] heartbeat: Node %s timed out after TCP fallback", targetAddr)
+		if h.doTCPFallbackProbe(addr, p) {
+			log.Infof("[INFO] heartbeat: Node %s confirmed alive via TCP fallback", targetAddr)
+			return
 		}
 
-		// 标记节点为可疑
-		log.Infof("[INFO] heartbeat: Node %s is suspected to have failed, no acks received\n", targetAddr)
-		/*s := Suspect{
-			Incarnation: 0,
-			Addr:        addr,
-			Src:         h.config.GetLocalAddr(),
-		}
-		h.markNodeSuspect(&s)*/
-		h.server.ReportLeave(addr)
+		// 所有探测方式都失败，确认节点下线
+		log.Warnf("[WARN] heartbeat: All probes failed for %s, marking node as DOWN", targetAddr)
+		h.reportNodeDown(addr)
 	}
 }
 
-// tcpFallbackProbe 使用TCP进行后备探测
-func (h *Heartbeat) tcpFallbackProbe(addr []byte, p Ping) bool {
+// doTCPFallbackProbe 使用TCP进行后备探测
+func (h *Heartbeat) doTCPFallbackProbe(addr []byte, p Ping) bool {
 	targetAddr := tool.ByteToIPv4Port(addr)
-
-	// 设置 TCP ACK 处理
 	tcpSuccess := make(chan struct{})
+
+	// 注册TCP ACK处理
 	h.registerAckHandler(p.SeqNo, func(ackResp AckResp) {
 		log.Debugf("[DEBUG] heartbeat: Received TCP ACK from %s", targetAddr)
 		close(tcpSuccess)
 	}, 3*time.Second)
 
-	// 直接尝试发送消息，不需要重复建立连接
+	// 使用TCP发送探测消息 - 保持使用Ping结构体
 	out, _ := tool.Encode(common.PingMsg, common.PingAction, &p, false)
 	h.server.SendMessage(targetAddr, []byte{}, out)
-	log.Debugf("[DEBUG] heartbeat: Sent TCP fallback probe to %s, waiting for ACK...", targetAddr)
+	log.Debugf("[DEBUG] heartbeat: Sent TCP fallback probe to %s", targetAddr)
 
-	// 等待 TCP ACK 或超时
+	// 等待TCP ACK响应
 	select {
 	case <-tcpSuccess:
 		return true
 	case <-time.After(3 * time.Second):
+		log.Warnf("[WARN] heartbeat: TCP fallback probe timeout for %s", targetAddr)
 		return false
 	}
 }
 
-// nextSeqNo 返回下一个心跳消息的序列号（int 类型）
+// reportNodeDown 报告节点已下线
+func (h *Heartbeat) reportNodeDown(addr []byte) {
+	targetAddr := tool.ByteToIPv4Port(addr)
+
+	// 检查节点是否已经被标记为下线，避免重复广播
+	h.memberList.Lock()
+	meta, ok := h.memberList.MetaData[targetAddr]
+	if !ok || meta.State == common.NodeLeft {
+		h.memberList.Unlock()
+		log.Debugf("[DEBUG] heartbeat: Node %s already marked as left, skipping", targetAddr)
+		return
+	}
+	h.memberList.Unlock()
+
+	// 直接广播节点离开消息
+	log.Warnf("[WARN] heartbeat: Node %s failed all checks, broadcasting node leave", targetAddr)
+	h.server.ReportLeave(addr)
+}
+
+// nextSeqNo 返回下一个心跳消息的序列号
 func (h *Heartbeat) nextSeqNo() int {
 	h.Lock()
 	defer h.Unlock()
 	h.probeIndex++
 	return h.probeIndex
-}
-
-// markNodeSuspect 将节点标记为可疑
-func (h *Heartbeat) markNodeSuspect(s *Suspect) {
-	node := tool.ByteToIPv4Port(s.Addr)
-	h.memberList.Lock()
-	meta, ok := h.memberList.MetaData[node]
-	if !ok {
-		return
-	}
-	if meta.State != common.NodeSurvival {
-		return
-	}
-	// 如果是本节点被怀疑，发送反驳
-	if node == h.config.ServerAddress {
-		log.Warn("[WARN] Refuting suspect message for self")
-		return
-	}
-	// 标记为可疑状态
-	meta.State = common.NodeSuspected
-	meta.UpdateTime = time.Now().Unix()
-	h.memberList.Unlock()
-	// 广播可疑消息
-	encode, _ := tool.Encode(common.SuspectMsg, common.NodeSuspected, s, false)
-	h.server.SendMessage(node, []byte{}, encode)
 }

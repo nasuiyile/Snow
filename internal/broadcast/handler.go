@@ -2,7 +2,6 @@ package broadcast
 
 import (
 	"bytes"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"net"
 	. "snow/common"
@@ -40,7 +39,6 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			Timestamp: time.Now().UnixNano(),
 			NodeState: NodeSurvival, // 当前节点状态
 			Source:    s.Config.IPBytes(),
-			Payload:   []byte(fmt.Sprintf("ACK from %s", s.Config.ServerAddress)),
 		}
 
 		// 发送 ACK 响应
@@ -74,25 +72,8 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			Timestamp: time.Now().UnixNano(),
 			NodeState: NodeSurvival,
 			Source:    s.Config.IPBytes(),
-			Payload:   []byte(fmt.Sprintf("Indirect ping request received for %s", targetAddr)),
 		}
 		s.sendAckResponse(conn, ackResp)
-
-		// 向目标节点发送 PING
-		pingForTarget := Ping{
-			SeqNo: ping.SeqNo,
-			Addr:  ping.Addr,
-			Src:   ping.Src, // 原始发送者
-		}
-
-		pingMsg, _ := tool.Encode(PingMsg, PingAction, &pingForTarget, false)
-
-		// 根据连接类型选择发送方式
-		if s.udpServer != nil {
-			s.udpServer.UDPSendMessage(targetAddr, []byte{}, pingMsg)
-		} else {
-			s.SendMessage(targetAddr, []byte{}, pingMsg)
-		}
 
 		log.Debugf("[DEBUG] Forwarded ping to %s on behalf of %s", targetAddr, sourceAddr)
 
@@ -120,48 +101,6 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		if s.HeartbeatService != nil {
 			s.HeartbeatService.handleAckResponse(ackResp)
 		}
-
-	case SuspectMsg:
-		// 处理怀疑节点消息
-		var suspect Suspect
-		if err := tool.DecodeMsgPayload(msg, &suspect); err != nil {
-			log.Debugf("[DEBUG] Failed to decode suspect message: %v", err)
-			return
-		}
-
-		suspectAddr := tool.ByteToIPv4Port(suspect.Addr)
-		sourceAddr := tool.ByteToIPv4Port(suspect.Src)
-		log.Debugf("[DEBUG] Received SUSPECT message for %s from %s",
-			suspectAddr, sourceAddr)
-
-		// 如果是针对本节点的怀疑消息，发送反驳
-		if suspectAddr == s.Config.ServerAddress {
-			log.Warn("[WARN] Received suspect message for self, sending refutation")
-			ackResp := AckResp{
-				SeqNo:     0, // 不需要对应序列号
-				Timestamp: time.Now().UnixNano(),
-				NodeState: NodeSurvival,
-				Source:    s.Config.IPBytes(),
-				Payload:   []byte("REFUTE_SUSPECT"),
-			}
-
-			refuteMsg, _ := tool.Encode(AckRespMsg, PingAction, &ackResp, false)
-			s.SendMessage(sourceAddr, []byte{}, refuteMsg)
-			return
-		}
-
-		// 更新节点状态为可疑
-		s.Member.Lock()
-		meta, ok := s.Member.MetaData[suspectAddr]
-		if ok && meta.State == NodeSurvival {
-			meta.State = NodeSuspected
-			meta.UpdateTime = time.Now().Unix()
-
-			// 广播可疑状态
-			encode, _ := tool.Encode(SuspectMsg, SuspectMsg, &suspect, false)
-			s.ColoringMessage(encode, SuspectMsg)
-		}
-		s.Member.Unlock()
 
 	case RegularMsg:
 		body := tool.CutBytes(msg)
@@ -236,7 +175,8 @@ func (s *Server) sendAckResponse(conn net.Conn, ackResp AckResp) {
 		}
 	} else {
 		// TCP 连接
-		s.replayMessage(conn, out)
+		remoteIP := conn.RemoteAddr().String()
+		s.SendMessage(remoteIP, []byte{}, out)
 	}
 
 	if err != nil {
