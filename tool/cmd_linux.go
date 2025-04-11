@@ -29,7 +29,19 @@ func DisablePort(port int) error {
 		sudo iptables -A INPUT  -p udp --dport {port} -j DROP &&
 		sudo iptables -A OUTPUT -p udp --dport {port} -j DROP &&
 		sudo iptables -A INPUT  -p udp --sport {port} -j DROP &&
-		sudo iptables -A OUTPUT -p udp --sport {port} -j DROP
+		sudo iptables -A OUTPUT -p udp --sport {port} -j DROP &&
+
+		sudo iptables -A INPUT   -p tcp --sport {port} -m conntrack --ctstate ESTABLISHED -j DROP &&
+		sudo iptables -A OUTPUT  -p tcp --sport {port} -m conntrack --ctstate ESTABLISHED -j DROP &&
+
+		sudo iptables -A INPUT  -p tcp --dport {port} -m conntrack --ctstate ESTABLISHED -j DROP &&
+		sudo iptables -A OUTPUT -p tcp --dport {port} -m conntrack --ctstate ESTABLISHED -j DROP &&
+
+		sudo iptables -A INPUT   -p udp --sport {port} -m conntrack --ctstate ESTABLISHED -j DROP &&
+		sudo iptables -A OUTPUT  -p udp --sport {port} -m conntrack --ctstate ESTABLISHED -j DROP &&
+
+		sudo iptables -A INPUT  -p udp --dport {port} -m conntrack --ctstate ESTABLISHED -j DROP &&
+		sudo iptables -A OUTPUT -p udp --dport {port} -m conntrack --ctstate ESTABLISHED -j DROP
 	`
 	cmd := strings.Replace(cmdStr, "{port}", portStr, -1)
 	// 执行命令
@@ -52,12 +64,12 @@ func DisableNode(port int) {
 			panic(err)
 		}
 	}
-	if CheckPortInUse(port + common.Offset) {
-		err := DisablePort(port + common.Offset)
-		if err != nil {
-			panic(err)
-		}
+	//if CheckPortInUse(port + common.Offset) {
+	err := DisablePort(port + common.Offset)
+	if err != nil {
+		panic(err)
 	}
+	//}
 
 }
 func ResetIPTable() error {
@@ -76,8 +88,11 @@ func DisableNodes(start int, end int) {
 }
 func ClearConntrackEntries(port int) error {
 	portStr := strconv.Itoa(port)
-	cmdStr := "sudo conntrack -D -p tcp --src 127.0.0.1 --sport " + portStr + " && " +
-		"sudo conntrack -D -p tcp --dst 127.0.0.1 --dport " + portStr
+	cmdStr :=
+		"sudo conntrack -D -p tcp --src 127.0.0.1 --sport " + portStr + " && " +
+			"sudo conntrack -D -p tcp --dst 127.0.0.1 --dport " + portStr + " && " +
+			"sudo conntrack -D -p udp --dst 127.0.0.1 --dport " + portStr + " && " +
+			"sudo conntrack -D -p udp --dst 127.0.0.1 --dport " + portStr
 
 	out, err := exec.Command("bash", "-c", cmdStr).CombinedOutput()
 	if err != nil {

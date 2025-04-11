@@ -120,18 +120,18 @@ func (h *Heartbeat) probeLoop() {
 
 // probe 遍历 ipTable，选择下一个待探测的节点
 func (h *Heartbeat) probe() {
-	h.Lock()
-
 	length := h.memberList.MemberLen()
-	if length == 0 {
+	if length <= 1 {
 		h.Unlock()
 		return
 	}
-
 	numCheck := 0
 	var target []byte
 	localAddr := h.config.GetLocalAddr()
+	h.Lock()
 	for {
+		h.memberList.Lock()
+		length = h.memberList.MemberLen()
 		if numCheck >= length {
 			h.Unlock()
 			log.Debugf("[DEBUG] heartbeat: No more nodes to check")
@@ -142,14 +142,13 @@ func (h *Heartbeat) probe() {
 			numCheck++
 			continue
 		}
-		h.memberList.Lock()
-		if h.probeIndex < len(h.memberList.IPTable) {
+		if h.probeIndex < length {
 			target = h.memberList.IPTable[h.probeIndex]
 		}
 		h.memberList.Unlock()
 		if len(target) == 0 {
 			h.Unlock()
-			return
+			continue
 		}
 		// 跳过本机
 		if bytes.Equal(localAddr, target) {
@@ -322,11 +321,11 @@ func (h *Heartbeat) checkNodeFailure(addr []byte, p Ping) {
 	// 等待间接探测结果
 	select {
 	case <-indirectSuccess:
-		log.Infof("[INFO] heartbeat: Node %s confirmed alive via indirect ping", targetAddr)
+		log.Infof("[INFO]%s heartbeat: Node %s confirmed alive via indirect ping", h.config.ServerAddress, targetAddr)
 		return
 	case <-indirectTimeout:
 		// 间接探测失败，尝试TCP探测作为最后尝试
-		log.Warnf("[WARN] heartbeat: Indirect probes for %s timed out, attempting TCP fallback", targetAddr)
+		log.Warnf("[WARN] %s  heartbeat: Indirect probes for %s timed out, attempting TCP fallback", h.config.ServerAddress, targetAddr)
 
 		if h.doTCPFallbackProbe(addr, p) {
 			log.Infof("[INFO] heartbeat: Node %s confirmed alive via TCP fallback", targetAddr)
@@ -368,7 +367,6 @@ func (h *Heartbeat) doTCPFallbackProbe(addr []byte, p Ping) bool {
 // reportNodeDown 报告节点已下线
 func (h *Heartbeat) reportNodeDown(addr []byte) {
 	targetAddr := tool.ByteToIPv4Port(addr)
-
 	// 检查节点是否已经被标记为下线，避免重复广播
 	h.memberList.Lock()
 	meta, ok := h.memberList.MetaData[targetAddr]

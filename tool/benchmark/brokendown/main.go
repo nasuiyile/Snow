@@ -14,6 +14,7 @@ import (
 )
 
 func main() {
+	tool.DebugLog()
 	////测试轮数
 	rounds := 100
 	benchmark(200, 4, rounds)
@@ -23,7 +24,9 @@ func main() {
 	select {}
 }
 func benchmark(n int, k int, rounds int) {
+
 	tool.ResetIPTable()
+	time.Sleep(2 * time.Second)
 	defer tool.ResetIPTable()
 	configPath := ""
 	flag.StringVar(&configPath, "configPath", "./config/config.yml", "config file path")
@@ -82,13 +85,16 @@ func benchmark(n int, k int, rounds int) {
 			} else if mode == EagerPush {
 				serverList[0].PlumTreeBroadcast(msg, UserMsg)
 			}
-			//if i == 5 {
-			//	dport := 26
-			//	port := serverList[dport].Server.Config.Port
-			//	tool.DisableNode(port)
-			//	time.Sleep(1000 * time.Millisecond)
-			//	//serverList[dport].Server.Close()
-			//}
+			if i == 5 {
+				dport := 26
+				port := serverList[dport].Server.Config.Port
+				tool.DisableNode(port)
+				time.Sleep(1000 * time.Millisecond)
+				serverList[dport].IsClosed.Store(true)
+				serverList[dport].HeartbeatService.Stop()
+				serverList[dport].UdpServer.Close()
+				//serverList[dport].Server.Close()
+			}
 
 		}
 		time.Sleep(8 * time.Second)

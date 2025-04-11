@@ -2,6 +2,7 @@ package broadcast
 
 import (
 	"bytes"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"net"
 	. "snow/common"
@@ -16,7 +17,9 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		log.Warn("Message too short from %s\n", conn.RemoteAddr().String())
 		return
 	}
-
+	if s.IsClosed.Load() {
+		return
+	}
 	parentIP := s.Config.GetServerIp(conn.RemoteAddr().String())
 	// 假设 msg 的第 0 字节是消息类型，第 1 字节是动作类型
 	msgType := msg[0]
@@ -113,7 +116,12 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		first := IsFirst(body, msgType, msgAction, s)
 		if first {
 			if msgAction == ReportLeave {
-				s.Member.RemoveMember(tool.CutTimestamp(body), false)
+				leaveNode := tool.CutTimestamp(body)
+				if tool.ByteToIPv4Port(leaveNode) != "127.0.0.1:40026" && s.Config.ServerAddress != "127.0.0.1:40026" {
+					fmt.Println(conn.RemoteAddr().String())
+					fmt.Println(tool.ByteToIPv4Port(leaveNode))
+				}
+				s.Member.RemoveMember(leaveNode, false)
 			}
 		}
 		forward(msg, s, parentIP)
@@ -169,14 +177,14 @@ func (s *Server) sendAckResponse(conn net.Conn, ackResp AckResp) {
 	// 根据连接类型不同，使用不同的发送方式
 	if udpConn, ok := conn.(*udpConnWrapper); ok {
 		// UDP 连接
-		if s.udpServer != nil {
+		if s.UdpServer != nil {
 			remoteAddr := udpConn.remoteAddr.String()
-			err = s.udpServer.UDPSendMessage(remoteAddr, []byte{}, out)
+			err = s.UdpServer.UDPSendMessage(remoteAddr, []byte{}, out)
 		}
 	} else {
 		// TCP 连接
 		remoteIP := conn.RemoteAddr().String()
-		s.SendMessage(remoteIP, []byte{}, out)
+		s.SendMessage(s.Config.GetServerIp(remoteIP), []byte{}, out)
 	}
 
 	if err != nil {

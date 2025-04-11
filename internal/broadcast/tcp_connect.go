@@ -28,6 +28,9 @@ type SendData struct {
 
 // NewServer 创建并启动一个 TCP 服务器
 func NewServer(config *config.Config, action Action) (*Server, error) {
+	if config.Test {
+		tool.DebugLog()
+	}
 	listener, err := net.Listen("tcp", config.ServerAddress)
 	if err != nil {
 		return nil, err
@@ -49,11 +52,10 @@ func NewServer(config *config.Config, action Action) (*Server, error) {
 		},
 		Action:   action,
 		client:   dialer.Dialer(clientAddress, config.TCPTimeout),
-		IsClosed: false,
 		StopCh:   make(chan struct{}),
 		SendChan: make(chan *SendData),
 	}
-
+	server.IsClosed.Store(false)
 	server.H = server
 	server.Member.FindOrInsert(config.IPBytes())
 	for _, addr := range config.DefaultServer {
@@ -78,7 +80,7 @@ func (s *Server) StartHeartBeat() {
 	if err != nil {
 		log.Warn("[WARN] Failed to initialize UDP server: %v", err)
 	} else {
-		s.udpServer = udpServer
+		s.UdpServer = udpServer
 		udpServer.H = s
 	}
 
@@ -87,7 +89,7 @@ func (s *Server) StartHeartBeat() {
 		s.Config,
 		&s.Member,
 		s,
-		s.udpServer,
+		s.UdpServer,
 	)
 	s.HeartbeatService.Start()
 }
@@ -205,7 +207,7 @@ func (s *Server) ConnectToPeer(addr string) (net.Conn, error) {
 	return conn, nil
 }
 func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
-	if s.IsClosed {
+	if s.IsClosed.Load() {
 		return
 	}
 	go func() {
@@ -216,10 +218,10 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 			//先建立一次链接进行尝试
 			newConn, err := s.ConnectToPeer(ip)
 			if err != nil {
-				log.Errorf(s.Config.ServerAddress, "can't connect to ", ip)
+				log.Error(s.Config.ServerAddress, "can't connect to ", ip)
 				// 避免递归调用导致的堆栈增长
-				if !s.IsClosed {
-					go s.ReportLeave(tool.IPv4To6Bytes(ip))
+				if !s.IsClosed.Load() {
+					s.ReportLeave(tool.IPv4To6Bytes(ip))
 				}
 				return
 			} else {
@@ -232,8 +234,8 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 			newConn, err := s.ConnectToPeer(ip)
 			if err != nil {
 				log.Errorf("[ERROR] %s can't reconnect to %s: %v", s.Config.ServerAddress, ip, err)
-				if !s.IsClosed {
-					go s.ReportLeave(tool.IPv4To6Bytes(ip))
+				if !s.IsClosed.Load() {
+					s.ReportLeave(tool.IPv4To6Bytes(ip))
 				}
 				return
 			}
@@ -330,10 +332,10 @@ func (s *Server) replayMessage(conn net.Conn, msg []byte) {
 func (s *Server) Close() {
 	s.Member.Lock()
 	defer s.Member.Unlock()
-	if s.IsClosed == true {
+	if s.IsClosed.Load() {
 		return
 	}
-	s.IsClosed = true
+	s.IsClosed.Store(true)
 
 	for _, v := range s.Member.MetaData {
 		client := v.GetClient()
@@ -351,8 +353,8 @@ func (s *Server) Close() {
 	if s.HeartbeatService != nil {
 		s.HeartbeatService.Stop()
 	}
-	if s.udpServer != nil {
-		s.udpServer.Close()
+	if s.UdpServer != nil {
+		s.UdpServer.Close()
 	}
 	s.listener.Close()
 
