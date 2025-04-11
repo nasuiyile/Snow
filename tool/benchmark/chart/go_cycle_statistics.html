@@ -49,7 +49,8 @@
     <div style="margin-top: 20px;">
         <button class="btn" id="clean" onclick="clean()">clean</button>
         <button class="btn" id="clean" onclick="exportDataset()">export</button>
-        <button class="btn" id="clean" onclick="loadDataset()">load</button>
+        <input class="btn" id="file" type="file" name="file">
+        <button id="clean" onclick="loadDataset()">load</button>
     </div>
 </body>
 
@@ -239,25 +240,27 @@
     }
 
     function exportDataset() {
-        let request = new XMLHttpRequest()
-        request.open("GET", "/exportDataset")
-        request.onreadystatechange = function () {
-            if (request.readyState === 4 && request.status == 200) {
-                console.log("export over")
-            }
-        }
-        request.send()
+        window.location.href = "/exportDataset"
     }
 
     function loadDataset() {
+        let files = document.getElementById("file")
+        if (!files.files.length) {
+            alert("未选择文件")
+            console.log("未选择文件")
+            return
+        }
+        let formData = new FormData()
+        formData.append("file", files.files[0])
         let request = new XMLHttpRequest()
-        request.open("GET", "/loadDataset")
-        request.onreadystatechange = function () {
-            if (request.readyState === 4 && request.status == 200) {
+        request.open("POST", "/loadDataset")
+        request.onload = function () {
+            if (request.status >= 200 && request.status < 300) {
                 console.log("load over")
+                window.location.reload()
             }
         }
-        request.send()
+        request.send(formData)
     }
 
     function getData() {
