@@ -10,67 +10,165 @@ import (
 	"time"
 )
 
-type Command = byte
+type EventType = byte
 
 const (
-	Stop Command = iota
+	Stop EventType = iota
+	Start
+	Broadcast
+	Online
+	Offline
 )
 
-var pServerMap map[string]PlumServer
+type MessageType = byte
+
+const (
+	Normal MessageType = iota
+	NeighborUp
+	NeighborDown
+)
 
 type PlumServer struct {
-	host     string
-	listener net.Listener
-	member   map[string]int
-	message  map[string]int
+	host             string
+	listener         net.Listener
+	member           map[string]byte
+	message          chan []byte
+	broadcastHandler func([]string, []byte)
 }
 
 func (server *PlumServer) init(port int) {
 	server.host = fmt.Sprintf("127.0.0.1:%d", port)
-	server.member = map[string]int{}
-	server.member[server.host] = 1
+	server.member = map[string]byte{}
+	server.member[server.host] = Start
+	server.member["127.0.0.1:40000"] = Online
+	server.message = make(chan []byte, 1)
+	server.broadcastHandler = PlumtreeBroadcast
 }
 
 func (server *PlumServer) start() {
 	listener, err := net.Listen("tcp", server.host)
 	if err != nil {
-		log.Println("linten err", err)
+		log.Println(server.host, "linten err", err)
 		return
 	}
 	server.listener = listener
+
+	log.Println(server.host, "start")
+
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Println("acccept err", err)
+			log.Println(server.host, "acccept err", err)
 			break
 		}
 
-		go server.process(conn)
+		message := make(chan []byte, 1)
+		go processMessage(conn, message)
+		go server.messageHandle(message)
 	}
 }
 
 func (server *PlumServer) stop() {
 	server.listener.Close()
+	log.Println(server.host, "stop")
 }
 
-func (server *PlumServer) process(conn net.Conn) {
+func (server *PlumServer) Online() {
+	message := []byte{Broadcast, NeighborUp}
+	message = append(message, []byte(server.host)...)
+	server.Broadcast(message)
+}
+
+func (server *PlumServer) Offline() {
+	message := []byte{Broadcast, NeighborDown}
+	message = append(message, []byte(server.host)...)
+	server.Broadcast(message)
+}
+
+func (server *PlumServer) NeighborUp(message []byte) {
+	host := string(message[2:])
+	if state, e := server.member[host]; e && state == Online {
+		return
+	} else {
+		server.member[host] = Online
+		server.Broadcast(message)
+	}
+}
+
+func (server *PlumServer) NeighborDown(message []byte) {
+	host := string(message[2:])
+	if _, e := server.member[host]; !e {
+		server.member[host] = Offline
+	}
+	if server.member[host] == Offline {
+		return
+	} else {
+		server.member[host] = Offline
+		server.Broadcast(message)
+	}
+}
+
+func (server *PlumServer) Broadcast(message []byte) {
+	memberList := make([]string, 0)
+	for addr, _ := range server.member {
+		if server.host != addr {
+			memberList = append(memberList, addr)
+		}
+	}
+	server.broadcastHandler(memberList, message)
+}
+
+func processMessage(conn net.Conn, message chan []byte) {
 	defer conn.Close()
 	for {
 		reader := bufio.NewReader(conn)
-		buf := make([]byte, 128)
+		buf := make([]byte, 512)
 		n, err := reader.Read(buf[:])
 		if err != nil {
-			log.Println("read err", err)
+			log.Println(conn.LocalAddr(), "read err", err)
 			break
 		}
 		res := string(buf[:n])
-		log.Println(res)
+		log.Println(conn.LocalAddr(), "process message", conn.RemoteAddr().String(), res)
 
 		conn.Write([]byte("success"))
 
-		if buf[0] == Stop {
-			server.stop()
+		message <- []byte(res)
+		close(message)
+	}
+}
+
+func (server *PlumServer) messageHandle(message chan []byte) {
+	buf := <-message
+	switch buf[0] {
+	case Stop:
+		server.stop()
+	case Broadcast:
+		switch buf[1] {
+		case Normal:
+		case NeighborUp:
+			go server.NeighborUp(buf)
+		case NeighborDown:
+			go server.NeighborDown(buf)
+		default:
+			log.Println(string(buf))
 		}
+	case Online:
+		go server.Online()
+	case Offline:
+		go server.Offline()
+	default:
+		log.Println(string(buf))
+	}
+	if buf[0] == Stop {
+		server.stop()
+	}
+}
+
+func PlumtreeBroadcast(memberList []string, message []byte) {
+	nodes := nextNodes(memberList, 2)
+	for _, node := range nodes {
+		go sendMessage(message, node)
 	}
 }
 
@@ -99,33 +197,23 @@ func randomNum(count int, fanout int) []int {
 	return res
 }
 
-func nextNodes(host string) []string {
-	member := pServerMap[host].member
-
-	memberList := make([]string, 0)
-	for addr, _ := range member {
-		if host != addr {
-			memberList = append(memberList, addr)
-		}
-	}
-
+func nextNodes(memberList []string, num int) []string {
 	tAddr := make([]string, 0)
-	for n := range randomNum(len(memberList), 3) {
+	for n := range randomNum(len(memberList), num) {
 		tAddr = append(tAddr, memberList[n])
 	}
 	return tAddr
 }
 
-func TestMessageClient(t *testing.T) {
-	conn, err := net.Dial("tcp", "127.0.0.1:40000")
+func sendMessage(message []byte, target string) {
+	conn, err := net.Dial("tcp", target)
 	if err != nil {
 		log.Println("dial err", err)
 		return
 	}
 	defer conn.Close()
 
-	// _, err = conn.Write([]byte("hello world"))
-	_, err = conn.Write([]byte{Stop})
+	_, err = conn.Write(message)
 	if err != nil {
 		log.Println("write err", err)
 		return
@@ -138,6 +226,11 @@ func TestMessageClient(t *testing.T) {
 		return
 	}
 	fmt.Println(string(buf[:n]))
+}
+
+func TestMessageClient(t *testing.T) {
+	message := []byte{Online}
+	sendMessage(message, "127.0.0.1:40003")
 }
 
 func TestMessageServer(t *testing.T) {
