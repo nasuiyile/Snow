@@ -11,6 +11,7 @@ import (
 	"snow/internal/membership"
 	"snow/internal/state"
 	"snow/tool"
+	"sync/atomic"
 	"time"
 )
 
@@ -21,13 +22,13 @@ type Server struct {
 	Member           membership.MemberShipList
 	State            state.State
 	Action           Action
-	client           net.Dialer //客户端连接器
-	IsClosed         bool       //是否关闭了
+	client           net.Dialer  //客户端连接器
+	IsClosed         atomic.Bool //是否关闭了
 	H                HandlerFunc
 	StopCh           chan struct{}
 	SendChan         chan *SendData
 	HeartbeatService *Heartbeat // 心跳服务
-	udpServer        *UDPServer // UDP服务器
+	UdpServer        *UDPServer // UDP服务器
 }
 
 type area struct {
@@ -200,7 +201,7 @@ func (s *Server) ApplyLeave() {
 			s.StopCh <- stop
 			s.Close()
 			s.Member.Clean()
-			s.IsClosed = true
+			s.IsClosed.Store(true)
 		} else {
 			//失败就再发一次
 			s.ApplyLeave()
@@ -209,6 +210,9 @@ func (s *Server) ApplyLeave() {
 	s.ReliableMessage(s.Config.IPBytes(), NodeLeave, &f)
 }
 func (s *Server) ReportLeave(ip []byte) {
+	if tool.ByteToIPv4Port(ip) != "127.0.0.1:40026" && s.Config.ServerAddress != "127.0.0.1:40026" {
+		fmt.Println(tool.ByteToIPv4Port(ip))
+	}
 	log.Warnf(s.Config.ServerAddress + "report leave:" + tool.ByteToIPv4Port(ip))
 	s.Member.RemoveMember(ip, false)
 	s.ColoringMessage(ip, ReportLeave)

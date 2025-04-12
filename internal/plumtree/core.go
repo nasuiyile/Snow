@@ -27,9 +27,7 @@ type Server struct {
 }
 
 func NewServer(config *Config, action broadcast.Action) (*Server, error) {
-	if config.Test {
-		tool.DebugLog()
-	}
+
 	oldServer, err := broadcast.NewServer(config, action)
 	if err != nil {
 		panic(err)
@@ -165,7 +163,7 @@ func (s *Server) PlumTreeMessage(msg []byte) {
 }
 
 func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
-	if s.IsClosed {
+	if s.IsClosed.Load() {
 		return
 	}
 	go func() {
@@ -175,7 +173,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 		if metaData == nil {
 			conn, err = s.ConnectToPeer(ip)
 			if err != nil {
-				log.Errorf(s.Config.ServerAddress, "can't connect to ", ip)
+				log.Error(s.Config.ServerAddress, "can't connect to ", ip)
 				s.EagerPush.Remove(ip)
 				s.ReportLeave(tool.IPv4To6Bytes(ip))
 				log.Error(err)
@@ -188,7 +186,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 			//先建立一次链接进行尝试
 			newConn, err := s.ConnectToPeer(ip)
 			if err != nil {
-				log.Errorf(s.Config.ServerAddress, "can't connect to ", ip)
+				log.Error(s.Config.ServerAddress, "can't connect to ", ip)
 				s.EagerPush.Remove(ip)
 				s.ReportLeave(tool.IPv4To6Bytes(ip))
 				return

@@ -2,11 +2,13 @@ package broadcast
 
 import (
 	"bytes"
-	log "github.com/sirupsen/logrus"
+	"fmt"
 	"net"
 	. "snow/common"
 	"snow/tool"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Hand 处理从 TCP 连接收到的消息。逻辑与 UDP 类似，只是发送方式不同。
@@ -16,7 +18,9 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		log.Warn("Message too short from %s\n", conn.RemoteAddr().String())
 		return
 	}
-
+	if s.IsClosed.Load() {
+		return
+	}
 	parentIP := s.Config.GetServerIp(conn.RemoteAddr().String())
 	// 假设 msg 的第 0 字节是消息类型，第 1 字节是动作类型
 	msgType := msg[0]
@@ -26,23 +30,31 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 	case PingMsg:
 		var ping Ping
 		if err := tool.DecodeMsgPayload(msg, &ping); err != nil {
-			log.Infof("[TCP] Failed to decode ping message: %v", err)
+			log.Infof("Failed to decode ping message: %v", err)
 			return
 		}
 
 		sourceIP := tool.ByteToIPv4Port(ping.Src)
-		log.Debugf("[DEBUG] Received PING from %s (seq=%d)", sourceIP, ping.SeqNo)
+		localAddr := conn.LocalAddr().String()
+		log.Infof("[INFO] Node %s 收到 PING 请求 (seq=%d) 来自 %s",
+			localAddr,  // 接收方地址
+			ping.SeqNo, // 序列号
+			sourceIP)   // 发送方地址
 
 		// 构造丰富的 ACK 响应
 		ackResp := AckResp{
-			SeqNo:     ping.SeqNo,
-			Timestamp: time.Now().UnixNano(),
-			NodeState: NodeSurvival, // 当前节点状态
-			Source:    s.Config.IPBytes(),
+			SeqNo:      ping.SeqNo,
+			Timestamp:  time.Now().UnixNano(),
+			NodeState:  NodeSurvival, // 当前节点状态
+			Source:     s.Config.IPBytes(),
+			IsIndirect: false,
 		}
 
+		log.Infof("[INFO] Node %s 准备回复 ACK (seq=%d) 给 %s",
+			localAddr, ping.SeqNo, sourceIP)
+
 		// 发送 ACK 响应
-		s.sendAckResponse(conn, ackResp)
+		s.sendAckResponse(conn, ackResp, tool.ByteToIPv4Port(ping.Src))
 
 		// 更新发送方节点状态
 		s.Member.Lock()
@@ -54,7 +66,6 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		s.Member.Unlock()
 
 	case IndirectPingMsg:
-		// 处理间接 PING 消息
 		var ping Ping
 		if err := tool.DecodeMsgPayload(msg, &ping); err != nil {
 			log.Debugf("[DEBUG] Failed to decode indirect ping message: %v", err)
@@ -63,19 +74,74 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 
 		targetAddr := tool.ByteToIPv4Port(ping.Addr)
 		sourceAddr := tool.ByteToIPv4Port(ping.Src)
-		log.Debugf("[DEBUG] Received INDIRECT_PING for %s from %s (seq=%d)",
-			targetAddr, sourceAddr, ping.SeqNo)
 
-		// 确认收到间接 PING 请求
+		// 确认收到间接 PING 请求，设置 IsIndirect 为 true
 		ackResp := AckResp{
-			SeqNo:     ping.SeqNo,
-			Timestamp: time.Now().UnixNano(),
-			NodeState: NodeSurvival,
-			Source:    s.Config.IPBytes(),
+			SeqNo:      ping.SeqNo,
+			Timestamp:  time.Now().UnixNano(),
+			NodeState:  NodeSurvival,
+			Source:     s.Config.IPBytes(),
+			IsIndirect: true,
 		}
-		s.sendAckResponse(conn, ackResp)
+		s.sendAckResponse(conn, ackResp, sourceAddr)
 
-		log.Debugf("[DEBUG] Forwarded ping to %s on behalf of %s", targetAddr, sourceAddr)
+		// 转发ping到目标节点，使用当前节点作为源地址
+		forwardPing := Ping{
+			SeqNo: ping.SeqNo,
+			Addr:  ping.Addr,
+			Src:   s.Config.IPBytes(), // 使用当前节点的地址作为源
+		}
+
+		forwardPingData, err := tool.Encode(PingMsg, PingAction, &forwardPing, false)
+		if err != nil {
+			log.Errorf("[ERR] Failed to encode forwardPing: %v", err)
+			return
+		}
+
+		// 检查 UDP Server 是否可用
+		if s.UdpServer == nil {
+			log.Warnf("[WARN] UDP Server not available, cannot forward ping to %s", targetAddr)
+			return
+		}
+
+		if err := s.UdpServer.UDPSendMessage(targetAddr, []byte{}, forwardPingData); err != nil {
+			log.Errorf("[ERR] Failed to forward ping to %s: %v", targetAddr, err)
+			return
+		}
+
+		log.Printf("[INFO] Forward ping to %s", targetAddr)
+
+		// 注册回调处理目标节点的响应
+		if s.HeartbeatService != nil {
+			s.HeartbeatService.registerAckHandler(ping.SeqNo, func(targetAckResp AckResp) {
+				// 创建转发的 ACK，设置 IsIndirect 为 false
+				forwardAck := AckResp{
+					SeqNo:      ping.SeqNo,
+					Timestamp:  targetAckResp.Timestamp,
+					NodeState:  targetAckResp.NodeState,
+					Source:     targetAckResp.Source,
+					IsIndirect: false,
+				}
+
+				forwardAckData, err := tool.Encode(AckRespMsg, PingAction, &forwardAck, false)
+				if err != nil {
+					log.Errorf("[ERR] Failed to encode forwardAck: %v", err)
+					return
+				}
+
+				if err := s.UdpServer.UDPSendMessage(sourceAddr, []byte{}, forwardAckData); err != nil {
+					log.Errorf("[ERR] Failed to forward ACK to %s: %v", sourceAddr, err)
+					return
+				}
+
+				log.Printf("[DEBUG] Successfully forwarded ACK from %s to %s (seq=%d)",
+					targetAddr, sourceAddr, ping.SeqNo)
+			}, 8*time.Second, nil)
+		} else {
+			log.Printf("[DEBUG] HeartbeatService not available, skipping ack handler registration")
+		}
+
+		log.Printf("[DEBUG] Successfully forwarded ping to %s on behalf of %s", targetAddr, sourceAddr)
 
 	case AckRespMsg:
 		// 处理 ACK 响应
@@ -86,7 +152,8 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		}
 
 		sourceAddr := tool.ByteToIPv4Port(ackResp.Source)
-		log.Debugf("[DEBUG] Received ACK (seq=%d) from %s", ackResp.SeqNo, sourceAddr)
+		log.Infof("[INFO] Node %s 收到 ACK 响应 (seq=%d) 来自 %s, isIndirect=%v",
+			s.Config.ServerAddress, ackResp.SeqNo, sourceAddr, ackResp.IsIndirect)
 
 		// 更新节点状态
 		s.Member.Lock()
@@ -94,12 +161,18 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		if ok {
 			meta.UpdateTime = time.Now().Unix()
 			meta.State = ackResp.NodeState
+			log.Infof("[INFO] 已更新节点 %s 的状态和时间戳, 序列号=%d", sourceAddr, ackResp.SeqNo)
+		} else {
+			log.Warnf("[WARN] 找不到节点 %s 的元数据, ACK seq=%d", sourceAddr, ackResp.SeqNo)
 		}
 		s.Member.Unlock()
 
 		// 如果心跳服务存在，通知它处理 ACK
 		if s.HeartbeatService != nil {
+			log.Infof("[INFO] 转发 ACK (seq=%d) 到心跳服务进行处理", ackResp.SeqNo)
 			s.HeartbeatService.handleAckResponse(ackResp)
+		} else {
+			log.Warnf("[WARN] 心跳服务不可用，无法处理 ACK (seq=%d)", ackResp.SeqNo)
 		}
 
 	case RegularMsg:
@@ -113,7 +186,12 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		first := IsFirst(body, msgType, msgAction, s)
 		if first {
 			if msgAction == ReportLeave {
-				s.Member.RemoveMember(tool.CutTimestamp(body), false)
+				leaveNode := tool.CutTimestamp(body)
+				if tool.ByteToIPv4Port(leaveNode) != "127.0.0.1:40026" && s.Config.ServerAddress != "127.0.0.1:40026" {
+					fmt.Println(conn.RemoteAddr().String())
+					fmt.Println(tool.ByteToIPv4Port(leaveNode))
+				}
+				s.Member.RemoveMember(leaveNode, false)
 			}
 		}
 		forward(msg, s, parentIP)
@@ -158,7 +236,7 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 }
 
 // sendAckResponse 发送 ACK 响应，统一处理 TCP 和 UDP
-func (s *Server) sendAckResponse(conn net.Conn, ackResp AckResp) {
+func (s *Server) sendAckResponse(conn net.Conn, ackResp AckResp, targetAddr string) {
 	// 编码 ACK 响应
 	out, err := tool.Encode(AckRespMsg, PingAction, &ackResp, false)
 	if err != nil {
@@ -167,23 +245,26 @@ func (s *Server) sendAckResponse(conn net.Conn, ackResp AckResp) {
 	}
 
 	// 根据连接类型不同，使用不同的发送方式
-	if udpConn, ok := conn.(*udpConnWrapper); ok {
+	if _, ok := conn.(*udpConnWrapper); ok {
 		// UDP 连接
-		if s.udpServer != nil {
-			remoteAddr := udpConn.remoteAddr.String()
-			err = s.udpServer.UDPSendMessage(remoteAddr, []byte{}, out)
+		if s.UdpServer != nil {
+			err = s.UdpServer.UDPSendMessage(targetAddr, []byte{}, out)
+			log.Infof("[INFO] Node %s 发送 ACK (seq=%d) 给 %s (通过UDP)",
+				conn.LocalAddr().String(), ackResp.SeqNo, targetAddr)
 		}
 	} else {
 		// TCP 连接
-		remoteIP := conn.RemoteAddr().String()
-		s.SendMessage(remoteIP, []byte{}, out)
+		s.SendMessage(targetAddr, []byte{}, out)
+		log.Infof("[INFO] Node %s 发送 ACK (seq=%d) 给 %s (通过TCP)",
+			s.Config.ServerAddress, ackResp.SeqNo, targetAddr)
 	}
 
 	if err != nil {
-		log.Errorf("[ERROR] Error sending ACK response: %v", err)
+		log.Errorf("[ERROR] 发送 ACK (seq=%d) 给 %s 失败: %v",
+			ackResp.SeqNo, targetAddr, err)
 	} else {
-		log.Debugf("[DEBUG] Sent ACK response (seq=%d) to %s",
-			ackResp.SeqNo, conn.RemoteAddr().String())
+		log.Infof("[INFO] 成功发送 ACK (seq=%d) 给 %s",
+			ackResp.SeqNo, targetAddr)
 	}
 }
 
