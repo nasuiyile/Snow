@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
+
 	"math/rand"
 	. "snow/common"
 	. "snow/config"
@@ -70,7 +70,6 @@ func benchmark(n int, k int, rounds int) {
 		for _, v := range serverList {
 			v.StartHeartBeat()
 		}
-		log.SetOutput(ioutil.Discard)
 		for i := range rounds {
 			// 1秒一轮,节点可能还没有离开新的广播就发出了
 			fmt.Printf("=== %d =====\n", i)

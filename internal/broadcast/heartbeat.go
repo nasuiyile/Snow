@@ -160,7 +160,7 @@ func (h *Heartbeat) probeNode(addr []byte) {
 	targetAddr := tool.ByteToIPv4Port(addr)
 	localAddr := h.config.ServerAddress
 	log.Debug("[INFO] Node %s sending PING to %s (seq=%d)", localAddr, targetAddr, id)
-	_, err := tool.Encode(PingMsg, DirectPing, &p, false)
+	encode, err := tool.Encode(PingMsg, DirectPing, &p, false)
 	if err != nil {
 		log.Errorf("[ERR] Failed to encode ping message: %v", err)
 		return
@@ -171,11 +171,11 @@ func (h *Heartbeat) probeNode(addr []byte) {
 		h.indirectProbe(ip)
 	}, DirectProbeTimeout)
 
-	//err = h.UdpServer.UDPSendMessage(targetAddr, []byte{}, encode)
-	//if err != nil {
-	//	log.Errorf("[ERR] Failed to send ping message to %s: %v", targetAddr, err)
-	//	return
-	//}
+	err = h.UdpServer.UDPSendMessage(targetAddr, []byte{}, encode)
+	if err != nil {
+		log.Errorf("[ERR] Failed to send ping message to %s: %v", targetAddr, err)
+		return
+	}
 }
 func (h *Heartbeat) indirectProbe(ip string) {
 	id := h.nextId()
