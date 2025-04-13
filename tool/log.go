@@ -30,7 +30,7 @@ func (f *ColorFormatter) Format(entry *log.Entry) ([]byte, error) {
 }
 
 func DebugLog() {
-	log.SetLevel(log.InfoLevel)
+	log.SetLevel(log.DebugLevel)
 	log.SetFormatter(&log.TextFormatter{
 		FullTimestamp:   true,       // 完整时间
 		TimestampFormat: "15:04:05", // 时间格式

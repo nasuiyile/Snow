@@ -30,7 +30,7 @@ type UDPServer struct {
 }
 
 // NewUDPServer 创建并启动一个 UDP 服务器
-func NewUDPServer(config *config.Config) (*UDPServer, error) {
+func NewUDPServer(config *config.Config, heartbeat *Heartbeat) (*UDPServer, error) {
 	// 解析本地地址
 	addr, err := net.ResolveUDPAddr("udp", config.ServerAddress)
 	if err != nil {
@@ -50,7 +50,7 @@ func NewUDPServer(config *config.Config) (*UDPServer, error) {
 		sendCh:    make(chan *UDPSendData, 100),
 		Config:    config,
 	}
-	server.H = server
+	server.H = heartbeat
 
 	log.Infof("UDPServer running on %s\n", config.ServerAddress)
 

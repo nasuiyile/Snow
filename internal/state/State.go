@@ -1,11 +1,12 @@
 package state
 
 import (
+	"snow/tool"
 	"sync"
 )
 
 type State struct {
-	State *TimeoutMap //记录最近收到消息的状态信息来去重
+	State *tool.TimeoutMap //记录最近收到消息的状态信息来去重
 
 	ReliableMsgLock sync.Mutex
 	//（失败）根节点接受到消息之后x秒后会检查相应的元素是否被删除了，如果没被删除则进行回调。然后删除	（成功）主动删除时如果发现自己是根节点，则也进行回调

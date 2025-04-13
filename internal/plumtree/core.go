@@ -9,7 +9,6 @@ import (
 	. "snow/common"
 	. "snow/config"
 	"snow/internal/broadcast"
-	"snow/internal/state"
 	"snow/tool"
 	"sync"
 	"sync/atomic"
@@ -23,7 +22,7 @@ type Server struct {
 	eagerLock      sync.RWMutex
 	EagerPush      *tool.SafeSet[string]
 	MessageIdQueue chan []byte
-	msgCache       *state.TimeoutMap //缓存最近全部的消息
+	msgCache       *tool.TimeoutMap //缓存最近全部的消息
 }
 
 func NewServer(config *Config, action broadcast.Action) (*Server, error) {
@@ -45,7 +44,7 @@ func NewServer(config *Config, action broadcast.Action) (*Server, error) {
 	}
 	server.EagerPush = tool.NewSafeSet[string]()
 	server.MessageIdQueue = make(chan []byte, 10000)
-	server.msgCache = state.NewTimeoutMap()
+	server.msgCache = tool.NewTimeoutMap()
 	go server.lazyPushTask(server.Server.StopCh)
 	return server, nil
 }

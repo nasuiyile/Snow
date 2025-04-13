@@ -47,7 +47,7 @@ func NewServer(config *config.Config, action Action) (*Server, error) {
 			MetaData: make(map[string]*membership.MetaData),
 		},
 		State: state.State{
-			State:           state.NewTimeoutMap(),
+			State:           tool.NewTimeoutMap(),
 			ReliableTimeout: make(map[string]*state.ReliableInfo),
 		},
 		Action:   action,
@@ -68,22 +68,12 @@ func NewServer(config *config.Config, action Action) (*Server, error) {
 	go server.startAcceptingConnections() // 启动接受连接的协程
 
 	server.schedule()
-	//server.ApplyJoin(config.InitialServer)
 	fmt.Printf("Server is running on port %d...\n\n", config.Port)
 	return server, nil
 
 }
 
 func (s *Server) StartHeartBeat() {
-	// 初始化UDP服务
-	udpServer, err := NewUDPServer(s.Config)
-	if err != nil {
-		log.Warn("[WARN] Failed to initialize UDP server: %v", err)
-	} else {
-		s.UdpServer = udpServer
-		udpServer.H = s
-	}
-
 	// 初始化Heartbeat服务 - 直接传递server和udpServer
 	s.HeartbeatService = NewHeartbeat(
 		s.Config,
@@ -91,6 +81,16 @@ func (s *Server) StartHeartBeat() {
 		s,
 		s.UdpServer,
 	)
+	// 初始化UDP服务
+	udpServer, err := NewUDPServer(s.Config, s.HeartbeatService)
+	if err != nil {
+		log.Warn("[WARN] Failed to initialize UDP server: %v", err)
+	} else {
+		s.UdpServer = udpServer
+		udpServer.H = s
+	}
+	s.HeartbeatService.UdpServer = udpServer
+
 	s.HeartbeatService.Start()
 }
 
@@ -304,8 +304,8 @@ func safeCloseConnection(conn net.Conn) {
 		}
 
 		// 关闭读写
-		_ = tcpConn.CloseRead()
-		_ = tcpConn.CloseWrite()
+		//_ = tcpConn.CloseRead()
+		//_ = tcpConn.CloseWrite()
 	}
 
 	// 关闭连接，忽略可能的错误
@@ -343,11 +343,6 @@ func (s *Server) Close() {
 			safeCloseConnection(client)
 			v.SetClient(nil)
 
-		}
-		server := v.GetServer()
-		if server != nil {
-			safeCloseConnection(client)
-			v.SetClient(nil)
 		}
 	}
 	if s.HeartbeatService != nil {

@@ -3,7 +3,6 @@ package broadcast
 import (
 	"bytes"
 	"encoding/gob"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"net"
 	. "snow/common"
@@ -210,9 +209,7 @@ func (s *Server) ApplyLeave() {
 	s.ReliableMessage(s.Config.IPBytes(), NodeLeave, &f)
 }
 func (s *Server) ReportLeave(ip []byte) {
-	if tool.ByteToIPv4Port(ip) != "127.0.0.1:40026" && s.Config.ServerAddress != "127.0.0.1:40026" {
-		fmt.Println(tool.ByteToIPv4Port(ip))
-	}
+
 	log.Warnf(s.Config.ServerAddress + "report leave:" + tool.ByteToIPv4Port(ip))
 	s.Member.RemoveMember(ip, false)
 	s.ColoringMessage(ip, ReportLeave)
@@ -225,7 +222,7 @@ func (s *Server) exportState() []byte {
 	encoder := gob.NewEncoder(&buffer)
 	err := encoder.Encode(s.Member.MetaData)
 	if err != nil {
-		fmt.Println("GOB Serialization failed:", err)
+		log.Error("GOB Serialization failed:", err)
 		return nil
 	}
 	return buffer.Bytes()
@@ -236,7 +233,7 @@ func (s *Server) importState(msg []byte) {
 	decoder := gob.NewDecoder(buffer)
 	err := decoder.Decode(&MetaData)
 	if err != nil {
-		fmt.Println("GOB Desialization failed:", err)
+		log.Error("GOB Desialization failed:", err)
 		return
 	}
 	s.Member.InitState(MetaData)

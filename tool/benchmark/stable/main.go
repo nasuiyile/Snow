@@ -15,15 +15,14 @@ import (
 
 func main() {
 	tool.DebugLog()
-
 	////测试轮数
-	rounds := 200
+	rounds := 100
 	//benchmark(600, 6, rounds)
 	//benchmark(600, 8, rounds)
 	//benchmark(600, 4, rounds)
 	//benchmark(600, 2, rounds)
 
-	benchmark(200, 4, rounds)
+	benchmark(100, 4, rounds)
 	//benchmark(400, 4, rounds)
 	//benchmark(300, 4, rounds)
 	//benchmark(200, 4, rounds)
@@ -88,12 +87,12 @@ func benchmark(n int, k int, rounds int) {
 				}
 			}()
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(5 * time.Second)
 		for _, v := range serverList {
 			fmt.Println("关闭节点：", v.Config.ServerAddress)
 			v.Close()
 		}
-		time.Sleep(20 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 }
 

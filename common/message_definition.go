@@ -5,10 +5,7 @@ type MsgType = byte
 // 定义枚举值
 const (
 	PingMsg MsgType = iota
-	IndirectPingMsg
-	AckRespMsg
-	AliveMsg
-	DeadMsg
+
 	//节点状态改变
 	NodeChange
 	//这是消息的发送方式
@@ -37,7 +34,10 @@ const (
 	ReportLeave //这是被别人上报的节点离开方法
 	RegularStateSync
 	IHAVE //lazypush的发送内容
-	PingAction
+	// ping
+	DirectPing
+	IndirectPing
+	PingAck
 )
 
 type NodeState = byte

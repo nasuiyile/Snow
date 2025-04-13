@@ -4,9 +4,8 @@ import (
 	"bytes"
 	log "github.com/sirupsen/logrus"
 	"hash/crc32"
-	"math/rand"
 	"net"
-	"snow/common"
+	. "snow/common"
 	"snow/config"
 	"snow/internal/membership"
 	"snow/tool"
@@ -14,8 +13,8 @@ import (
 )
 
 // 超时常量定义
-const (
-	InitialProbeTimeout  = 8 * time.Second  // 初始UDP探测超时
+var (
+	DirectProbeTimeout   = 1 * time.Second  // 初始UDP探测超时
 	IndirectProbeTimeout = 10 * time.Second // 间接探测等待超时
 	IndirectAckTimeout   = 12 * time.Second // 间接探测ACK处理器超时
 	TCPFallbackTimeout   = 12 * time.Second // TCP探测总超时
@@ -23,72 +22,52 @@ const (
 
 // Ping 定义了心跳消息的格式
 type Ping struct {
-	SeqNo int    // 消息的序列号
+	SeqNo int64  // 消息的序列号
 	Addr  []byte // 目标地址（IP+端口）
 	Src   []byte // 源地址（IP+端口）
 }
 
 // AckResp 定义了ack响应消息
 type AckResp struct {
-	SeqNo      int              // 消息序列号，与请求对应
-	Timestamp  int64            // 响应时间戳
-	NodeState  common.NodeState // 节点当前状态
-	Source     []byte           // 响应来源节点信息
-	IsIndirect bool             // 标识是中转确认还是目标响应
+	SeqNo      int64     // 消息序列号，与请求对应
+	Timestamp  int64     // 响应时间戳
+	NodeState  NodeState // 节点当前状态
+	Source     []byte    // 响应来源节点信息
+	IsIndirect bool      // 标识是中转确认还是目标响应
 }
-
-// ackHandler 定义了处理 ACK 的回调机制
-type ackHandler struct {
-	ackFn     func(ackResp AckResp) // ACK 回调函数
-	timeOut   time.Time             // 超时时间
-	timer     *time.Timer           // 超时定时器
-	timeoutCh chan struct{}         // 超时通知通道
+type server interface {
+	SendMessage(ip string, payload []byte, msg []byte)
+	ConnectToPeer(addr string) (net.Conn, error)
+	ReportLeave(ip []byte)
+	KRandomNodes(k int, exclude []byte) []string
+}
+type udpServer interface {
+	UDPSendMessage(remote string, payload, msg []byte) error
 }
 
 // Heartbeat 负责心跳消息的发送与探测
 type Heartbeat struct {
 	tool.ReentrantLock                            // 保护并发访问
 	config             *config.Config             // 使用统一的配置
-	memberList         *membership.MemberShipList // 直接使用MemberShipList
-	server             interface {                // 服务器接口，用于发送TCP消息和建立连接
-		SendMessage(ip string, payload []byte, msg []byte)
-		ConnectToPeer(addr string) (net.Conn, error)
-		ReportLeave(ip []byte)
-		KRandomNodes(k int, exclude []byte) []string
-	}
-	udpServer interface { // UDP服务器接口，用于发送UDP消息
-		UDPSendMessage(remote string, payload, msg []byte) error
-	}
-	probeIndex  int                 // 当前探测的索引
-	seqNo       int                 // 序列号，用于跟踪心跳消息
-	running     bool                // 服务是否在运行
-	ackHandlers map[int]*ackHandler // 序列号+地址到对应处理程序的映射
-	stopCh      chan struct{}       // 用来停止心跳探测循环
+	member             *membership.MemberShipList // 直接使用MemberShipList
+	server             server
+	UdpServer          udpServer
+	probeIndex         int  // 当前探测的索引
+	running            bool // 服务是否在运行
+	pingMap            *tool.CallbackMap
+	stopCh             chan struct{} // 用来停止心跳探测循环
 }
 
 // NewHeartbeat 创建心跳服务
-func NewHeartbeat(
-	cfg *config.Config,
-	memberList *membership.MemberShipList,
-	server interface {
-		SendMessage(ip string, payload []byte, msg []byte)
-		ConnectToPeer(addr string) (net.Conn, error)
-		ReportLeave(ip []byte)
-		KRandomNodes(k int, exclude []byte) []string
-	},
-	udpServer interface {
-		UDPSendMessage(remote string, payload, msg []byte) error
-	}) *Heartbeat {
+func NewHeartbeat(cfg *config.Config, memberList *membership.MemberShipList, server server, udpServer udpServer) *Heartbeat {
 	// 生成随机初始序列号
-	rand.Seed(time.Now().UnixNano())
 	h := &Heartbeat{
-		config:      cfg,
-		memberList:  memberList,
-		server:      server,
-		udpServer:   udpServer,
-		ackHandlers: make(map[int]*ackHandler),
-		stopCh:      make(chan struct{}),
-		seqNo:       0,
+		config:    cfg,
+		member:    memberList,
+		server:    server,
+		UdpServer: udpServer,
+		stopCh:    make(chan struct{}),
+		pingMap:   tool.NewCallBackMap(DirectProbeTimeout),
 	}
 	return h
 }
@@ -135,10 +114,8 @@ func (h *Heartbeat) probeLoop() {
 
 // probe 遍历 ipTable，选择下一个待探测的节点
 func (h *Heartbeat) probe() {
-	h.Lock()
-	length := h.memberList.MemberLen()
+	length := h.member.MemberLen()
 	if length <= 1 {
-		h.Unlock()
 		return
 	}
 	numCheck := 0
@@ -146,8 +123,8 @@ func (h *Heartbeat) probe() {
 	localAddr := h.config.GetLocalAddr()
 	h.Lock()
 	for {
-		h.memberList.Lock()
-		length = h.memberList.MemberLen()
+		h.member.Lock()
+		length = h.member.MemberLen()
 		if numCheck >= length {
 			h.Unlock()
 			log.Debugf("[DEBUG] heartbeat: No more nodes to check")
@@ -159,13 +136,9 @@ func (h *Heartbeat) probe() {
 			continue
 		}
 		if h.probeIndex < length {
-			target = h.memberList.IPTable[h.probeIndex]
+			target = h.member.IPTable[h.probeIndex]
 		}
-		h.memberList.Unlock()
-		if len(target) == 0 {
-			h.Unlock()
-			continue
-		}
+		h.member.Unlock()
 		// 跳过本机
 		if bytes.Equal(localAddr, target) {
 			h.probeIndex++
@@ -189,289 +162,30 @@ func (h *Heartbeat) probeNode(addr []byte) {
 		Addr:  addr,
 		Src:   h.config.GetLocalAddr(),
 	}
-
 	targetAddr := tool.ByteToIPv4Port(addr)
 	localAddr := h.config.ServerAddress
-
 	log.Infof("[INFO] Node %s sending PING to %s (seq=%d)", localAddr, targetAddr, seqNo)
-
-	ackSuccess := make(chan struct{})
-	timeoutCh := make(chan struct{})
-	timerCancelled := false
-
-	// 注册 ACK 处理回调
-	h.registerAckHandler(seqNo, func(ackResp AckResp) {
-		// 加锁保护 timerCancelled 变量
-		h.Lock()
-		if timerCancelled {
-			h.Unlock()
-			return
-		}
-		timerCancelled = true
-		h.Unlock()
-
-		log.Infof("[INFO] Node %s received ACK from %s (seq=%d)",
-			localAddr, targetAddr, seqNo)
-
-		// 更新节点状态
-		h.memberList.Lock()
-		meta, ok := h.memberList.MetaData[targetAddr]
-		if ok {
-			meta.UpdateTime = time.Now().Unix()
-			meta.State = ackResp.NodeState
-		}
-		h.memberList.Unlock()
-
-		close(ackSuccess)
-	}, InitialProbeTimeout, timeoutCh)
-
-	// 发送 UDP ping 消息
-	out, _ := tool.Encode(common.PingMsg, common.PingAction, &p, false)
-	if err := h.udpServer.UDPSendMessage(targetAddr, []byte{}, out); err != nil {
-		log.Errorf("[ERR] Node %s failed to send UDP ping to %s: %v",
-			localAddr, targetAddr, err)
-
-		// 取消定时器并清理处理器，避免后续不必要的超时
-		h.Lock()
-		timerCancelled = true
-		delete(h.ackHandlers, seqNo)
-		h.Unlock()
-
-		h.checkNodeFailure(addr, p)
+	encode, err := tool.Encode(PingMsg, DirectPing, &p, false)
+	if err != nil {
+		log.Errorf("[ERR] Failed to encode ping message: %v", err)
 		return
 	}
-
-	// 等待 ACK 响应或超时，使用单一的超时机制
-	select {
-	case <-ackSuccess:
-		// 成功收到 ACK，不需要做其他事情，因为回调已经处理了状态更新
-		log.Infof("[INFO] Node %s successfully received ACK from %s (seq=%d)",
-			localAddr, targetAddr, seqNo)
-		return
-	case <-timeoutCh:
-		// 由处理器超时触发的通道
-		h.Lock()
-		if timerCancelled {
-			h.Unlock()
-			return
-		}
-		timerCancelled = true
-		h.Unlock()
-
-		log.Warnf("[WARN] Node %s waiting for ACK from %s timed out (seq=%d)",
-			localAddr, targetAddr, seqNo)
-		h.checkNodeFailure(addr, p)
-	}
-}
-
-// registerAckHandler 注册一个 ACK 处理程序，使用复合键避免冲突
-func (h *Heartbeat) registerAckHandler(seqNo int, callback func(AckResp), timeout time.Duration, timeoutCh chan struct{}) {
-	h.Lock()
-	defer h.Unlock()
-
-	// 如果已存在处理器，记录日志
-	if existHandler, exists := h.ackHandlers[seqNo]; exists {
-		log.Warnf("[WARN] Node %s already has ACK handler for seq=%d, target=%s",
-			h.config.ServerAddress, seqNo)
-
-		// 清理旧处理器
-		if existHandler.timer != nil {
-			existHandler.timer.Stop()
-		}
-	}
-
-	// 创建新的处理器
-	timeoutTime := time.Now().Add(timeout)
-	handler := &ackHandler{
-		ackFn:     callback,
-		timeOut:   timeoutTime,
-		timeoutCh: timeoutCh,
-	}
-
-	h.ackHandlers[seqNo] = handler
-
-	// 记录注册信息
-	log.Infof("[INFO] Node %s registered ACK handler for seq=%d, timeout=%v",
-		h.config.ServerAddress, seqNo, timeout)
-
-	// 设置超时定时器，到期后自动清理处理器
-	handler.timer = time.AfterFunc(timeout, func() {
-		h.Lock()
-		defer h.Unlock()
-
-		// 检查处理程序是否仍然存在（可能已被处理过）
-		if _, exists := h.ackHandlers[seqNo]; exists {
-			log.Infof("[INFO] Node %s ACK handler for seq=%d, imed out and cleaned up",
-				h.config.ServerAddress, seqNo)
-
-			// 通知超时
-			if handler.timeoutCh != nil {
-				close(handler.timeoutCh)
-			}
-
-			delete(h.ackHandlers, seqNo)
-		}
+	h.pingMap.Add(seqNo, tool.ByteToIPv4Port(addr), func(ip string) {
+		//超时就执行间接探测
+		h.indirectProbe(ip)
 	})
-}
 
-// handleAckResponse 处理收到的 ACK 响应
-func (h *Heartbeat) handleAckResponse(ackResp AckResp) {
-	h.Lock()
-	defer h.Unlock()
-
-	sourceAddr := tool.ByteToIPv4Port(ackResp.Source)
-	localAddr := h.config.ServerAddress
-	seqNo := ackResp.SeqNo
-
-	log.Infof("[INFO] Node %s handling ACK from %s (seq=%d, isIndirect=%v)",
-		localAddr, sourceAddr, seqNo, ackResp.IsIndirect)
-
-	handler, exists := h.ackHandlers[seqNo]
-	if !exists {
-		// 找不到处理器，可能是已经超时或者是重复的ACK
-		log.Warnf("[WARN] Node %s no handler found for ACK from %s (seq=%d)",
-			localAddr, sourceAddr, seqNo)
-
-		// 打印活跃的处理器，帮助调试
-		var activeHandlers []int
-		for k := range h.ackHandlers {
-			activeHandlers = append(activeHandlers, k)
-		}
-		if len(activeHandlers) > 0 {
-			log.Infof("[INFO] Active handlers: %v", activeHandlers)
-		}
+	err = h.UdpServer.UDPSendMessage(targetAddr, []byte{}, encode)
+	if err != nil {
+		log.Errorf("[ERR] Failed to send ping message to %s: %v", targetAddr, err)
 		return
 	}
-
-	// 停止定时器，避免后续触发超时
-	if handler.timer != nil {
-		handler.timer.Stop()
-	}
-
-	// 调用回调函数
-	if handler.ackFn != nil {
-		log.Infof("[INFO] Node %s calling ACK handler for seq=%d from %s",
-			localAddr, seqNo, sourceAddr)
-		handler.ackFn(ackResp)
-	}
-
-	// 删除处理器
-	delete(h.ackHandlers, seqNo)
+}
+func (h *Heartbeat) indirectProbe(ip string) {
+	log.Debug("[DEBUG] indirectProbe")
 }
 
-// checkNodeFailure 检查节点故障，通过额外的探测方式确认节点是否真的下线
-func (h *Heartbeat) checkNodeFailure(addr []byte, p Ping) {
-	targetAddr := tool.ByteToIPv4Port(addr)
-	log.Warnf("[WARN] heartbeat: No ack received from %s, initiating additional checks", targetAddr)
-
-	// 间接探测：选择K个随机节点，让它们帮忙探测
-	peers := h.server.KRandomNodes(h.config.IndirectChecks, addr)
-	if len(peers) == 0 {
-		log.Warnf("[WARN] heartbeat: No peers available for indirect probe, marking node %s as failed", targetAddr)
-		h.reportNodeDown(addr)
-		return
-	}
-
-	// 设置间接探测的通道
-	indirectSuccess := make(chan struct{}, 1)
-	timeoutCh := make(chan struct{})
-
-	// 注册间接ACK处理
-	h.registerAckHandler(p.SeqNo, func(ackResp AckResp) {
-		if ackResp.IsIndirect {
-			// 这是中转节点的确认，忽略
-			log.Printf("[DEBUG] heartbeat: Received intermediate confirmation for %s, ignoring", targetAddr)
-			return
-		}
-
-		// 这是目标节点的响应，表示目标节点存活
-		log.Printf("[DEBUG] heartbeat: Received target node ACK for %s", targetAddr)
-		select {
-		case indirectSuccess <- struct{}{}:
-		default:
-		}
-	}, IndirectAckTimeout, timeoutCh)
-
-	for _, peer := range peers {
-		// 发送间接探测请求 - 使用原有Ping结构体
-		indirect := Ping{
-			SeqNo: p.SeqNo,
-			Addr:  addr,
-			Src:   h.config.GetLocalAddr(),
-		}
-		out, _ := tool.Encode(common.IndirectPingMsg, common.PingAction, &indirect, false)
-		if err := h.udpServer.UDPSendMessage(peer, []byte{}, out); err != nil {
-			log.Errorf("[ERR] heartbeat: Failed to send indirect ping to %s: %v", peer, err)
-			continue
-		}
-	}
-
-	// 等待间接探测结果
-	select {
-	case <-indirectSuccess:
-		log.Infof("[INFO]%s heartbeat: Node %s confirmed alive via indirect ping", h.config.ServerAddress, targetAddr)
-		return
-	case <-time.After(IndirectProbeTimeout):
-		// 间接探测等待超时，尝试TCP探测作为最后尝试
-		log.Warnf("[WARN] %s heartbeat: Indirect probes for %s timed out, attempting TCP fallback", h.config.ServerAddress, targetAddr)
-
-		if h.doTCPFallbackProbe(addr, p) {
-			log.Infof("[INFO] heartbeat: Node %s confirmed alive via TCP fallback", targetAddr)
-			return
-		}
-
-		// 所有探测方式都失败，确认节点下线
-		log.Warnf("[WARN] heartbeat: All probes failed for %s, marking node as DOWN", targetAddr)
-		h.reportNodeDown(addr)
-	}
-}
-
-// doTCPFallbackProbe 使用TCP进行后备探测
-func (h *Heartbeat) doTCPFallbackProbe(addr []byte, p Ping) bool {
-	targetAddr := tool.ByteToIPv4Port(addr)
-	tcpSuccess := make(chan struct{})
-	timeoutCh := make(chan struct{})
-
-	// 注册TCP ACK处理
-	h.registerAckHandler(p.SeqNo, func(ackResp AckResp) {
-		log.Printf("[DEBUG] heartbeat: Received TCP ACK from %s", targetAddr)
-		close(tcpSuccess)
-	}, TCPFallbackTimeout, timeoutCh)
-
-	// 使用TCP发送探测消息 - 保持使用Ping结构体
-	out, _ := tool.Encode(common.PingMsg, common.PingAction, &p, false)
-	h.server.SendMessage(targetAddr, []byte{}, out)
-	log.Printf("[DEBUG] heartbeat: Sent TCP fallback probe to %s", targetAddr)
-
-	// 等待TCP ACK响应，使用统一的超时时间
-	select {
-	case <-tcpSuccess:
-		return true
-	case <-time.After(TCPFallbackTimeout): // 使用统一常量
-		log.Warnf("[WARN] heartbeat: TCP fallback probe timeout for %s", targetAddr)
-		return false
-	}
-}
-
-// reportNodeDown 报告节点已下线
-func (h *Heartbeat) reportNodeDown(addr []byte) {
-	targetAddr := tool.ByteToIPv4Port(addr)
-	// 检查节点是否已经被标记为下线，避免重复广播
-	h.memberList.Lock()
-	meta, ok := h.memberList.MetaData[targetAddr]
-	if !ok || meta.State == common.NodeLeft {
-		h.memberList.Unlock()
-		log.Debugf("[DEBUG] heartbeat: Node %s already marked as left, skipping", targetAddr)
-		return
-	}
-	h.memberList.Unlock()
-
-	// 直接广播节点离开消息
-	log.Warnf("[WARN] heartbeat: Node %s failed all checks, broadcasting node leave", targetAddr)
-	h.server.ReportLeave(addr)
-}
-
-func (h *Heartbeat) nextSeqNo() int {
+func (h *Heartbeat) nextSeqNo() int64 {
 	h.Lock()
 	defer h.Unlock()
 
@@ -479,15 +193,169 @@ func (h *Heartbeat) nextSeqNo() int {
 	now := time.Now().UnixNano()
 
 	// 使用服务器地址计算一个哈希值，确保不同节点生成不同的序列号
-	addrHash := int(crc32.ChecksumIEEE([]byte(h.config.ServerAddress)) % 10000)
-
+	addrHash := int64(crc32.ChecksumIEEE([]byte(h.config.ServerAddress)) % 10000)
 	// 组合时间戳和地址哈希
 	// 时间戳取低28位，再乘以10000，然后加上地址哈希
 	// 这样即使在相同时间点，不同节点也会生成不同的序列号
-	seqNo := (int(now&0x0FFFFFFF) * 10000) + addrHash
+	seqNo := (int64(now&0x0FFFFFFF) * 10000) + addrHash
 
 	// 更新结构体中的序列号字段
-	h.seqNo = seqNo
-
 	return seqNo
+}
+
+// Hand UDPServer的Hand方法实现，处理所有UDP消息
+func (h *Heartbeat) Hand(msg []byte, conn net.Conn) {
+	log.Println("UDPServer Hand")
+	msgType := msg[0]
+	//msgAction := msg[1]
+	switch msgType {
+	case PingMsg:
+		var ping Ping
+		if err := tool.DecodeMsgPayload(msg, &ping); err != nil {
+			log.Infof("Failed to decode ping message: %v", err)
+			return
+		}
+		//	switch msgType {
+		//		sourceIP := tool.ByteToIPv4Port(ping.Src)
+		//		localAddr := conn.LocalAddr().String()
+		//		log.Infof("[INFO] Node %s 收到 PING 请求 (seq=%d) 来自 %s",
+		//			localAddr,  // 接收方地址
+		//			ping.SeqNo, // 序列号
+		//			sourceIP) // 发送方地址
+		//
+		//		// 构造丰富的 ACK 响应
+		//		ackResp := AckResp{
+		//			SeqNo:      ping.SeqNo,
+		//			Timestamp:  time.Now().UnixNano(),
+		//			NodeState:  NodeSurvival, // 当前节点状态
+		//			Source:     s.Config.IPBytes(),
+		//			IsIndirect: false,
+		//		}
+		//
+		//		log.Infof("[INFO] Node %s 准备回复 ACK (seq=%d) 给 %s",
+		//			localAddr, ping.SeqNo, sourceIP)
+		//
+		//		// 发送 ACK 响应
+		//		s.sendAckResponse(conn, ackResp, tool.ByteToIPv4Port(ping.Src))
+		//
+		//		// 更新发送方节点状态
+		//		s.Member.Lock()
+		//		meta, ok := s.Member.MetaData[sourceIP]
+		//		if ok {
+		//			meta.UpdateTime = time.Now().Unix()
+		//			meta.State = NodeSurvival
+		//		}
+		//		s.Member.Unlock()
+		//
+		//	case IndirectPingMsg:
+		//		var ping Ping
+		//		if err := tool.DecodeMsgPayload(msg, &ping); err != nil {
+		//			log.Debugf("[DEBUG] Failed to decode indirect ping message: %v", err)
+		//			return
+		//		}
+		//
+		//		targetAddr := tool.ByteToIPv4Port(ping.Addr)
+		//		sourceAddr := tool.ByteToIPv4Port(ping.Src)
+		//
+		//		// 确认收到间接 PING 请求，设置 IsIndirect 为 true
+		//		ackResp := AckResp{
+		//			SeqNo:      ping.SeqNo,
+		//			Timestamp:  time.Now().UnixNano(),
+		//			NodeState:  NodeSurvival,
+		//			Source:     s.Config.IPBytes(),
+		//			IsIndirect: true,
+		//		}
+		//		s.sendAckResponse(conn, ackResp, sourceAddr)
+		//
+		//		// 转发ping到目标节点，使用当前节点作为源地址
+		//		forwardPing := Ping{
+		//			SeqNo: ping.SeqNo,
+		//			Addr:  ping.Addr,
+		//			Src:   s.Config.IPBytes(), // 使用当前节点的地址作为源
+		//		}
+		//
+		//		forwardPingData, err := tool.Encode(PingMsg, PingAction, &forwardPing, false)
+		//		if err != nil {
+		//			log.Errorf("[ERR] Failed to encode forwardPing: %v", err)
+		//			return
+		//		}
+		//
+		//		// 检查 UDP Server 是否可用
+		//		if s.UdpServer == nil {
+		//			log.Warnf("[WARN] UDP Server not available, cannot forward ping to %s", targetAddr)
+		//			return
+		//		}
+		//
+		//		if err := s.UdpServer.UDPSendMessage(targetAddr, []byte{}, forwardPingData); err != nil {
+		//			log.Errorf("[ERR] Failed to forward ping to %s: %v", targetAddr, err)
+		//			return
+		//		}
+		//
+		//		log.Printf("[INFO] Forward ping to %s", targetAddr)
+		//
+		//		// 注册回调处理目标节点的响应
+		//		if s.HeartbeatService != nil {
+		//			s.HeartbeatService.registerAckHandler(ping.SeqNo, func(targetAckResp AckResp) {
+		//				// 创建转发的 ACK，设置 IsIndirect 为 false
+		//				forwardAck := AckResp{
+		//					SeqNo:      ping.SeqNo,
+		//					Timestamp:  targetAckResp.Timestamp,
+		//					NodeState:  targetAckResp.NodeState,
+		//					Source:     targetAckResp.Source,
+		//					IsIndirect: false,
+		//				}
+		//
+		//				forwardAckData, err := tool.Encode(AckRespMsg, PingAction, &forwardAck, false)
+		//				if err != nil {
+		//					log.Errorf("[ERR] Failed to encode forwardAck: %v", err)
+		//					return
+		//				}
+		//
+		//				if err := s.UdpServer.UDPSendMessage(sourceAddr, []byte{}, forwardAckData); err != nil {
+		//					log.Errorf("[ERR] Failed to forward ACK to %s: %v", sourceAddr, err)
+		//					return
+		//				}
+		//
+		//				log.Printf("[DEBUG] Successfully forwarded ACK from %s to %s (seq=%d)",
+		//					targetAddr, sourceAddr, ping.SeqNo)
+		//			}, 8*time.Second, nil)
+		//		} else {
+		//			log.Printf("[DEBUG] HeartbeatService not available, skipping ack handler registration")
+		//		}
+		//
+		//		log.Printf("[DEBUG] Successfully forwarded ping to %s on behalf of %s", targetAddr, sourceAddr)
+		//
+		//	case AckRespMsg:
+		//		// 处理 ACK 响应
+		//		var ackResp AckResp
+		//		if err := tool.DecodeMsgPayload(msg, &ackResp); err != nil {
+		//			log.Debugf("[DEBUG] Failed to decode ack response: %v", err)
+		//			return
+		//		}
+		//
+		//		sourceAddr := tool.ByteToIPv4Port(ackResp.Source)
+		//		log.Infof("[INFO] Node %s 收到 ACK 响应 (seq=%d) 来自 %s, isIndirect=%v",
+		//			s.Config.ServerAddress, ackResp.SeqNo, sourceAddr, ackResp.IsIndirect)
+		//
+		//		// 更新节点状态
+		//		s.Member.Lock()
+		//		meta, ok := s.Member.MetaData[sourceAddr]
+		//		if ok {
+		//			meta.UpdateTime = time.Now().Unix()
+		//			meta.State = ackResp.NodeState
+		//			log.Infof("[INFO] 已更新节点 %s 的状态和时间戳, 序列号=%d", sourceAddr, ackResp.SeqNo)
+		//		} else {
+		//			log.Warnf("[WARN] 找不到节点 %s 的元数据, ACK seq=%d", sourceAddr, ackResp.SeqNo)
+		//		}
+		//		s.Member.Unlock()
+		//
+		//		// 如果心跳服务存在，通知它处理 ACK
+		//		if s.HeartbeatService != nil {
+		//			log.Infof("[INFO] 转发 ACK (seq=%d) 到心跳服务进行处理", ackResp.SeqNo)
+		//			s.HeartbeatService.handleAckResponse(ackResp)
+		//		} else {
+		//			log.Warnf("[WARN] 心跳服务不可用，无法处理 ACK (seq=%d)", ackResp.SeqNo)
+		//		}
+		//	}
+	}
 }
