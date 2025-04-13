@@ -31,5 +31,5 @@ func (f *ColorFormatter) Format(entry *log.Entry) ([]byte, error) {
 
 func DebugLog() {
 	log.SetFormatter(&ColorFormatter{})
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.InfoLevel)
 }

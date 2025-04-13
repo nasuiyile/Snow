@@ -2,7 +2,6 @@ package broadcast
 
 import (
 	"bytes"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"hash/crc32"
 	"net"
@@ -55,22 +54,24 @@ type Heartbeat struct {
 	member             *membership.MemberShipList // 直接使用MemberShipList
 	server             server
 	UdpServer          udpServer
-	probeIndex         int  // 当前探测的索引
-	running            bool // 服务是否在运行
-	pingMap            *tool.CallbackMap
-	stopCh             chan struct{} // 用来停止心跳探测循环
+
+	running     bool // 服务是否在运行
+	pingMap     *tool.CallbackMap
+	indirectMap *tool.CallbackMap
+	stopCh      chan struct{} // 用来停止心跳探测循环
 }
 
 // NewHeartbeat 创建心跳服务
 func NewHeartbeat(cfg *config.Config, memberList *membership.MemberShipList, server server, udpServer udpServer) *Heartbeat {
 	// 生成随机初始序列号
 	h := &Heartbeat{
-		config:    cfg,
-		member:    memberList,
-		server:    server,
-		UdpServer: udpServer,
-		stopCh:    make(chan struct{}),
-		pingMap:   tool.NewCallBackMap(),
+		config:      cfg,
+		member:      memberList,
+		server:      server,
+		UdpServer:   udpServer,
+		stopCh:      make(chan struct{}),
+		pingMap:     tool.NewCallBackMap(),
+		indirectMap: tool.NewCallBackMap(),
 	}
 	return h
 }
@@ -103,12 +104,9 @@ func (h *Heartbeat) probeLoop() {
 
 	ticker := time.NewTicker(h.config.HeartbeatInterval)
 	defer ticker.Stop()
-	log.Debug("[debug] 2")
-
 	for {
 		select {
 		case <-ticker.C:
-			log.Debug("[debug] 1")
 			h.probe()
 		case <-h.stopCh:
 			log.Infof("[INFO] Heartbeat probeLoop stopped")
@@ -119,13 +117,12 @@ func (h *Heartbeat) probeLoop() {
 
 // probe 遍历 ipTable，选择下一个待探测的节点
 func (h *Heartbeat) probe() {
-	log.Debug("[debug]UDPServer running on ")
 
 	length := h.member.MemberLen()
 	if length <= 1 {
 		return
 	}
-	numCheck := 0
+	numCheck := tool.RandInt(0, length-1)
 	var target []byte
 	localAddr := h.config.GetLocalAddr()
 	h.Lock()
@@ -137,22 +134,16 @@ func (h *Heartbeat) probe() {
 			log.Debugf("[DEBUG] heartbeat: No more nodes to check")
 			return
 		}
-		if h.probeIndex >= length {
-			h.probeIndex = 0
-			numCheck++
-			continue
-		}
-		if h.probeIndex < length {
-			target = h.member.IPTable[h.probeIndex]
+
+		if numCheck < length {
+			target = h.member.IPTable[numCheck]
 		}
 		h.member.Unlock()
 		// 跳过本机
 		if bytes.Equal(localAddr, target) {
-			h.probeIndex++
 			numCheck++
 			continue
 		}
-		h.probeIndex++
 		break
 	}
 	h.Unlock()
@@ -168,8 +159,8 @@ func (h *Heartbeat) probeNode(addr []byte) {
 	}
 	targetAddr := tool.ByteToIPv4Port(addr)
 	localAddr := h.config.ServerAddress
-	log.Infof("[INFO] Node %s sending PING to %s (seq=%d)", localAddr, targetAddr, id)
-	encode, err := tool.Encode(PingMsg, DirectPing, &p, false)
+	log.Debug("[INFO] Node %s sending PING to %s (seq=%d)", localAddr, targetAddr, id)
+	_, err := tool.Encode(PingMsg, DirectPing, &p, false)
 	if err != nil {
 		log.Errorf("[ERR] Failed to encode ping message: %v", err)
 		return
@@ -180,16 +171,17 @@ func (h *Heartbeat) probeNode(addr []byte) {
 		h.indirectProbe(ip)
 	}, DirectProbeTimeout)
 
-	err = h.UdpServer.UDPSendMessage(targetAddr, []byte{}, encode)
-	if err != nil {
-		log.Errorf("[ERR] Failed to send ping message to %s: %v", targetAddr, err)
-		return
-	}
+	//err = h.UdpServer.UDPSendMessage(targetAddr, []byte{}, encode)
+	//if err != nil {
+	//	log.Errorf("[ERR] Failed to send ping message to %s: %v", targetAddr, err)
+	//	return
+	//}
 }
 func (h *Heartbeat) indirectProbe(ip string) {
-	fmt.Println("[DEBUG] indirectProbe")
+	id := h.nextId()
+	log.Warn(h.config.ServerAddress, "[WARN] indirectProbe", ip)
 	data := ForwardPing{
-		Id:     h.nextId(),
+		Id:     id,
 		Target: ip,
 	}
 	encode, err := tool.Encode(PingMsg, IndirectPing, data, false)
@@ -197,9 +189,19 @@ func (h *Heartbeat) indirectProbe(ip string) {
 		log.Errorf("[ERR] Failed to send forwardPing message to %s: %v", ip, err)
 		return
 	}
+	//新建一个id，避免和之前的冲突
+	h.pingMap.Add(id, ip, func(ip string) {
+		//间接探测也超时就执行下线
+		h.server.ReportLeave(tool.IPv4To6Bytes(ip))
+	}, DirectProbeTimeout)
+
 	nodes := h.server.KRandomNodes(IndirectProbeNum, tool.IPv4To6Bytes(ip))
 	for _, n := range nodes {
-		h.UdpServer.UDPSendMessage(n, []byte{}, encode)
+		err := h.UdpServer.UDPSendMessage(n, []byte{}, encode)
+		if err != nil {
+			log.Errorf("[ERR] Failed to send indirect probe message to %s: %v", n, err)
+			continue
+		}
 	}
 }
 func (h *Heartbeat) replayHeartbeat(ip string, id int64) {
@@ -240,7 +242,6 @@ func (h *Heartbeat) nextId() int64 {
 
 // Hand UDPServer的Hand方法实现，处理所有UDP消息
 func (h *Heartbeat) Hand(msg []byte, conn net.Conn) {
-	log.Println("UDPServer Hand")
 	srcIp := conn.RemoteAddr().String()
 	//目前udp只会发心跳类型的消息，第一位不用判断
 	msgAction := msg[1]
@@ -253,12 +254,20 @@ func (h *Heartbeat) Hand(msg []byte, conn net.Conn) {
 		}
 		h.replayHeartbeat(srcIp, ping.Id)
 	case PingAck:
+		//这里是直接探测ack逻辑
 		var ack PingAckRes
 		if err := tool.DecodeMsgPayload(msg, &ack); err != nil {
 			log.Infof("Failed to decode ack message: %v", err)
 			return
 		}
 		h.pingMap.Delete(ack.Id)
+		//还有一种可能是间接探测的ack
+		initIp := h.indirectMap.Get(ack.Id)
+		if initIp != nil {
+			initIp := initIp.(string)
+			h.replayHeartbeat(initIp, ack.Id)
+		}
+		h.indirectMap.Delete(ack.Id)
 	case IndirectPing:
 		var forwardPing ForwardPing
 		if err := tool.DecodeMsgPayload(msg, &forwardPing); err != nil {
@@ -273,10 +282,8 @@ func (h *Heartbeat) Hand(msg []byte, conn net.Conn) {
 			log.Errorf("[ERR] Failed to encode ping message: %v", err)
 			return
 		}
-		h.pingMap.Add(forwardPing.Id, forwardPing.Target, func(ip string) {
-			//超时就执行
-			fmt.Println("Indirect detection timeout")
-			h.server.ReportLeave(tool.IPv4To6Bytes(ip))
+		h.indirectMap.Add(forwardPing.Id, srcIp, func(ip string) {
+			//转发者节点不需要进行超时操作，只需要删除
 		}, IndirectAckTimeout) //和发起节点保持一致
 		err = h.UdpServer.UDPSendMessage(forwardPing.Target, []byte{}, encode)
 		if err != nil {

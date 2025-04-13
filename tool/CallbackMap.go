@@ -38,6 +38,7 @@ func (cm *CallbackMap) Get(key int64) interface{} {
 	if val, ok := cm.m[key]; ok {
 		return val
 	} else {
+
 		return nil
 	}
 }
@@ -49,7 +50,7 @@ func (cm *CallbackMap) Add(k int64, v string, f func(s string), timeout time.Dur
 		cm.mutex.Lock()
 		defer cm.mutex.Unlock()
 		if _, ok := cm.m[k]; ok {
-			f(v)
+			go f(v)
 			delete(cm.m, k)
 		} else {
 			return
