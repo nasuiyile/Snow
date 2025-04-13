@@ -2,6 +2,7 @@ package tool
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"testing"
 )
 
@@ -38,6 +39,7 @@ func (a *ActionSon) func1() {
 }
 
 func Test(t *testing.T) {
-	DisableNode(8111)
+	log.SetLevel(log.DebugLevel)
+	log.Debug("debug")
 
 }

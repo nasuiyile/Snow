@@ -87,7 +87,6 @@ func (s *Server) StartHeartBeat() {
 		log.Warn("[WARN] Failed to initialize UDP server: %v", err)
 	} else {
 		s.UdpServer = udpServer
-		udpServer.H = s
 	}
 	s.HeartbeatService.UdpServer = udpServer
 
@@ -206,6 +205,10 @@ func (s *Server) ConnectToPeer(addr string) (net.Conn, error) {
 	member.SetClient(conn)
 	return conn, nil
 }
+func (s *Server) HeartBeat(ip string, msg []byte) {
+	s.SendMessage(ip, []byte{common.PingMsg, common.DirectPing}, msg)
+}
+
 func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 	if s.IsClosed.Load() {
 		return
@@ -336,7 +339,6 @@ func (s *Server) Close() {
 		return
 	}
 	s.IsClosed.Store(true)
-
 	for _, v := range s.Member.MetaData {
 		client := v.GetClient()
 		if client != nil {

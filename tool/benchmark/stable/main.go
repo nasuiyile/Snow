@@ -72,7 +72,7 @@ func benchmark(n int, k int, rounds int) {
 		}
 		log.SetOutput(ioutil.Discard)
 		for i := range rounds {
-			// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
+			// 1秒一轮,节点可能还没有离开新的广播就发出了
 			fmt.Printf("=== %d =====\n", i)
 			time.Sleep(1000 * time.Millisecond)
 			go func() {

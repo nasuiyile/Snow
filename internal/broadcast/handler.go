@@ -71,6 +71,12 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		if msgAction == UserMsg {
 			s.Action.process(body)
 		}
+	case PingMsg:
+		if msgAction == DirectPing {
+			//tcp的直接探测逻辑
+		} else if msgAction == PingAck {
+			//tcp的探测回复逻辑
+		}
 	}
 }
 
