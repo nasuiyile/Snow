@@ -47,10 +47,11 @@
         <div class="chart" id="Reliability"></div>
     </div>
     <div style="margin-top: 20px;">
-        <button class="btn" id="clean" onclick="clean()">clean</button>
-        <button class="btn" id="clean" onclick="exportDataset()">export</button>
+        <button class="btn" onclick="clean()">clean</button>
+        <button class="btn" onclick="exportDataset()">export</button>
         <input class="btn" id="file" type="file" name="file">
-        <button id="clean" onclick="loadDataset()">load</button>
+        <button onclick="loadDataset()">load</button>
+        <button class="btn" onclick="saveSvg()">save svg</button>
     </div>
 </body>
 
@@ -114,11 +115,11 @@
         }
     }
 
-    function draw(title, dataArr, avgData) {
+    function draw(title, yData, avgData) {
         if (chartDom[title]) {
             chartDom[title].dispose()
         }
-        let myChart = echarts.init(document.getElementById(title));
+        let myChart = echarts.init(document.getElementById(title), null, { renderer: 'svg' });
         chartDom[title] = myChart
 
         let option = {
@@ -205,22 +206,22 @@
                 {
                     name: 'Snow-Standard',
                     type: 'line',
-                    data: dataArr[types[0]]
+                    data: yData[types[0]]
                 },
                 {
                     name: 'Coloring',
                     type: 'line',
-                    data: dataArr[types[1]]
+                    data: yData[types[1]]
                 },
                 {
                     name: 'Gossip',
                     type: 'line',
-                    data: dataArr[types[2]]
+                    data: yData[types[2]]
                 },
                 {
                     name: 'Plumtree',
                     type: 'line',
-                    data: dataArr[types[3]]
+                    data: yData[types[3]]
                 },
             ]
         };
@@ -283,9 +284,38 @@
         clearData()
         getData()
 
-        draw('LDT', LDT_arr, LDT_avg)
-        draw('RMR', RMR_arr, RMR_avg)
-        draw('Reliability', Reliability_arr, Reliability_avg)
+        draw("LDT", LDT_arr, LDT_avg)
+        draw("RMR", RMR_arr, RMR_avg)
+        draw("Reliability", Reliability_arr, Reliability_avg)
+    }
+
+    function saveSvg() {
+        const svgs = document.querySelectorAll("svg");
+        xOffset = svgs[0].getAttribute("width")
+        yOffset = svgs[0].getAttribute("height")
+
+        const newSVG = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        newSVG.setAttribute("width", 3 * xOffset);
+        newSVG.setAttribute("height", yOffset);
+
+
+        svgs.forEach((svg, i) => {
+            svg = svgs[i].cloneNode(true)
+            svg.setAttribute("width", "100%");
+            svg.setAttribute("x", i * xOffset)
+            svg.setAttribute("y", "0")
+            newSVG.appendChild(svg);
+        });
+        // 预览
+        // document.body.appendChild(newSVG);
+
+        const content = new XMLSerializer().serializeToString(newSVG);
+        const blob = new Blob([content], { type: "xml/svg" })
+        const a = document.createElement("a")
+        a.href = URL.createObjectURL(blob)
+        a.download = "cycle_statistics.svg"
+        // 下载
+        a.click()
     }
 
     search()

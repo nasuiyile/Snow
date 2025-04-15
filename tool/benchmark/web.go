@@ -339,7 +339,7 @@ func goChart1(w http.ResponseWriter, r *http.Request) {
 }
 
 func goChart2(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles(fmt.Sprintf("%s%s", chartPath, "go_fanout_statistics.html"))
+	tmpl, err := template.ParseFiles(fmt.Sprintf("%s%s", chartPath, "go_num_fanout_statistics.html"))
 	if err != nil {
 		fmt.Println("go chart, err:", err)
 		return
@@ -381,7 +381,6 @@ func CreateWeb() {
 	http.HandleFunc("/loadDataset", loadDataset)
 	http.HandleFunc("/goChart", goChart1)
 	http.HandleFunc("/goChart2", goChart2)
-	http.HandleFunc("/goChart3", goChart3)
 	http.HandleFunc("/", index)
 
 	fs := http.FileServer(http.Dir(chartPath))
