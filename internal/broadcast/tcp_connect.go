@@ -3,7 +3,6 @@ package broadcast
 import (
 	"bufio"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -14,7 +13,6 @@ import (
 	"snow/internal/membership"
 	"snow/internal/state"
 	"snow/tool"
-	"strings"
 	"time"
 )
 
@@ -146,7 +144,7 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 			addr = s.Config.GetServerIp(addr)
 		}
 		s.Member.RemoveMember(tool.IPv4To6Bytes(addr), false)
-		s.Member.Unlock()
+
 	}()
 	reader := bufio.NewReader(conn)
 
@@ -232,19 +230,6 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 			} else {
 				conn = newConn
 			}
-		} else if !isConnectionAlive(conn) {
-			// 连接存在但无效，尝试重新连接
-			safeCloseConnection(conn)
-
-			newConn, err := s.ConnectToPeer(ip)
-			if err != nil {
-				log.Errorf("[ERROR] %s can't reconnect to %s: %v", s.Config.ServerAddress, ip, err)
-				if !s.IsClosed.Load() {
-					s.ReportLeave(tool.IPv4To6Bytes(ip))
-				}
-				return
-			}
-			conn = newConn
 		}
 		// 创建消息头，存储消息长度 (4字节大端序)
 		length := uint32(len(payload) + len(msg))
@@ -287,38 +272,6 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 
 	}()
 
-}
-
-// 检查连接是否有效
-func isConnectionAlive(conn net.Conn) bool {
-	if conn == nil {
-		return false
-	}
-
-	// 设置一个非常短的读取超时
-	err := conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
-	if err != nil {
-		return false
-	}
-
-	// 尝试读取一个字节，但不期望有数据
-	one := make([]byte, 1)
-	if _, err := conn.Read(one); err != nil {
-		if err == io.EOF || strings.Contains(err.Error(), "use of closed network connection") {
-			return false // 连接已关闭
-		}
-		var netErr net.Error
-		if errors.As(err, &netErr) && netErr.Timeout() {
-			// 重置读取超时
-			_ = conn.SetReadDeadline(time.Time{})
-			return true // 超时但连接可能仍然有效
-		}
-		return false
-	}
-
-	// 重置读取超时
-	_ = conn.SetReadDeadline(time.Time{})
-	return true
 }
 
 // safeCloseConnection 安全地关闭一个TCP连接

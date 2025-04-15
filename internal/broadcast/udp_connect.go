@@ -21,12 +21,12 @@ type UDPSendData struct {
 
 // UDPServer 封装了 UDP 服务器功能
 type UDPServer struct {
-	conn      *net.UDPConn       // UDP 连接（监听 socket）
-	localAddr *net.UDPAddr       // 本地监听地址
-	stopCh    chan struct{}      // 用于停止服务的通道
-	sendCh    chan *UDPSendData  // 发送队列
-	Config    *config.Config     // 配置参数
-	H         common.HandlerFunc // H 是消息处理回调
+	conn      *net.UDPConn  // UDP 连接（监听 socket）
+	localAddr *net.UDPAddr  // 本地监听地址
+	stopCh    chan struct{} // 用于停止服务的通道
+
+	Config *config.Config     // 配置参数
+	H      common.HandlerFunc // H 是消息处理回调
 }
 
 // NewUDPServer 创建并启动一个 UDP 服务器
@@ -47,7 +47,6 @@ func NewUDPServer(config *config.Config, heartbeat *Heartbeat) (*UDPServer, erro
 		conn:      conn,
 		localAddr: addr,
 		stopCh:    make(chan struct{}),
-		sendCh:    make(chan *UDPSendData, 100),
 		Config:    config,
 	}
 	server.H = heartbeat
@@ -56,7 +55,6 @@ func NewUDPServer(config *config.Config, heartbeat *Heartbeat) (*UDPServer, erro
 
 	// 启动读取和发送消息的协程
 	go server.startReading()
-	go server.startSending()
 
 	return server, nil
 }
@@ -162,19 +160,6 @@ func (s *UDPServer) sendUDPReply(addr *net.UDPAddr, msg []byte) {
 	log.Debugf("[UDPServer] Sent ACK to %s", addr.String())
 }
 
-// startSending 处理发送队列，将消息实际发送出去
-func (s *UDPServer) startSending() {
-	defer log.Infof("[UDPServer] Sending loop exited")
-	for {
-		select {
-		case <-s.stopCh:
-			return
-		case data := <-s.sendCh:
-			s.sendPacket(data)
-		}
-	}
-}
-
 // sendPacket 将 UDPSendData 中的数据拼装为完整数据包并发送
 func (s *UDPServer) sendPacket(d *UDPSendData) {
 	// 拼接 header + payload + msg
@@ -205,7 +190,7 @@ func (s *UDPServer) UDPSendMessage(remote string, payload, msg []byte) error {
 		Payload:    payload,
 		Msg:        msg,
 	}
-	s.sendCh <- data
+	go s.sendPacket(data)
 	return nil
 }
 

@@ -197,7 +197,9 @@ func (s *Server) ApplyLeave() {
 	s.ReliableMessage(s.Config.IPBytes(), NodeLeave, &f)
 }
 func (s *Server) ReportLeave(ip []byte) {
-
+	if s.IsClose() {
+		return
+	}
 	log.Warnf(s.Config.ServerAddress + "report leave:" + tool.ByteToIPv4Port(ip))
 	s.Member.RemoveMember(ip, false)
 	s.ColoringMessage(ip, ReportLeave)
