@@ -5,11 +5,12 @@ import (
 	. "snow/common"
 	"snow/tool"
 	"sort"
+	"sync"
 	"time"
 )
 
 type MetaData struct {
-	tool.ReentrantLock
+	sync.Mutex
 	client     net.Conn
 	server     net.Conn
 	State      NodeState
@@ -18,7 +19,8 @@ type MetaData struct {
 }
 
 type MemberShipList struct {
-	tool.ReentrantLock // 保护 clients 的并发访问并保证 并集群成员有相同的视图
+	sync.Mutex
+	//tool.ReentrantLock // 保护 clients 的并发访问并保证 并集群成员有相同的视图
 	//这个就是membership list
 	IPTable [][]byte
 	//这里存放连接和元数据
@@ -50,7 +52,7 @@ func (m *MemberShipList) InitState(metaDataMap map[string]*MetaData) {
 		} else {
 			m.MetaData[k] = v
 		}
-		m.FindOrInsert(tool.IPv4To6Bytes(k))
+		m.FindOrInsert(tool.IPv4To6Bytes(k), false)
 	}
 }
 
@@ -71,15 +73,15 @@ func (m *MetaData) SetClient(client net.Conn) {
 }
 
 func (m *MemberShipList) MemberLen() int {
-	m.Lock()
-	defer m.Unlock()
 	return len(m.IPTable)
 }
 
 // FindOrInsert 第二个参数表示是否进行了更新,每次调用这个方法索引就会刷新
-func (m *MemberShipList) FindOrInsert(target []byte) (int, bool) {
-	m.Lock()
-	defer m.Unlock()
+func (m *MemberShipList) FindOrInsert(target []byte, l bool) (int, bool) {
+	if l {
+		m.Lock()
+		defer m.Unlock()
+	}
 	// 使用二分查找定位目标位置
 	index := sort.Search(len(m.IPTable), func(i int) bool {
 		return BytesCompare(m.IPTable[i], target) >= 0
@@ -92,15 +94,19 @@ func (m *MemberShipList) FindOrInsert(target []byte) (int, bool) {
 
 	// 如果没有找到，插入到正确的位置
 	m.IPTable = append(m.IPTable, nil)
-	copy(m.IPTable[index+1:], m.IPTable[index:])
-	m.IPTable[index] = append([]byte{}, target...) // 插入新元素
+	if index < len(m.IPTable)-1 {
+		copy(m.IPTable[index+1:], m.IPTable[index:])
+	}
+	m.IPTable[index] = target // 假设可以安全引用外部target
 
 	return index, true
 }
 
-func (m *MemberShipList) Find(target []byte) int {
-	m.Lock()
-	defer m.Unlock()
+func (m *MemberShipList) Find(target []byte, l bool) int {
+	if l {
+		m.Lock()
+		defer m.Unlock()
+	}
 	// 使用二分查找定位目标位置
 	index := sort.Search(len(m.IPTable), func(i int) bool {
 		return BytesCompare(m.IPTable[i], target) >= 0
@@ -142,8 +148,7 @@ func NewEmptyMetaData() *MetaData {
 
 // 和addNode的区别是不需要实际进行连接
 func (m *MemberShipList) AddMember(ip []byte, state NodeState) {
-	m.Lock()
-	defer m.Unlock()
+
 	metaData, ok := m.MetaData[tool.ByteToIPv4Port(ip)]
 	if !ok {
 		metadata := NewEmptyMetaData()
@@ -152,12 +157,16 @@ func (m *MemberShipList) AddMember(ip []byte, state NodeState) {
 	} else {
 		metaData.UpdateTime = time.Now().Unix()
 	}
-	m.FindOrInsert(ip)
+	m.FindOrInsert(ip, false)
 }
 func (m *MemberShipList) RemoveMember(ip []byte, close bool) {
+	address := tool.ByteToIPv4Port(ip)
 	m.Lock()
 	defer m.Unlock()
-	address := tool.ByteToIPv4Port(ip)
+	idx := m.Find(ip, false)
+	if idx == -1 {
+		return
+	}
 	data, ok := m.MetaData[address]
 	if ok {
 		if close {
@@ -189,10 +198,9 @@ func (m *MemberShipList) RemoveMember(ip []byte, close bool) {
 		data.UpdateTime = time.Now().Unix()
 		data.State = NodeLeft
 	}
-	idx, _ := m.FindOrInsert(ip)
-	//删除当前元素
-	//m.IPTable = tool.DeleteAtIndexes(m.IPTable, idx)
-	m.IPTable = append(m.IPTable[:idx], m.IPTable[idx+1:]...)
+	//找到就删除当前元素
+	m.IPTable = tool.DeleteAtIndexes(m.IPTable, idx)
+
 }
 func (m *MemberShipList) GetOrPutMember(key string) *MetaData {
 	m.Lock()

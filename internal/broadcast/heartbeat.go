@@ -9,6 +9,7 @@ import (
 	"snow/config"
 	"snow/internal/membership"
 	"snow/tool"
+	"sync"
 	"time"
 )
 
@@ -42,6 +43,7 @@ type server interface {
 	ConnectToPeer(addr string) (net.Conn, error)
 	ReportLeave(ip []byte)
 	KRandomNodes(k int, exclude []byte) []string
+	IsClose() bool
 }
 type udpServer interface {
 	UDPSendMessage(remote string, payload, msg []byte) error
@@ -49,11 +51,11 @@ type udpServer interface {
 
 // Heartbeat 负责心跳消息的发送与探测
 type Heartbeat struct {
-	tool.ReentrantLock                            // 保护并发访问
-	config             *config.Config             // 使用统一的配置
-	member             *membership.MemberShipList // 直接使用MemberShipList
-	server             server
-	UdpServer          udpServer
+	sync.Mutex                            // 保护并发访问
+	config     *config.Config             // 使用统一的配置
+	member     *membership.MemberShipList // 直接使用MemberShipList
+	server     server
+	UdpServer  udpServer
 
 	running     bool // 服务是否在运行
 	pingMap     *tool.CallbackMap
@@ -78,8 +80,6 @@ func NewHeartbeat(cfg *config.Config, memberList *membership.MemberShipList, ser
 
 // Start 启动定时探测
 func (h *Heartbeat) Start() {
-	h.Lock()
-	defer h.Unlock()
 
 	if h.running {
 		return
@@ -147,7 +147,7 @@ func (h *Heartbeat) probe() {
 		break
 	}
 	h.Unlock()
-	h.probeNode(target)
+	go h.probeNode(target)
 }
 
 // probeNode 向目标节点发送 ping 心跳

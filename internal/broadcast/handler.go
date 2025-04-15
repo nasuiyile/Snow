@@ -104,7 +104,9 @@ func forward(msg []byte, s *Server, parentIp string) {
 	isLeaf := bytes.Compare(leftIP, rightIP) == 0
 
 	if !isLeaf {
+		s.Member.Lock()
 		member, _ = s.NextHopMember(msgType, msgAction, leftIP, rightIP, false)
+		s.Member.Unlock()
 	}
 	//消息中会附带发送给自己的节点
 	if msgType == ReliableMsg {

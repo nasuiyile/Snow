@@ -8,7 +8,6 @@ import (
 	. "snow/common"
 	. "snow/config"
 	"snow/internal/broadcast"
-	"snow/internal/plumtree"
 	"snow/tool"
 	"time"
 )
@@ -17,15 +16,15 @@ func main() {
 	tool.DebugLog()
 	////测试轮数
 	rounds := 100
-	benchmark(200, 4, rounds)
+	benchmark(500, 4, rounds)
 
 	fmt.Println("done!!!")
 	// 主线程保持运行
 	select {}
 }
 func benchmark(n int, k int, rounds int) {
-
-	tool.ResetIPTable()
+	portList := make([]int, 0)
+	//tool.ResetIPTable()
 	time.Sleep(2 * time.Second)
 	defer tool.ResetIPTable()
 	configPath := ""
@@ -42,11 +41,11 @@ func benchmark(n int, k int, rounds int) {
 
 	//节点启动完之后再跑
 	for _, mode := range testMode {
-		err := tool.ResetIPTable()
-		if err != nil {
-			panic(err)
-		}
-		serverList := make([]*plumtree.Server, 0)
+		//err := tool.ResetIPTable()
+		//if err != nil {
+		//	panic(err)
+		//}
+		serverList := make([]*broadcast.Server, 0)
 		for i := 0; i < n; i++ {
 			action := createAction(i + 1)
 			f := func(config *Config) {
@@ -59,7 +58,7 @@ func benchmark(n int, k int, rounds int) {
 				panic(err)
 				return
 			}
-			server, err := plumtree.NewServer(config, action)
+			server, err := broadcast.NewServer(config, action)
 			if err != nil {
 				log.Println(err)
 				return
@@ -83,28 +82,45 @@ func benchmark(n int, k int, rounds int) {
 			} else if mode == GossipMsg {
 				serverList[0].GossipMessage(msg, UserMsg)
 			} else if mode == EagerPush {
-				serverList[0].PlumTreeBroadcast(msg, UserMsg)
+				//serverList[0].PlumTreeBroadcast(msg, UserMsg)
 			}
-			//if i == 5 {
-			//	dport := 26
-			//	port := serverList[dport].Server.Config.Port
-			//	tool.DisableNode(port)
-			//	time.Sleep(1000 * time.Millisecond)
-			//	serverList[dport].IsClosed.Store(true)
-			//	serverList[dport].HeartbeatService.Stop()
-			//	serverList[dport].UdpServer.Close()
-			//	//serverList[dport].Server.Close()
-			//}
+			if i == 8 {
+				dport := 5
+				port := serverList[dport].Config.Port
+				portList = append(portList, port)
+				////tool.DisableNode(port)
+				//time.Sleep(1000 * time.Millisecond)
+				//serverList[dport].IsClosed.Store(true)
+				//serverList[dport].HeartbeatService.Stop()
+				//serverList[dport].UdpServer.Close()
+				//serverList[dport].Server.Close()
+				serverList[dport].ApplyLeave()
+			}
 
 		}
 		time.Sleep(8 * time.Second)
 		for _, v := range serverList {
+			f := false
+			for _, port := range portList {
+				if v.Config.Port == port {
+					f = true
+				}
+			}
+			if f == true {
+				continue
+			}
+			v.IsClosed.Store(true)
+			v.HeartbeatService.Stop()
+			v.UdpServer.Close()
+		}
+		for _, v := range serverList {
 			v.Close()
+
 		}
-		err = tool.ResetIPTable()
-		if err != nil {
-			panic(err)
-		}
+		//err = tool.ResetIPTable()
+		//if err != nil {
+		//	panic(err)
+		//}
 		time.Sleep(2 * time.Second)
 
 	}
@@ -114,12 +130,12 @@ func benchmark(n int, k int, rounds int) {
 func createAction(num int) broadcast.Action {
 	syncAction := func(bytes []byte) bool {
 		//随机睡眠时间，百分之5的节点是掉队者节点
-		if num%20 == 0 {
-			time.Sleep(1 * time.Second)
-		} else {
-			randInt := tool.RandInt(10, 200)
-			time.Sleep(time.Duration(randInt) * time.Millisecond)
-		}
+		//if tool.IntHash(num)%20 == 0 {
+		//	time.Sleep(1 * time.Second)
+		//} else {
+		//randInt := tool.RandInt(10, 200)
+		//time.Sleep(time.Duration(randInt) * time.Millisecond)
+		//}
 
 		return true
 	}

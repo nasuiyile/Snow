@@ -50,18 +50,14 @@ func NewServer(config *config.Config, action Action) (*Server, error) {
 			State:           tool.NewTimeoutMap(),
 			ReliableTimeout: make(map[string]*state.ReliableInfo),
 		},
-		Action:   action,
-		client:   dialer.Dialer(clientAddress, config.TCPTimeout),
-		StopCh:   make(chan struct{}),
-		SendChan: make(chan *SendData),
+		Action: action,
+		client: dialer.Dialer(clientAddress, config.TCPTimeout),
+		StopCh: make(chan struct{}),
 	}
 	server.IsClosed.Store(false)
 	server.H = server
-	server.Member.FindOrInsert(config.IPBytes())
-	for _, addr := range config.DefaultServer {
-		server.Member.AddMember(tool.IPv4To6Bytes(addr), common.NodeSurvival)
-	}
-	if server.Config.HeartBeat && server.Config.Test {
+	server.SetDefaultServer(config.DefaultServer)
+	if server.Config.HeartBeat {
 		server.StartHeartBeat()
 	}
 
@@ -70,6 +66,14 @@ func NewServer(config *config.Config, action Action) (*Server, error) {
 	server.schedule()
 	fmt.Printf("Server is running on port %d...\n\n", config.Port)
 	return server, nil
+}
+func (s *Server) SetDefaultServer(defaultServer []string) {
+	s.Member.Lock()
+	defer s.Member.Unlock()
+	for _, addr := range defaultServer {
+		s.Member.AddMember(tool.IPv4To6Bytes(addr), common.NodeSurvival)
+	}
+	s.Member.FindOrInsert(s.Config.IPBytes(), false)
 
 }
 
@@ -97,7 +101,6 @@ func (s *Server) schedule() {
 	// Create the stop tick channel, a blocking channel. We close this
 	// when we should stop the tickers.
 	//go s.pushTrigger(s.StopCh)
-	go s.Sender()
 
 }
 
@@ -139,7 +142,6 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 	defer func() {
 		safeCloseConnection(conn)
 		addr := conn.RemoteAddr().String()
-		s.Member.Lock()
 		if !isServer {
 			addr = s.Config.GetServerIp(addr)
 		}
@@ -164,8 +166,8 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 			if err == io.EOF {
 				log.Warn("Normal EOF: connection closed by client")
 			}
-			member := tool.IPv4To6Bytes(conn.RemoteAddr().String())
-			s.ReportLeave(member)
+			sIp := s.Config.GetServerIp(conn.RemoteAddr().String())
+			s.ReportLeave(tool.IPv4To6Bytes(sIp))
 			//s.Member.RemoveMember(member, false)
 			return
 		}
@@ -255,7 +257,34 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 			Payload: payload,
 			Msg:     msg,
 		}
-		s.SendChan <- data
+
+		err := data.Conn.SetWriteDeadline(time.Now().Add(s.Config.TCPTimeout))
+		if err != nil {
+			log.Error(err)
+		}
+		if s.Config.Test && s.Config.Report {
+			bytes := append(data.Payload, data.Msg...)
+			tool.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), bytes, s.Config.FanOut)
+		}
+		_, err = data.Conn.Write(data.Header)
+		if err != nil {
+			log.Errorf("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
+			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+			return
+		}
+		_, err = data.Conn.Write(data.Payload)
+		if err != nil {
+			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+			log.Errorf("Error sending payload to %v: %v", data.Conn.RemoteAddr(), err)
+			return
+		}
+		_, err = data.Conn.Write(data.Msg)
+		if err != nil {
+			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+			log.Errorf("Error sending message to %v: %v", data.Conn.RemoteAddr(), err)
+			return
+		}
+
 	}()
 
 }
@@ -306,88 +335,38 @@ func safeCloseConnection(conn net.Conn) {
 			return
 		}
 
-		// 关闭读写
-		//_ = tcpConn.CloseRead()
-		//_ = tcpConn.CloseWrite()
 	}
 
 	// 关闭连接，忽略可能的错误
 	_ = conn.Close()
 }
 
-// 这个方法只能用来回复消息
-func (s *Server) replayMessage(conn net.Conn, msg []byte) {
-	// 创建消息头，存储消息长度 (4字节大端序)
-	length := uint32(len(msg))
-	header := make([]byte, 4)
-	binary.BigEndian.PutUint32(header, length)
-	log.Errorf(conn.RemoteAddr().String())
-	data := &SendData{
-		Conn:    conn,
-		Header:  header,
-		Payload: []byte{},
-		Msg:     msg,
-	}
-	s.SendChan <- data
-}
-
 // Close 关闭服务器
 func (s *Server) Close() {
 	s.Member.Lock()
 	defer s.Member.Unlock()
-	if s.IsClosed.Load() {
-		return
-	}
-	s.IsClosed.Store(true)
+	s.listener.Close()
 	for _, v := range s.Member.MetaData {
 		client := v.GetClient()
 		if client != nil {
 			safeCloseConnection(client)
-			v.SetClient(nil)
-
 		}
 	}
+	//如果已经关闭了就不再关闭，临时写法，之后要改
+	if s.IsClosed.Load() {
+		s.IsClosed.Store(true)
+		return
+	}
+	s.IsClosed.Store(true)
+
 	if s.HeartbeatService != nil {
 		s.HeartbeatService.Stop()
 	}
 	if s.UdpServer != nil {
 		s.UdpServer.Close()
 	}
-	s.listener.Close()
 
 }
-
-func (s *Server) Sender() {
-	for data := range s.SendChan {
-		data := data
-		go func() {
-			err := data.Conn.SetWriteDeadline(time.Now().Add(s.Config.TCPTimeout))
-			if err != nil {
-				log.Error(err)
-			}
-			if s.Config.Test && s.Config.Report {
-				bytes := append(data.Payload, data.Msg...)
-				tool.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), bytes, s.Config.FanOut)
-			}
-			_, err = data.Conn.Write(data.Header)
-			if err != nil {
-				log.Errorf("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
-				s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
-				return
-			}
-			_, err = data.Conn.Write(data.Payload)
-			if err != nil {
-				s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
-				log.Errorf("Error sending payload to %v: %v", data.Conn.RemoteAddr(), err)
-				return
-			}
-			_, err = data.Conn.Write(data.Msg)
-			if err != nil {
-				s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
-				log.Errorf("Error sending message to %v: %v", data.Conn.RemoteAddr(), err)
-				return
-			}
-		}()
-
-	}
+func (s *Server) IsClose() bool {
+	return s.IsClosed.Load()
 }

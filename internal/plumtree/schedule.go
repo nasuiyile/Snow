@@ -41,10 +41,10 @@ func (s *Server) KRandomNodes(k int) []string {
 	//当前节点的ID，需要被排除
 	//把自己和eagerPush列表里的排除
 	nodeIdx := make([]int, 0)
-	currentIdx := s.Server.Member.Find(s.Config.IPBytes())
+	currentIdx := s.Server.Member.Find(s.Config.IPBytes(), false)
 	nodeIdx = append(nodeIdx, currentIdx)
 	s.EagerPush.Range(func(key string) bool {
-		idx := s.Server.Member.Find(tool.IPv4To6Bytes(key))
+		idx := s.Server.Member.Find(tool.IPv4To6Bytes(key), false)
 		if idx != -1 {
 			nodeIdx = append(nodeIdx, idx)
 		}

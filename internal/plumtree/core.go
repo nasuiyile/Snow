@@ -2,9 +2,7 @@ package plumtree
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"net"
 	. "snow/common"
 	. "snow/config"
@@ -43,7 +41,7 @@ func NewServer(config *Config, action broadcast.Action) (*Server, error) {
 		LazyPushTimeout:  6 * time.Second,
 	}
 	server.EagerPush = tool.NewSafeSet[string]()
-	server.MessageIdQueue = make(chan []byte, 10000)
+	server.MessageIdQueue = make(chan []byte, 100)
 	server.msgCache = tool.NewTimeoutMap()
 	go server.lazyPushTask(server.Server.StopCh)
 	return server, nil
@@ -79,7 +77,9 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		switch msgAction {
 		case NodeJoin:
 			s.eagerLock.Lock()
+			s.Member.Lock()
 			s.Member.AddMember(ipByte, NodeSurvival)
+			s.Member.Unlock()
 			sourceIp := tool.ByteToIPv4Port(ipByte)
 			//不等于自己
 			if !bytes.Equal(ipByte, s.Config.IPBytes()) {
@@ -88,6 +88,7 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 				s.EagerPush.Add(sourceIp)
 				//}
 			}
+
 			s.eagerLock.Unlock()
 			return
 		case NodeLeave:
@@ -159,53 +160,4 @@ func (s *Server) PlumTreeMessage(msg []byte) {
 		s.SendMessage(key, []byte{}, msg)
 		return true
 	})
-}
-
-func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
-	if s.IsClosed.Load() {
-		return
-	}
-	go func() {
-		metaData := s.Member.GetOrPutMember(ip)
-		var conn net.Conn
-		var err error
-		if metaData == nil {
-			conn, err = s.ConnectToPeer(ip)
-			if err != nil {
-				log.Error(s.Config.ServerAddress, "can't connect to ", ip)
-				s.EagerPush.Remove(ip)
-				s.ReportLeave(tool.IPv4To6Bytes(ip))
-				log.Error(err)
-				return
-			}
-		} else {
-			conn = metaData.GetClient()
-		}
-		if conn == nil {
-			//先建立一次链接进行尝试
-			newConn, err := s.ConnectToPeer(ip)
-			if err != nil {
-				log.Error(s.Config.ServerAddress, "can't connect to ", ip)
-				s.EagerPush.Remove(ip)
-				s.ReportLeave(tool.IPv4To6Bytes(ip))
-				return
-			} else {
-				conn = newConn
-			}
-		}
-		// 创建消息头，存储消息长度 (4字节大端序)
-		length := uint32(len(payload) + len(msg))
-
-		header := make([]byte, 4)
-		binary.BigEndian.PutUint32(header, length)
-
-		data := &broadcast.SendData{
-			Conn:    conn,
-			Header:  header,
-			Payload: payload,
-			Msg:     msg,
-		}
-		s.SendChan <- data
-	}()
-
 }

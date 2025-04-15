@@ -16,7 +16,7 @@ import (
 func main() {
 	tool.DebugLog()
 	////测试轮数
-	rounds := 100
+	rounds := 1
 	//benchmark(600, 6, rounds)
 	//benchmark(600, 8, rounds)
 	//benchmark(600, 4, rounds)
@@ -86,7 +86,7 @@ func benchmark(n int, k int, rounds int) {
 				}
 			}()
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(6 * time.Second)
 		for _, v := range serverList {
 			fmt.Println("关闭节点：", v.Config.ServerAddress)
 			v.Close()
@@ -99,12 +99,12 @@ func benchmark(n int, k int, rounds int) {
 func createAction(num int) broadcast.Action {
 	syncAction := func(bytes []byte) bool {
 		//随机睡眠时间，百分之5的节点是掉队者节点
-		if num%20 == 0 {
-			time.Sleep(1 * time.Second)
-		} else {
-			randInt := tool.RandInt(10, 200)
-			time.Sleep(time.Duration(randInt) * time.Millisecond)
-		}
+		//if num%20 == 0 {
+		//	time.Sleep(1 * time.Second)
+		//} else {
+		randInt := tool.RandInt(10, 200)
+		time.Sleep(time.Duration(randInt) * time.Millisecond)
+		//}
 
 		return true
 	}

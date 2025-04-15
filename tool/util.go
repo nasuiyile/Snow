@@ -194,24 +194,23 @@ func RemoveElement[T comparable](arr []T, val T) []T {
 
 // DeleteAtIndexes 删除数组中指定索引位置的元素
 func DeleteAtIndexes[T any](arr []T, indexes ...int) []T {
-	// 排序索引，避免删除时索引偏移
-	sort.Ints(indexes)
-
-	// 使用一个新切片存储结果
-	result := make([]T, 0, len(arr)-len(indexes))
-	indexSet := make(map[int]struct{})
-	for _, idx := range indexes {
-		indexSet[idx] = struct{}{}
+	if len(indexes) == len(arr) {
+		return arr
 	}
 
-	for i, v := range arr {
-		if _, found := indexSet[i]; !found {
-			result = append(result, v)
+	// 原地删除元素
+	for _, idx := range indexes {
+		if idx >= 0 && idx < len(arr) {
+			// 将后面的元素向前移动一位
+			copy(arr[idx:], arr[idx+1:])
+			// 缩短切片长度
+			arr = arr[:len(arr)-1]
 		}
 	}
 
-	return result
+	return arr
 }
+
 func GetPortByIp(ip string) int {
 	split := strings.Split(ip, ":")
 	port, _ := strconv.Atoi(split[1])
@@ -283,4 +282,17 @@ func IsLastDigitEqual(a, b int) bool {
 
 	// 比较个位数和十位数是否都相等
 	return lastDigitA == lastDigitB && secondLastDigitA == secondLastDigitB
+}
+
+// IntHash 计算一个整数的哈希值
+func IntHash(n int) int {
+	// 使用乘法哈希算法
+	// 选择一个大的质数作为乘数
+	const multiplier = 2654435761 // 32位乘法器 (来自Knuth)
+
+	// 进行乘法并取高位作为哈希值
+	hash := uint32(n) * multiplier
+
+	// 返回int类型的哈希值
+	return int(hash)
 }

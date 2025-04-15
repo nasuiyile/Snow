@@ -25,6 +25,7 @@ var client = &http.Client{
 
 func SendHttp(from string, target string, data []byte, k int) {
 	if data[1] == UserMsg || data[1] == IHAVE {
+
 		port := GetPortByIp(target)
 		//不给浮动的节点发送请求
 		if port >= InitPort+Num {
@@ -38,9 +39,9 @@ func SendHttp(from string, target string, data []byte, k int) {
 		values.Add("Target", target)
 		values.Add("Size", fmt.Sprintf("%d", len(data)))
 		if data[0] == ColoringMsg || data[0] == RegularMsg || data[0] == ReliableMsg {
-			if data[0] == ColoringMsg {
-				fmt.Println("ColoringMsg")
-			}
+			//if data[0] == ColoringMsg {
+			//	fmt.Println("coloring msg")
+			//}
 			values.Add("Id", string(data[TagLen+IpLen*2:TagLen+IpLen*2+TimeLen]))
 		} else if data[0] == EagerPush {
 			values.Add("Id", string(data[TagLen+IpLen:TagLen+IpLen+TimeLen]))

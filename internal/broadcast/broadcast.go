@@ -80,10 +80,10 @@ func (s *Server) KRandomNodes(k int, exclude []byte) []string {
 	defer s.Member.Unlock()
 	ip := make([]string, 0)
 	//当前节点的ID，需要被排除
-	idx := s.Member.Find(s.Config.IPBytes())
+	idx := s.Member.Find(s.Config.IPBytes(), false)
 	var randomNodes []int
 	if exclude != nil && len(exclude) != 0 {
-		excludeIdx := s.Member.Find(exclude)
+		excludeIdx := s.Member.Find(exclude, false)
 		randomNodes = tool.KRandomNodes(0, s.Member.MemberLen()-1, []int{idx, excludeIdx}, k)
 	} else {
 		randomNodes = tool.KRandomNodes(0, s.Member.MemberLen()-1, []int{idx}, k)

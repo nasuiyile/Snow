@@ -1,8 +1,7 @@
 package broadcast
 
 import (
-	"bytes"
-	"encoding/gob"
+	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"net"
 	. "snow/common"
@@ -25,7 +24,6 @@ type Server struct {
 	IsClosed         atomic.Bool //是否关闭了
 	H                HandlerFunc
 	StopCh           chan struct{}
-	SendChan         chan *SendData
 	HeartbeatService *Heartbeat // 心跳服务
 	UdpServer        *UDPServer // UDP服务器
 }
@@ -109,7 +107,7 @@ func (s *Server) InitMessage(msgType MsgType, action MsgAction) (map[string][]by
 	if s.Member.MemberLen() == 1 {
 		return make(map[string][]byte), nil
 	}
-	current := s.Member.Find(s.Config.IPBytes())
+	current := s.Member.Find(s.Config.IPBytes(), false)
 	//当前的索引往左偏移
 	leftIndex := ObtainOnIPRing(current, -(s.Member.MemberLen())/2, s.Member.MemberLen())
 	//右索引是左索引-1，这是环的特性
@@ -120,45 +118,37 @@ func (s *Server) InitMessage(msgType MsgType, action MsgAction) (map[string][]by
 }
 
 func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []byte, rightIP []byte, isRoot bool) (map[string][]byte, []byte) {
-	s.Member.Lock()
-	def := func() { s.Member.Unlock() }
-
 	coloring := msgType == ColoringMsg
 	if s.Member.MemberLen() == 1 {
-		def()
 		return make(map[string][]byte), nil
 	}
 	forwardList := make(map[string][]byte)
 	//要转发的所有节点
-	leftIndex, lok := s.Member.FindOrInsert(leftIP)
-	rightIndex, rok := s.Member.FindOrInsert(rightIP)
+	leftIndex, lok := s.Member.FindOrInsert(leftIP, false)
+	rightIndex, rok := s.Member.FindOrInsert(rightIP, false)
 	//如果更新了就重新找一遍节点
 	if lok || rok {
-		leftIndex = s.Member.Find(leftIP)
-		rightIndex = s.Member.Find(rightIP)
+		leftIndex = s.Member.Find(leftIP, false)
+		rightIndex = s.Member.Find(rightIP, false)
 		//引用也要重新更新,这些元素是被临时插入的用完就需要删除
 		if lok && rok {
-			def = func() {
+			defer func() {
 				s.Member.IPTable = tool.DeleteAtIndexes(s.Member.IPTable, leftIndex, rightIndex)
-				s.Member.Unlock()
-			}
+			}()
 		} else if lok {
-			def = func() {
+			defer func() {
 				s.Member.IPTable = tool.DeleteAtIndexes(s.Member.IPTable, leftIndex)
-				s.Member.Unlock()
-			}
+			}()
 		} else if rok {
-			def = func() {
+			defer func() {
 				s.Member.IPTable = tool.DeleteAtIndexes(s.Member.IPTable, rightIndex)
-				s.Member.Unlock()
-			}
+			}()
 		}
 	}
-	currentIndex := s.Member.Find(s.Config.IPBytes())
-
+	currentIndex := s.Member.Find(s.Config.IPBytes(), false)
 	k := s.Config.FanOut
-
 	next, areaLen := CreateSubTree(leftIndex, rightIndex, currentIndex, s.Member.MemberLen(), k, coloring)
+
 	//构建 secondary tree,注意这里的左边界和右边界要和根节点保持一致
 	if isRoot && areaLen > (1+k) && coloring {
 		secondaryRoot := ObtainOnIPRing(currentIndex, 1, s.Member.MemberLen())
@@ -177,8 +167,6 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 		forwardList[tool.ByteToIPv4Port(s.Member.IPTable[v.current])] = payload
 
 	}
-	def()
-
 	return forwardList, randomNumber
 }
 
@@ -218,22 +206,20 @@ func (s *Server) ReportLeave(ip []byte) {
 func (s *Server) exportState() []byte {
 	s.Member.Lock()
 	defer s.Member.Unlock()
-	var buffer bytes.Buffer
-	encoder := gob.NewEncoder(&buffer)
-	err := encoder.Encode(s.Member.MetaData)
+
+	data, err := json.Marshal(s.Member.MetaData)
 	if err != nil {
-		log.Error("GOB Serialization failed:", err)
+		log.Println("JSON Serialization failed:", err)
 		return nil
 	}
-	return buffer.Bytes()
+	return data
 }
+
 func (s *Server) importState(msg []byte) {
-	buffer := bytes.NewBuffer(msg)
 	var MetaData map[string]*membership.MetaData
-	decoder := gob.NewDecoder(buffer)
-	err := decoder.Decode(&MetaData)
+	err := json.Unmarshal(msg, &MetaData)
 	if err != nil {
-		log.Error("GOB Desialization failed:", err)
+		log.Println("JSON Deserialization failed:", err)
 		return
 	}
 	s.Member.InitState(MetaData)
