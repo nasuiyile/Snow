@@ -3,3 +3,4 @@ dataset/
 # IDE
 .idea/
 .vscode/
+*.log

@@ -242,36 +242,36 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 			Payload: payload,
 			Msg:     msg,
 		}
-
-		err := data.Conn.SetWriteDeadline(time.Now().Add(s.Config.TCPTimeout))
-		if err != nil {
-			log.Error(err)
-		}
-		if s.Config.Test && s.Config.Report {
-			bytes := append(data.Payload, data.Msg...)
-			tool.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), bytes, s.Config.FanOut)
-		}
-		_, err = data.Conn.Write(data.Header)
-		if err != nil {
-			log.Errorf("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
-			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
-			return
-		}
-		_, err = data.Conn.Write(data.Payload)
-		if err != nil {
-			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
-			log.Errorf("Error sending payload to %v: %v", data.Conn.RemoteAddr(), err)
-			return
-		}
-		_, err = data.Conn.Write(data.Msg)
-		if err != nil {
-			s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
-			log.Errorf("Error sending message to %v: %v", data.Conn.RemoteAddr(), err)
-			return
-		}
-
+		s.SendData(data)
 	}()
-
+}
+func (s *Server) SendData(data *SendData) {
+	err := data.Conn.SetWriteDeadline(time.Now().Add(s.Config.TCPTimeout))
+	if err != nil {
+		log.Error(err)
+	}
+	if s.Config.Test && s.Config.Report {
+		bytes := append(data.Payload, data.Msg...)
+		tool.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), bytes, s.Config.FanOut)
+	}
+	_, err = data.Conn.Write(data.Header)
+	if err != nil {
+		log.Errorf("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
+		s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+		return
+	}
+	_, err = data.Conn.Write(data.Payload)
+	if err != nil {
+		s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+		log.Errorf("Error sending payload to %v: %v", data.Conn.RemoteAddr(), err)
+		return
+	}
+	_, err = data.Conn.Write(data.Msg)
+	if err != nil {
+		s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+		log.Errorf("Error sending message to %v: %v", data.Conn.RemoteAddr(), err)
+		return
+	}
 }
 
 // safeCloseConnection 安全地关闭一个TCP连接

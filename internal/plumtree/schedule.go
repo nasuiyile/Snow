@@ -3,31 +3,16 @@ package plumtree
 import (
 	. "snow/common"
 	"snow/tool"
-	"time"
 )
-
-func (s *Server) lazyPushTask(stop <-chan struct{}) {
-	for {
-		interval := s.PConfig.LazyPushInterval
-		select {
-		case <-time.After(interval):
-			s.lazyPush()
-		case <-stop:
-			return
-		}
-	}
-
-}
 
 //将所有消息缓存到队列里
 
-func (s *Server) lazyPush() {
+func (s *Server) lazyPush(bytes []byte) {
 	//k个随机个节点，但是排除自身EagerPush里面的内容
-	for bytes := range s.MessageIdQueue {
-		nodes := s.KRandomNodes(s.Config.FanOut)
-		for _, node := range nodes {
-			s.SendIHAVE(node, bytes)
-		}
+
+	nodes := s.KRandomNodes(s.Config.FanOut)
+	for _, node := range nodes {
+		s.SendIHAVE(node, bytes)
 	}
 }
 func (s *Server) SendIHAVE(ip string, msg []byte) {

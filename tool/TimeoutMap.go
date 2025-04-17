@@ -60,7 +60,7 @@ func (tm *TimeoutMap) Get(key string) interface{} {
 // 清理过期键值对的协程
 func (tm *TimeoutMap) cleanUp() {
 	for {
-		<-time.After(1 * time.Second) // 每秒检查一次
+		time.Sleep(1 * time.Second) // 每秒检查一次
 		now := time.Now().Unix()
 		keysToDelete := []string{}
 		tm.mutex.Lock()

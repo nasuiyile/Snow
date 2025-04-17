@@ -15,12 +15,11 @@ import (
 
 type Server struct {
 	*broadcast.Server
-	PConfig        *PConfig
-	isInitialized  atomic.Bool
-	eagerLock      sync.RWMutex
-	EagerPush      *tool.SafeSet[string]
-	MessageIdQueue chan []byte
-	msgCache       *tool.TimeoutMap //缓存最近全部的消息
+	PConfig       *PConfig
+	isInitialized atomic.Bool
+	eagerLock     sync.RWMutex
+	EagerPush     *tool.SafeSet[string]
+	msgCache      *tool.TimeoutMap //缓存最近全部的消息
 }
 
 func NewServer(config *Config, action broadcast.Action) (*Server, error) {
@@ -41,9 +40,9 @@ func NewServer(config *Config, action broadcast.Action) (*Server, error) {
 		LazyPushTimeout:  6 * time.Second,
 	}
 	server.EagerPush = tool.NewSafeSet[string]()
-	server.MessageIdQueue = make(chan []byte, 100)
+
 	server.msgCache = tool.NewTimeoutMap()
-	go server.lazyPushTask(server.Server.StopCh)
+
 	return server, nil
 }
 
@@ -72,7 +71,9 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		//发送和收到时候都要进行缓存
 		msgId := msg[TagLen+IpLen : IpLen+TagLen+TimeLen]
 		s.msgCache.Set(string(msgId), string(msg), s.Config.ExpirationTime)
-		s.MessageIdQueue <- msgId
+		time.AfterFunc(s.PConfig.LazyPushInterval, func() {
+			s.lazyPush(msgId)
+		})
 		ipByte := msg[TagLen : TagLen+IpLen]
 		switch msgAction {
 		case NodeJoin:

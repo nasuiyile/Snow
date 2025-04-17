@@ -22,7 +22,7 @@ func main() {
 	//benchmark(600, 4, rounds)
 	//benchmark(600, 2, rounds)
 
-	benchmark(1000, 4, rounds)
+	benchmark(500, 4, rounds)
 	//benchmark(400, 4, rounds)
 	//benchmark(300, 4, rounds)
 	//benchmark(200, 4, rounds)
@@ -37,7 +37,7 @@ func benchmark(n int, k int, rounds int) {
 	//消息大小
 	strLen := 100
 	initPort := 40000
-	testMode := []MsgType{EagerPush, RegularMsg, ColoringMsg, GossipMsg} //按数组中的顺序决定跑的时候的顺序
+	testMode := []MsgType{RegularMsg, ColoringMsg, GossipMsg, EagerPush} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	tool.Num = n
 	tool.InitPort = initPort
@@ -67,9 +67,9 @@ func benchmark(n int, k int, rounds int) {
 			serverList = append(serverList, server)
 		}
 		time.Sleep(1 * time.Second)
-		for _, v := range serverList {
-			v.StartHeartBeat()
-		}
+		//for _, v := range serverList {
+		//	v.StartHeartBeat()
+		//}
 		for i := range rounds {
 			// 1秒一轮,节点可能还没有离开新的广播就发出了
 			fmt.Printf("=== %d =====\n", i)
@@ -86,7 +86,11 @@ func benchmark(n int, k int, rounds int) {
 				}
 			}()
 		}
-		time.Sleep(6 * time.Second)
+		time.Sleep(5 * time.Second)
+		for _, v := range serverList {
+			v.IsClosed.Store(true)
+		}
+
 		for _, v := range serverList {
 			fmt.Println("关闭节点：", v.Config.ServerAddress)
 			v.Close()
@@ -99,12 +103,12 @@ func benchmark(n int, k int, rounds int) {
 func createAction(num int) broadcast.Action {
 	syncAction := func(bytes []byte) bool {
 		//随机睡眠时间，百分之5的节点是掉队者节点
-		//if num%20 == 0 {
-		//	time.Sleep(1 * time.Second)
-		//} else {
-		randInt := tool.RandInt(10, 200)
-		time.Sleep(time.Duration(randInt) * time.Millisecond)
-		//}
+		if num%20 == 0 {
+			time.Sleep(1 * time.Second)
+		} else {
+			randInt := tool.RandInt(10, 200)
+			time.Sleep(time.Duration(randInt) * time.Millisecond)
+		}
 
 		return true
 	}
