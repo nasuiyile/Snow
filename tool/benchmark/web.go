@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"os"
 	. "snow/common"
 	"snow/tool"
 	"strings"
@@ -285,6 +286,50 @@ func exportDataset(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
+	cacheData := make(map[string]string)
+
+	dataSet := make(map[string][]Message)
+	for k, v := range cacheMap {
+		dataSet[k] = v.getMessages()
+	}
+	data, err := json.Marshal(dataSet)
+	if err != nil {
+		log.Println("export dataSet", err)
+		return
+	}
+	cacheData["dataSet"] = string(data)
+
+	data, err = json.Marshal(msgIdMap)
+	if err != nil {
+		log.Println("export Marshal msgIdMap", err)
+		return
+	}
+	cacheData["msgIdMap"] = string(data)
+
+	data, err = json.Marshal(cacheData)
+	if err != nil {
+		log.Println("export Marshal cacheData", err)
+		return
+	}
+	// 生成当前时间戳文件名
+	now := time.Now()
+	// 格式化时间为：2025-04-18_15-30-45
+	timestamp := now.Format("2006-01-02_15-04-05")
+	// 使用格式化时间作为文件名
+	filename := fmt.Sprintf("dataset/%s.json", timestamp)
+
+	// 写入文件
+	err = os.WriteFile(filename, data, 0644)
+	if err != nil {
+		log.Println("failed to write file", err)
+		return
+	}
+
+	log.Printf("Data exported to %s\n", filename)
+
+}
+
 func loadDataset(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	file, _, err := r.FormFile("file")
@@ -362,38 +407,68 @@ func index(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello, World!"))
 }
 
+var server http.Server
+
 func CreateWeb() {
+	var mux = http.NewServeMux()
 	cacheMap = make(map[string]*MessageCache)
 	msgIdMap = make(map[byte]map[string]int)
 	chartPath = "./tool/benchmark/chart/"
 	// chartPath = "./chart/"
 	// 注册路由和处理函数
-	http.HandleFunc("/putRing", putRing)
-	http.HandleFunc("/getRing", getRing)
-	http.HandleFunc("/totalCount", totalCount)
-	http.HandleFunc("/clean", clean)
-	http.HandleFunc("/getAllMessage", getAllMessage)
-	http.HandleFunc("/getAllNode", getAllNode)
-	http.HandleFunc("/getNodeStatistics", getNodeStatistics)
-	http.HandleFunc("/getCycleStatistics", getCycleStatistics)
-	http.HandleFunc("/lack", lack)
-	http.HandleFunc("/exportDataset", exportDataset)
-	http.HandleFunc("/loadDataset", loadDataset)
-	http.HandleFunc("/goChart", goChart1)
-	http.HandleFunc("/goChart2", goChart2)
-	http.HandleFunc("/", index)
-
+	mux.HandleFunc("/putRing", putRing)
+	mux.HandleFunc("/getRing", getRing)
+	mux.HandleFunc("/totalCount", totalCount)
+	mux.HandleFunc("/clean", clean)
+	mux.HandleFunc("/getAllMessage", getAllMessage)
+	mux.HandleFunc("/getAllNode", getAllNode)
+	mux.HandleFunc("/getNodeStatistics", getNodeStatistics)
+	mux.HandleFunc("/getCycleStatistics", getCycleStatistics)
+	mux.HandleFunc("/lack", lack)
+	mux.HandleFunc("/exportDataset", exportDataset)
+	mux.HandleFunc("/loadDataset", loadDataset)
+	mux.HandleFunc("/goChart", goChart1)
+	mux.HandleFunc("/goChart2", goChart2)
+	mux.HandleFunc("/", index)
 	fs := http.FileServer(http.Dir(chartPath))
 	// 创建静态文件服务器
-
 	// 使用 http.Handle 而不是 http.HandleFunc
 	http.Handle("/chart/", http.StripPrefix("/chart/", fs))
 
 	// 启动HTTP服务器
 	fmt.Println("Server is running on http://localhost:8111")
-	if err := http.ListenAndServe(":8111", nil); err != nil {
-		fmt.Printf("Error starting server: %s\n", err)
+	server := &http.Server{
+		Addr:    ":8111",
+		Handler: mux,
 	}
+	// 创建一个 channel，用于通知主线程退出
+	shutdownChan := make(chan struct{})
+
+	// 注册 /shutdown 路由（必须先声明 server 才能用）
+	mux.HandleFunc("/exportDatasetAndClose", func(w http.ResponseWriter, r *http.Request) {
+		go func() {
+			exportDatasetAndClose(w, r)
+			fmt.Println("Received shutdown request...")
+			// 你也可以用 Shutdown(context.TODO()) 实现优雅退出
+			if err := server.Close(); err != nil {
+				fmt.Println("Error during shutdown:", err)
+			}
+			close(shutdownChan) // 通知主线程退出
+		}()
+		fmt.Fprintln(w, "Server is shutting down...")
+	})
+
+	// 启动服务
+	go func() {
+		fmt.Println("Server is running on http://localhost:8111")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Println("Server error:", err)
+		}
+	}()
+
+	// 阻塞主线程，直到 shutdownChan 被关闭
+	<-shutdownChan
+	fmt.Println("Server exited.")
 }
 
 func main() {

@@ -4,3 +4,4 @@ dataset/
 .idea/
 .vscode/
 *.log
+*-linux

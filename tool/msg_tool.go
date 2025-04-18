@@ -15,7 +15,7 @@ var Num = 100
 var InitPort = 40000
 
 // 发送HTTP GET请求
-var client = &http.Client{
+var Client = &http.Client{
 	Transport: &http.Transport{
 		MaxIdleConns:        10,               // 允许最多 200 个空闲连接
 		MaxIdleConnsPerHost: 10,               // 每个主机最多 10 个空闲连接
@@ -62,7 +62,7 @@ func SendHttp(from string, target string, data []byte, k int) {
 		baseURL := "http://" + RemoteHttp + "/putRing"
 		fullURL := fmt.Sprintf("%s?%s", baseURL, values.Encode())
 
-		client.Get(fullURL)
+		Client.Get(fullURL)
 	}
 
 }
