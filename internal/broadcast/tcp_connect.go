@@ -188,17 +188,17 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 	}
 }
 
-func (s *Server) ConnectToPeer(addr string) (net.Conn, error) {
-	member := s.Member.GetOrPutMember(addr)
-	member.Lock()
-	defer member.Unlock()
-	if member.GetClient() != nil {
-		return member.GetClient(), nil
+func (s *Server) ConnectToPeer(ip string, member *membership.MetaData) (net.Conn, error) {
+	s.Member.Lock()
+	defer s.Member.Unlock()
+	client := member.GetClient(false)
+	if client != nil {
+		return client, nil
 	}
 	// 赋值给 Dialer 的 LocalAddr
-	conn, err := s.client.Dial("tcp", addr)
+	conn, err := s.client.Dial("tcp", ip)
 	if err != nil {
-		log.Warnf("Failed to connect to %s: %v\n", addr, err)
+		log.Warnf("Failed to connect to %s: %v\n", ip, err)
 		return nil, err
 	}
 	//log.Debugff("%sConnected to %s\n", s.Config.ServerAddress, addr)
@@ -216,10 +216,10 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 	go func() {
 		metaData := s.Member.GetOrPutMember(ip)
 		var conn net.Conn
-		conn = metaData.GetClient()
+		conn = metaData.GetClient(true)
 		if conn == nil {
 			//先建立一次链接进行尝试
-			newConn, err := s.ConnectToPeer(ip)
+			newConn, err := s.ConnectToPeer(ip, metaData)
 			if err != nil {
 				log.Error(s.Config.ServerAddress, "can't connect to ", ip)
 				// 避免递归调用导致的堆栈增长
@@ -262,14 +262,14 @@ func (s *Server) SendData(data *SendData) {
 	}
 	_, err = data.Conn.Write(data.Payload)
 	if err != nil {
-		s.ReportLeave(util.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
 		log.Errorf("Error sending payload to %v: %v", data.Conn.RemoteAddr(), err)
+		s.ReportLeave(util.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
 		return
 	}
 	_, err = data.Conn.Write(data.Msg)
 	if err != nil {
-		s.ReportLeave(util.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
 		log.Errorf("Error sending message to %v: %v", data.Conn.RemoteAddr(), err)
+		s.ReportLeave(util.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
 		return
 	}
 }
@@ -300,7 +300,7 @@ func (s *Server) Close() {
 	defer s.Member.Unlock()
 	s.listener.Close()
 	for _, v := range s.Member.MetaData {
-		client := v.GetClient()
+		client := v.GetClient(true)
 		if client != nil {
 			safeCloseConnection(client)
 		}

@@ -64,8 +64,11 @@ func (m *MetaData) SetServer(server net.Conn) {
 	m.server = server
 }
 
-func (m *MetaData) GetClient() net.Conn {
-
+func (m *MetaData) GetClient(l bool) net.Conn {
+	if l {
+		m.Lock()
+		defer m.Unlock()
+	}
 	return m.client
 }
 
@@ -206,11 +209,16 @@ func (m *MemberShipList) RemoveMember(ip []byte, close bool) {
 func (m *MemberShipList) GetOrPutMember(key string) *MetaData {
 	m.Lock()
 	defer m.Unlock()
+	var v *MetaData
 	//缩小锁的范围
-	if m.MetaData[key] == nil {
-		m.MetaData[key] = NewEmptyMetaData()
+	value, ok := m.MetaData[key]
+	if !ok {
+		v = NewEmptyMetaData()
+		m.MetaData[key] = v
+	} else {
+		v = value
 	}
-	return m.MetaData[key]
+	return v
 }
 func (m *MemberShipList) PutMemberIfNil(key string, value *MetaData) {
 	m.Lock()
