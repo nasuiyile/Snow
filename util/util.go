@@ -296,3 +296,15 @@ func IntHash(n int) int {
 	// 返回int类型的哈希值
 	return int(hash)
 }
+
+func EchoMsgType(data MsgType) {
+	if data == RegularMsg {
+		fmt.Println("RegularMsg")
+	} else if data == ColoringMsg {
+		fmt.Println("ColoringMsg")
+	} else if data == GossipMsg {
+		fmt.Println("GossipMsg")
+	} else if data == EagerPush {
+		fmt.Println("EagerPush")
+	}
+}

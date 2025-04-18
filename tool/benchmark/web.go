@@ -448,12 +448,12 @@ func CreateWeb() {
 	mux.HandleFunc("/exportDatasetAndClose", func(w http.ResponseWriter, r *http.Request) {
 		go func() {
 			exportDatasetAndClose(w, r)
-			fmt.Println("Received shutdown request...")
-			// 你也可以用 Shutdown(context.TODO()) 实现优雅退出
-			if err := server.Close(); err != nil {
-				fmt.Println("Error during shutdown:", err)
-			}
-			close(shutdownChan) // 通知主线程退出
+			//fmt.Println("Received shutdown request...")
+			//// 你也可以用 Shutdown(context.TODO()) 实现优雅退出
+			//if err := server.Close(); err != nil {
+			//	fmt.Println("Error during shutdown:", err)
+			//}
+			//close(shutdownChan) // 通知主线程退出
 		}()
 		fmt.Fprintln(w, "Server is shutting down...")
 	})

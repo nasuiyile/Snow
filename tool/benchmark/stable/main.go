@@ -16,13 +16,13 @@ import (
 func main() {
 	util.DebugLog()
 	////测试轮数
-	rounds := 10
+	rounds := 100
 	//benchmark(600, 6, rounds)
 	//benchmark(600, 8, rounds)
 	//benchmark(600, 4, rounds)
 	//benchmark(600, 2, rounds)
 
-	benchmark(50, 4, rounds)
+	benchmark(500, 4, rounds)
 	//benchmark(400, 4, rounds)
 	//benchmark(300, 4, rounds)
 	//benchmark(200, 4, rounds)
@@ -37,7 +37,7 @@ func benchmark(n int, k int, rounds int) {
 	//消息大小
 	strLen := 100
 	initPort := 40000
-	testMode := []MsgType{RegularMsg, ColoringMsg, GossipMsg, EagerPush} //按数组中的顺序决定跑的时候的顺序
+	testMode := []MsgType{ColoringMsg, GossipMsg, EagerPush, RegularMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	util.Num = n
 	util.InitPort = initPort
@@ -46,6 +46,7 @@ func benchmark(n int, k int, rounds int) {
 	//节点启动完之后再跑
 	time.Sleep(time.Duration(n/200) * time.Second)
 	for _, mode := range testMode {
+		util.EchoMsgType(mode)
 		serverList := make([]*plumtree.Server, 0)
 		for i := 0; i < n; i++ {
 			action := createAction(i + 1)

@@ -65,6 +65,7 @@ func (m *MetaData) SetServer(server net.Conn) {
 }
 
 func (m *MetaData) GetClient() net.Conn {
+
 	return m.client
 }
 

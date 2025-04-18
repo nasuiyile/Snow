@@ -99,7 +99,11 @@ func benchmark(n int, k int, rounds int) {
 			}
 
 		}
-		time.Sleep(5 * time.Second)
+		if mode == EagerPush {
+			time.Sleep(35 * time.Second)
+		} else {
+			time.Sleep(5 * time.Second)
+		}
 		for _, v := range serverList {
 			f := false
 			for _, port := range portList {

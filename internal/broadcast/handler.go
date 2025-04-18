@@ -34,10 +34,6 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			}
 		}
 		forward(msg, s, parentIP)
-		if !first {
-			return
-		}
-
 	case ReliableMsg:
 		body := util.CutBytes(msg)
 		if !IsFirst(body, msgType, msgAction, s) {
@@ -108,6 +104,8 @@ func forward(msg []byte, s *Server, parentIp string) {
 		member, _ = s.NextHopMember(msgType, msgAction, leftIP, rightIP, false)
 		s.Member.Unlock()
 	}
+	//缓存member，判断和上一次计算的member是否相同
+
 	//消息中会附带发送给自己的节点
 	if msgType == ReliableMsg {
 		//写入map 以便根据ack进行删除
