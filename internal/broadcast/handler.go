@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"net"
 	. "snow/common"
-	"snow/tool"
+	"snow/util"
 )
 
 // Hand 处理从 TCP 连接收到的消息。逻辑与 UDP 类似，只是发送方式不同。
@@ -19,17 +19,17 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 
 	switch msgType {
 	case RegularMsg:
-		body := tool.CutBytes(msg)
+		body := util.CutBytes(msg)
 		if !IsFirst(body, msgType, msgAction, s) {
 			return
 		}
 		forward(msg, s, parentIP)
 	case ColoringMsg:
-		body := tool.CutBytes(msg)
+		body := util.CutBytes(msg)
 		first := IsFirst(body, msgType, msgAction, s)
 		if first {
 			if msgAction == ReportLeave {
-				leaveNode := tool.CutTimestamp(body)
+				leaveNode := util.CutTimestamp(body)
 				s.Member.RemoveMember(leaveNode, false)
 			}
 		}
@@ -39,7 +39,7 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		}
 
 	case ReliableMsg:
-		body := tool.CutBytes(msg)
+		body := util.CutBytes(msg)
 		if !IsFirst(body, msgType, msgAction, s) {
 			return
 		}
@@ -86,7 +86,7 @@ func IsFirst(body []byte, msgType MsgType, action MsgAction, s *Server) bool {
 	}
 	if action == UserMsg && msgType != ReliableMsgAck {
 		//如果第二个byte的类型是userMsg才让用户进行处理
-		body = tool.CutTimestamp(body)
+		body = util.CutTimestamp(body)
 		//这是让用户自己判断消息是否处理过
 		if !s.Action.process(body) {
 			return false
@@ -111,15 +111,15 @@ func forward(msg []byte, s *Server, parentIp string) {
 	//消息中会附带发送给自己的节点
 	if msgType == ReliableMsg {
 		//写入map 以便根据ack进行删除
-		b := tool.CutBytes(msg)
-		hash := []byte(tool.Hash(b))
+		b := util.CutBytes(msg)
+		hash := []byte(util.Hash(b))
 		if len(member) == 0 {
 			//叶子节点 直接发送ack
 			//消息内容为2个type，加上当前地址长度+ack长度
 			newMsg := make([]byte, 0)
 			newMsg = append(newMsg, ReliableMsgAck)
 			newMsg = append(newMsg, msgAction)
-			newMsg = append(newMsg, tool.RandomNumber()...)
+			newMsg = append(newMsg, util.RandomNumber()...)
 			newMsg = append(newMsg, hash...)
 			// 叶子节点ip
 			newMsg = append(newMsg, s.Config.IPBytes()...)
@@ -128,7 +128,7 @@ func forward(msg []byte, s *Server, parentIp string) {
 			s.SendMessage(parentIp, []byte{}, newMsg)
 		} else {
 			//不是发送节点的化，不需要任何回调
-			s.State.AddReliableTimeout(hash, false, len(member), tool.IPv4To6Bytes(parentIp), nil)
+			s.State.AddReliableTimeout(hash, false, len(member), util.IPv4To6Bytes(parentIp), nil)
 		}
 		for _, payload := range member {
 			payload = append(payload, s.Config.IPBytes()...)

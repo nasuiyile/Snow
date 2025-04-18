@@ -3,12 +3,12 @@ package broadcast
 import (
 	"net"
 	. "snow/common"
-	"snow/tool"
+	"snow/util"
 )
 
 func initMsg(msg []byte) (MsgAction, int64, []byte) {
 	//1 byte的类型，8byte的时间戳，然后是发消息节点的 ip加端口号
-	time := tool.BytesToTime(msg[1 : 1+TimeLen])
+	time := util.BytesToTime(msg[1 : 1+TimeLen])
 	return msg[0], time, msg[1+TimeLen:]
 }
 
@@ -28,7 +28,7 @@ func NodeChanging(msg []byte, ip string, s *Server, conn net.Conn) {
 func applyJoining(s *Server, ip string, conn net.Conn) {
 	//接收到消息然后推送
 	state := s.exportState()
-	data := tool.PackTagToHead(NodeChange, JoinStateSync, state)
+	data := util.PackTagToHead(NodeChange, JoinStateSync, state)
 	s.SendMessage(ip, []byte{}, data)
 	//s.replayMessage(conn, s.Config, data)
 }

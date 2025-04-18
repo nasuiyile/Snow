@@ -8,7 +8,7 @@ import (
 	. "snow/common"
 	"snow/config"
 	"snow/internal/membership"
-	"snow/tool"
+	"snow/util"
 	"sync"
 	"time"
 )
@@ -58,8 +58,8 @@ type Heartbeat struct {
 	UdpServer  udpServer
 
 	running     bool // 服务是否在运行
-	pingMap     *tool.CallbackMap
-	indirectMap *tool.CallbackMap
+	pingMap     *util.CallbackMap
+	indirectMap *util.CallbackMap
 	stopCh      chan struct{} // 用来停止心跳探测循环
 }
 
@@ -72,8 +72,8 @@ func NewHeartbeat(cfg *config.Config, memberList *membership.MemberShipList, ser
 		server:      server,
 		UdpServer:   udpServer,
 		stopCh:      make(chan struct{}),
-		pingMap:     tool.NewCallBackMap(),
-		indirectMap: tool.NewCallBackMap(),
+		pingMap:     util.NewCallBackMap(),
+		indirectMap: util.NewCallBackMap(),
 	}
 	return h
 }
@@ -122,7 +122,7 @@ func (h *Heartbeat) probe() {
 	if length <= 1 {
 		return
 	}
-	numCheck := tool.RandInt(0, length-1)
+	numCheck := util.RandInt(0, length-1)
 	var target []byte
 	localAddr := h.config.GetLocalAddr()
 	h.Lock()
@@ -157,15 +157,15 @@ func (h *Heartbeat) probeNode(addr []byte) {
 	p := Ping{
 		Id: id,
 	}
-	targetAddr := tool.ByteToIPv4Port(addr)
+	targetAddr := util.ByteToIPv4Port(addr)
 	localAddr := h.config.ServerAddress
 	log.Debug("[INFO] Node %s sending PING to %s (seq=%d)", localAddr, targetAddr, id)
-	encode, err := tool.Encode(PingMsg, DirectPing, &p, false)
+	encode, err := util.Encode(PingMsg, DirectPing, &p, false)
 	if err != nil {
 		log.Errorf("[ERR] Failed to encode ping message: %v", err)
 		return
 	}
-	h.pingMap.Add(id, tool.ByteToIPv4Port(addr), func(ip string) {
+	h.pingMap.Add(id, util.ByteToIPv4Port(addr), func(ip string) {
 		//超时就执行间接探测
 		//h.server.HeartBeat(ip, encode)
 		h.indirectProbe(ip)
@@ -184,7 +184,7 @@ func (h *Heartbeat) indirectProbe(ip string) {
 		Id:     id,
 		Target: ip,
 	}
-	encode, err := tool.Encode(PingMsg, IndirectPing, data, false)
+	encode, err := util.Encode(PingMsg, IndirectPing, data, false)
 	if err != nil {
 		log.Errorf("[ERR] Failed to send forwardPing message to %s: %v", ip, err)
 		return
@@ -192,10 +192,10 @@ func (h *Heartbeat) indirectProbe(ip string) {
 	//新建一个id，避免和之前的冲突
 	h.pingMap.Add(id, ip, func(ip string) {
 		//间接探测也超时就执行下线
-		h.server.ReportLeave(tool.IPv4To6Bytes(ip))
+		h.server.ReportLeave(util.IPv4To6Bytes(ip))
 	}, DirectProbeTimeout)
 
-	nodes := h.server.KRandomNodes(IndirectProbeNum, tool.IPv4To6Bytes(ip))
+	nodes := h.server.KRandomNodes(IndirectProbeNum, util.IPv4To6Bytes(ip))
 	for _, n := range nodes {
 		err := h.UdpServer.UDPSendMessage(n, []byte{}, encode)
 		if err != nil {
@@ -210,7 +210,7 @@ func (h *Heartbeat) replayHeartbeat(ip string, id int64) {
 		Id:         id,
 		IsIndirect: false,
 	}
-	encode, err := tool.Encode(PingMsg, PingAck, &res, false)
+	encode, err := util.Encode(PingMsg, PingAck, &res, false)
 	if err != nil {
 		log.Errorf("[ERR] Failed to encode ping message: %v", err)
 		return
@@ -248,7 +248,7 @@ func (h *Heartbeat) Hand(msg []byte, conn net.Conn) {
 	switch msgAction {
 	case DirectPing:
 		var ping Ping
-		if err := tool.DecodeMsgPayload(msg, &ping); err != nil {
+		if err := util.DecodeMsgPayload(msg, &ping); err != nil {
 			log.Infof("Failed to decode ping message: %v", err)
 			return
 		}
@@ -256,7 +256,7 @@ func (h *Heartbeat) Hand(msg []byte, conn net.Conn) {
 	case PingAck:
 		//这里是直接探测ack逻辑
 		var ack PingAckRes
-		if err := tool.DecodeMsgPayload(msg, &ack); err != nil {
+		if err := util.DecodeMsgPayload(msg, &ack); err != nil {
 			log.Infof("Failed to decode ack message: %v", err)
 			return
 		}
@@ -270,14 +270,14 @@ func (h *Heartbeat) Hand(msg []byte, conn net.Conn) {
 		h.indirectMap.Delete(ack.Id)
 	case IndirectPing:
 		var forwardPing ForwardPing
-		if err := tool.DecodeMsgPayload(msg, &forwardPing); err != nil {
+		if err := util.DecodeMsgPayload(msg, &forwardPing); err != nil {
 			log.Infof("Failed to decode ack message: %v", err)
 			return
 		}
 		p := Ping{
 			Id: forwardPing.Id,
 		}
-		encode, err := tool.Encode(PingMsg, DirectPing, &p, false)
+		encode, err := util.Encode(PingMsg, DirectPing, &p, false)
 		if err != nil {
 			log.Errorf("[ERR] Failed to encode ping message: %v", err)
 			return

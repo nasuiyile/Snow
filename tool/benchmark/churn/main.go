@@ -8,7 +8,7 @@ import (
 	. "snow/config"
 	"snow/internal/broadcast"
 	"snow/internal/plumtree"
-	"snow/tool"
+	"snow/util"
 	"time"
 )
 
@@ -28,8 +28,8 @@ func benchmark(n int, k int, rounds int) {
 	initPort := 40000
 	testMode := []MsgType{EagerPush, RegularMsg, ColoringMsg, GossipMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
-	tool.Num = n
-	tool.InitPort = initPort
+	util.Num = n
+	util.InitPort = initPort
 	msg := randomByteArray(strLen)
 	//节点启动完之后再跑
 	time.Sleep(time.Duration(n/200) * time.Second)
@@ -130,7 +130,7 @@ func createAction(num int) broadcast.Action {
 		if num%20 == 0 {
 			time.Sleep(1 * time.Second)
 		} else {
-			randInt := tool.RandInt(10, 200)
+			randInt := util.RandInt(10, 200)
 			time.Sleep(time.Duration(randInt) * time.Millisecond)
 		}
 

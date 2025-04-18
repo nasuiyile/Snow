@@ -8,7 +8,7 @@ import (
 	"net"
 	"os"
 	"snow/common"
-	"snow/tool"
+	"snow/util"
 	"strconv"
 	"strings"
 	"time"
@@ -39,7 +39,7 @@ type Config struct {
 
 func (c *Config) IPBytes() []byte {
 	if !c.Ipv6 {
-		return tool.IPv4To6Bytes(c.ServerAddress)
+		return util.IPv4To6Bytes(c.ServerAddress)
 	}
 	return nil
 }
@@ -53,7 +53,7 @@ func NewConfig(filename string, opts ...ConfigOption) (*Config, error) {
 	}
 	config.DefaultServer = strings.Split(config.DefaultAddress, ",")
 
-	tool.RemoteHttp = config.RemoteHttp
+	util.RemoteHttp = config.RemoteHttp
 	for _, action := range opts {
 		action(config)
 	}

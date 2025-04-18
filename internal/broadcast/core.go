@@ -8,7 +8,7 @@ import (
 	. "snow/config"
 	"snow/internal/membership"
 	"snow/internal/state"
-	"snow/tool"
+	"snow/util"
 	"sync/atomic"
 	"time"
 )
@@ -73,7 +73,7 @@ func (s *Server) ReduceReliableTimeout(msg []byte, configAction *func(isConverge
 		newMsg := make([]byte, len(msg))
 		copy(newMsg, msg)
 		copy(newMsg[prefix:prefix+IpLen], s.Config.IPBytes())
-		s.SendMessage(tool.ByteToIPv4Port(r.Ip), []byte{}, newMsg)
+		s.SendMessage(util.ByteToIPv4Port(r.Ip), []byte{}, newMsg)
 		//断开连接
 		if msgAction == NodeLeave {
 			//s.Member.RemoveMember(msg[len(msg)-IpLen:], false)
@@ -133,15 +133,15 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 		//引用也要重新更新,这些元素是被临时插入的用完就需要删除
 		if lok && rok {
 			defer func() {
-				s.Member.IPTable = tool.DeleteAtIndexes(s.Member.IPTable, leftIndex, rightIndex)
+				s.Member.IPTable = util.DeleteAtIndexes(s.Member.IPTable, leftIndex, rightIndex)
 			}()
 		} else if lok {
 			defer func() {
-				s.Member.IPTable = tool.DeleteAtIndexes(s.Member.IPTable, leftIndex)
+				s.Member.IPTable = util.DeleteAtIndexes(s.Member.IPTable, leftIndex)
 			}()
 		} else if rok {
 			defer func() {
-				s.Member.IPTable = tool.DeleteAtIndexes(s.Member.IPTable, rightIndex)
+				s.Member.IPTable = util.DeleteAtIndexes(s.Member.IPTable, rightIndex)
 			}()
 		}
 	}
@@ -154,7 +154,7 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 		secondaryRoot := ObtainOnIPRing(currentIndex, 1, s.Member.MemberLen())
 		next = append(next, &area{left: leftIndex, right: rightIndex, current: secondaryRoot})
 	}
-	randomNumber := tool.RandomNumber()
+	randomNumber := util.RandomNumber()
 	for _, v := range next {
 		payload := make([]byte, 0)
 		payload = append(payload, msgType)
@@ -164,7 +164,7 @@ func (s *Server) NextHopMember(msgType MsgType, msgAction MsgAction, leftIP []by
 		if isRoot {
 			payload = append(payload, randomNumber...)
 		}
-		forwardList[tool.ByteToIPv4Port(s.Member.IPTable[v.current])] = payload
+		forwardList[util.ByteToIPv4Port(s.Member.IPTable[v.current])] = payload
 
 	}
 	return forwardList, randomNumber
@@ -175,7 +175,7 @@ func (s *Server) ApplyJoin(ip string) {
 	if ip == s.Config.ServerAddress {
 		return
 	}
-	s.SendMessage(ip, []byte{}, tool.PackTag(NodeChange, ApplyJoin))
+	s.SendMessage(ip, []byte{}, util.PackTag(NodeChange, ApplyJoin))
 }
 
 func (s *Server) ApplyLeave() {
@@ -200,7 +200,7 @@ func (s *Server) ReportLeave(ip []byte) {
 	if s.IsClose() {
 		return
 	}
-	log.Warnf(s.Config.ServerAddress + "report leave:" + tool.ByteToIPv4Port(ip))
+	log.Warnf(s.Config.ServerAddress + "report leave:" + util.ByteToIPv4Port(ip))
 	s.Member.RemoveMember(ip, false)
 	s.ColoringMessage(ip, ReportLeave)
 }

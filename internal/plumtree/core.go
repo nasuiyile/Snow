@@ -7,7 +7,7 @@ import (
 	. "snow/common"
 	. "snow/config"
 	"snow/internal/broadcast"
-	"snow/tool"
+	"snow/util"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -18,8 +18,8 @@ type Server struct {
 	PConfig       *PConfig
 	isInitialized atomic.Bool
 	eagerLock     sync.RWMutex
-	EagerPush     *tool.SafeSet[string]
-	msgCache      *tool.TimeoutMap //缓存最近全部的消息
+	EagerPush     *util.SafeSet[string]
+	msgCache      *util.TimeoutMap //缓存最近全部的消息
 }
 
 func NewServer(config *Config, action broadcast.Action) (*Server, error) {
@@ -39,9 +39,9 @@ func NewServer(config *Config, action broadcast.Action) (*Server, error) {
 		LazyPushInterval: 1 * time.Second,
 		LazyPushTimeout:  6 * time.Second,
 	}
-	server.EagerPush = tool.NewSafeSet[string]()
+	server.EagerPush = util.NewSafeSet[string]()
 
-	server.msgCache = tool.NewTimeoutMap()
+	server.msgCache = util.NewTimeoutMap()
 
 	return server, nil
 }
@@ -59,12 +59,12 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 		//用了原有的去重逻辑
 		if !broadcast.IsFirst(body, msgType, msgAction, s.Server) {
 			//已经收到消息了，发送PRUNE进行修剪
-			sourceIp := tool.ByteToIPv4Port(msg[TagLen : TagLen+IpLen])
+			sourceIp := util.ByteToIPv4Port(msg[TagLen : TagLen+IpLen])
 			//不对根节点进行修剪
 			if sourceIp == parentIP {
 				return
 			}
-			payload := tool.PackTag(Prune, msgAction)
+			payload := util.PackTag(Prune, msgAction)
 			s.SendMessage(parentIP, payload, []byte{})
 			return
 		}
@@ -81,7 +81,7 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			s.Member.Lock()
 			s.Member.AddMember(ipByte, NodeSurvival)
 			s.Member.Unlock()
-			sourceIp := tool.ByteToIPv4Port(ipByte)
+			sourceIp := util.ByteToIPv4Port(ipByte)
 			//不等于自己
 			if !bytes.Equal(ipByte, s.Config.IPBytes()) {
 				//port := tool.GetPortByIp(sourceIp)
@@ -96,7 +96,7 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 			s.eagerLock.Lock()
 			ip := msg[TagLen+IpLen+TimeLen : TagLen+TimeLen+IpLen*2]
 			s.Member.RemoveMember(ip, false)
-			s.EagerPush.Remove(tool.ByteToIPv4Port(ip))
+			s.EagerPush.Remove(util.ByteToIPv4Port(ip))
 			s.eagerLock.Unlock()
 		}
 		//对消息进行转发
@@ -141,7 +141,7 @@ func (s *Server) PlumTreeBroadcast(msg []byte, msgAction MsgAction) {
 	bytes[0] = EagerPush
 	bytes[1] = msgAction
 	copy(bytes[TagLen:], s.Config.IPBytes())
-	copy(bytes[TagLen+IpLen:], tool.RandomNumber())
+	copy(bytes[TagLen+IpLen:], util.RandomNumber())
 	copy(bytes[TagLen+TimeLen+IpLen:], msg)
 	//用随机数当做消息id 发送之前进行缓存
 	msgId := bytes[TagLen+IpLen : TagLen+IpLen+TimeLen]
@@ -153,7 +153,7 @@ func (s *Server) PlumTreeMessage(msg []byte) {
 		s.eagerLock.Lock()
 		//如果树还没初始化过就先进行初始化，初始化的f个节点直接使用扇出来做
 		nodes := s.Server.KRandomNodes(s.Server.Config.FanOut, nil)
-		s.EagerPush = tool.NewSafeSetFromSlice(nodes)
+		s.EagerPush = util.NewSafeSetFromSlice(nodes)
 		s.isInitialized.Store(true)
 		s.eagerLock.Unlock()
 	}

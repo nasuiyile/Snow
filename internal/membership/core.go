@@ -3,7 +3,7 @@ package membership
 import (
 	"net"
 	. "snow/common"
-	"snow/tool"
+	"snow/util"
 	"sort"
 	"sync"
 	"time"
@@ -52,7 +52,7 @@ func (m *MemberShipList) InitState(metaDataMap map[string]*MetaData) {
 		} else {
 			m.MetaData[k] = v
 		}
-		m.FindOrInsert(tool.IPv4To6Bytes(k), false)
+		m.FindOrInsert(util.IPv4To6Bytes(k), false)
 	}
 }
 
@@ -149,18 +149,18 @@ func NewEmptyMetaData() *MetaData {
 // 和addNode的区别是不需要实际进行连接
 func (m *MemberShipList) AddMember(ip []byte, state NodeState) {
 
-	metaData, ok := m.MetaData[tool.ByteToIPv4Port(ip)]
+	metaData, ok := m.MetaData[util.ByteToIPv4Port(ip)]
 	if !ok {
 		metadata := NewEmptyMetaData()
 		metadata.State = state
-		m.MetaData[tool.ByteToIPv4Port(ip)] = metadata
+		m.MetaData[util.ByteToIPv4Port(ip)] = metadata
 	} else {
 		metaData.UpdateTime = time.Now().Unix()
 	}
 	m.FindOrInsert(ip, false)
 }
 func (m *MemberShipList) RemoveMember(ip []byte, close bool) {
-	address := tool.ByteToIPv4Port(ip)
+	address := util.ByteToIPv4Port(ip)
 	m.Lock()
 	defer m.Unlock()
 	idx := m.Find(ip, false)
@@ -193,13 +193,13 @@ func (m *MemberShipList) RemoveMember(ip []byte, close bool) {
 				})
 			}
 			//扇出后还是可能短暂的发送消息
-			delete(m.MetaData, tool.ByteToIPv4Port(ip))
+			delete(m.MetaData, util.ByteToIPv4Port(ip))
 		}
 		data.UpdateTime = time.Now().Unix()
 		data.State = NodeLeft
 	}
 	//找到就删除当前元素
-	m.IPTable = tool.DeleteAtIndexes(m.IPTable, idx)
+	m.IPTable = util.DeleteAtIndexes(m.IPTable, idx)
 
 }
 func (m *MemberShipList) GetOrPutMember(key string) *MetaData {

@@ -3,18 +3,18 @@ package main
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"snow/util"
 
 	"math/rand"
 	. "snow/common"
 	. "snow/config"
 	"snow/internal/broadcast"
 	"snow/internal/plumtree"
-	"snow/tool"
 	"time"
 )
 
 func main() {
-	tool.DebugLog()
+	util.DebugLog()
 	////测试轮数
 	rounds := 10
 	//benchmark(600, 6, rounds)
@@ -39,8 +39,8 @@ func benchmark(n int, k int, rounds int) {
 	initPort := 40000
 	testMode := []MsgType{RegularMsg, ColoringMsg, GossipMsg, EagerPush} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
-	tool.Num = n
-	tool.InitPort = initPort
+	util.Num = n
+	util.InitPort = initPort
 	msg := randomByteArray(strLen)
 
 	//节点启动完之后再跑
@@ -97,7 +97,7 @@ func benchmark(n int, k int, rounds int) {
 		}
 		time.Sleep(5 * time.Second)
 	}
-	tool.Client.Get("http://localhost:8111/exportDatasetAndClose")
+	util.Client.Get("http://localhost:8111/exportDatasetAndClose")
 }
 
 // 编号从0开始
@@ -107,7 +107,7 @@ func createAction(num int) broadcast.Action {
 		if num%20 == 0 {
 			time.Sleep(1 * time.Second)
 		} else {
-			randInt := tool.RandInt(10, 200)
+			randInt := util.RandInt(10, 200)
 			time.Sleep(time.Duration(randInt) * time.Millisecond)
 		}
 

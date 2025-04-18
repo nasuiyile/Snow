@@ -12,7 +12,7 @@ import (
 	"snow/internal/dialer"
 	"snow/internal/membership"
 	"snow/internal/state"
-	"snow/tool"
+	"snow/util"
 	"time"
 )
 
@@ -27,7 +27,7 @@ type SendData struct {
 // NewServer 创建并启动一个 TCP 服务器
 func NewServer(config *config.Config, action Action) (*Server, error) {
 	if config.Test {
-		tool.DebugLog()
+		util.DebugLog()
 	}
 	listener, err := net.Listen("tcp", config.ServerAddress)
 	if err != nil {
@@ -45,7 +45,7 @@ func NewServer(config *config.Config, action Action) (*Server, error) {
 			MetaData: make(map[string]*membership.MetaData),
 		},
 		State: state.State{
-			State:           tool.NewTimeoutMap(),
+			State:           util.NewTimeoutMap(),
 			ReliableTimeout: make(map[string]*state.ReliableInfo),
 		},
 		Action: action,
@@ -69,7 +69,7 @@ func (s *Server) SetDefaultServer(defaultServer []string) {
 	s.Member.Lock()
 	defer s.Member.Unlock()
 	for _, addr := range defaultServer {
-		s.Member.AddMember(tool.IPv4To6Bytes(addr), common.NodeSurvival)
+		s.Member.AddMember(util.IPv4To6Bytes(addr), common.NodeSurvival)
 	}
 	s.Member.FindOrInsert(s.Config.IPBytes(), false)
 
@@ -143,7 +143,7 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 		if !isServer {
 			addr = s.Config.GetServerIp(addr)
 		}
-		s.Member.RemoveMember(tool.IPv4To6Bytes(addr), false)
+		s.Member.RemoveMember(util.IPv4To6Bytes(addr), false)
 
 	}()
 	reader := bufio.NewReader(conn)
@@ -165,7 +165,7 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 				log.Warn("Normal EOF: connection closed by client")
 			}
 			sIp := s.Config.GetServerIp(conn.RemoteAddr().String())
-			s.ReportLeave(tool.IPv4To6Bytes(sIp))
+			s.ReportLeave(util.IPv4To6Bytes(sIp))
 			//s.Member.RemoveMember(member, false)
 			return
 		}
@@ -224,7 +224,7 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 				log.Error(s.Config.ServerAddress, "can't connect to ", ip)
 				// 避免递归调用导致的堆栈增长
 				if !s.IsClosed.Load() {
-					s.ReportLeave(tool.IPv4To6Bytes(ip))
+					s.ReportLeave(util.IPv4To6Bytes(ip))
 				}
 				return
 			} else {
@@ -252,23 +252,23 @@ func (s *Server) SendData(data *SendData) {
 	}
 	if s.Config.Test && s.Config.Report {
 		bytes := append(data.Payload, data.Msg...)
-		tool.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), bytes, s.Config.FanOut)
+		util.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), bytes, s.Config.FanOut)
 	}
 	_, err = data.Conn.Write(data.Header)
 	if err != nil {
 		log.Errorf("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
-		s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+		s.ReportLeave(util.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
 		return
 	}
 	_, err = data.Conn.Write(data.Payload)
 	if err != nil {
-		s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+		s.ReportLeave(util.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
 		log.Errorf("Error sending payload to %v: %v", data.Conn.RemoteAddr(), err)
 		return
 	}
 	_, err = data.Conn.Write(data.Msg)
 	if err != nil {
-		s.ReportLeave(tool.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
+		s.ReportLeave(util.IPv4To6Bytes(data.Conn.RemoteAddr().String()))
 		log.Errorf("Error sending message to %v: %v", data.Conn.RemoteAddr(), err)
 		return
 	}

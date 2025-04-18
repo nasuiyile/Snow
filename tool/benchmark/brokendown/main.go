@@ -9,12 +9,12 @@ import (
 	. "snow/config"
 	"snow/internal/broadcast"
 	"snow/internal/plumtree"
-	"snow/tool"
+	"snow/util"
 	"time"
 )
 
 func main() {
-	tool.DebugLog()
+	util.DebugLog()
 	////测试轮数
 	rounds := 100
 	benchmark(500, 4, rounds)
@@ -27,7 +27,7 @@ func benchmark(n int, k int, rounds int) {
 	portList := make([]int, 0)
 	//tool.ResetIPTable()
 	time.Sleep(2 * time.Second)
-	defer tool.ResetIPTable()
+	defer util.ResetIPTable()
 	configPath := ""
 	flag.StringVar(&configPath, "configPath", "./config/config.yml", "config file path")
 	flag.Parse()
@@ -36,8 +36,8 @@ func benchmark(n int, k int, rounds int) {
 	initPort := 40000
 	testMode := []MsgType{EagerPush, GossipMsg, RegularMsg, ColoringMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
-	tool.Num = n
-	tool.InitPort = initPort
+	util.Num = n
+	util.InitPort = initPort
 	msg := randomByteArray(strLen)
 
 	//节点启动完之后再跑
@@ -131,10 +131,10 @@ func benchmark(n int, k int, rounds int) {
 func createAction(num int) broadcast.Action {
 	syncAction := func(bytes []byte) bool {
 		//随机睡眠时间，百分之5的节点是掉队者节点
-		if tool.IntHash(num)%20 == 0 {
+		if util.IntHash(num)%20 == 0 {
 			time.Sleep(1 * time.Second)
 		} else {
-			randInt := tool.RandInt(10, 200)
+			randInt := util.RandInt(10, 200)
 			time.Sleep(time.Duration(randInt) * time.Millisecond)
 		}
 

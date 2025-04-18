@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 	. "snow/common"
-	"snow/tool"
+	"snow/util"
 	"strings"
 	"sync"
 	"text/template"
@@ -190,7 +190,7 @@ func lack(w http.ResponseWriter, r *http.Request) {
 			if msg.MsgType == RegularMsg {
 				flag = true
 			}
-			strArr = tool.RemoveElement(strArr, msg.Target)
+			strArr = util.RemoveElement(strArr, msg.Target)
 		}
 		if flag {
 			arr = append(arr, strArr)

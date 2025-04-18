@@ -2,7 +2,7 @@ package plumtree
 
 import (
 	. "snow/common"
-	"snow/tool"
+	"snow/util"
 )
 
 //将所有消息缓存到队列里
@@ -29,16 +29,16 @@ func (s *Server) KRandomNodes(k int) []string {
 	currentIdx := s.Server.Member.Find(s.Config.IPBytes(), false)
 	nodeIdx = append(nodeIdx, currentIdx)
 	s.EagerPush.Range(func(key string) bool {
-		idx := s.Server.Member.Find(tool.IPv4To6Bytes(key), false)
+		idx := s.Server.Member.Find(util.IPv4To6Bytes(key), false)
 		if idx != -1 {
 			nodeIdx = append(nodeIdx, idx)
 		}
 		return true
 	})
 
-	randomNodes := tool.KRandomNodes(0, s.Member.MemberLen()-1, nodeIdx, k)
+	randomNodes := util.KRandomNodes(0, s.Member.MemberLen()-1, nodeIdx, k)
 	for _, v := range randomNodes {
-		ip = append(ip, tool.ByteToIPv4Port(s.Member.IPTable[v]))
+		ip = append(ip, util.ByteToIPv4Port(s.Member.IPTable[v]))
 	}
 	return ip
 }

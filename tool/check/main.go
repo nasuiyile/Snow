@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"snow/tool"
+	"snow/util"
 )
 
 func main() {
@@ -12,7 +12,7 @@ func main() {
 
 	fmt.Printf("Checking ports from %d to %d...\n", startPort, endPort)
 	for port := startPort; port <= endPort; port++ {
-		if tool.CheckPortInUse(port) {
+		if util.CheckPortInUse(port) {
 			fmt.Printf("Port %d is in use.\n", port)
 		}
 	}
