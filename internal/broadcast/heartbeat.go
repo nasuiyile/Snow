@@ -39,7 +39,6 @@ type PingAckRes struct {
 }
 type server interface {
 	HeartBeat(ip string, msg []byte)
-	SendMessage(ip string, payload []byte, msg []byte)
 	ReportLeave(ip []byte)
 	KRandomNodes(k int, exclude []byte) []string
 	IsClose() bool

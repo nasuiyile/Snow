@@ -9,7 +9,7 @@ import (
 	. "snow/common"
 	. "snow/config"
 	"snow/internal/broadcast"
-	"snow/internal/plumtree"
+
 	"time"
 )
 
@@ -47,7 +47,7 @@ func benchmark(n int, k int, rounds int) {
 	time.Sleep(time.Duration(n/200) * time.Second)
 	for _, mode := range testMode {
 		util.EchoMsgType(mode)
-		serverList := make([]*plumtree.Server, 0)
+		serverList := make([]*broadcast.Server, 0)
 		for i := 0; i < n; i++ {
 			action := createAction(i + 1)
 			f := func(config *Config) {
@@ -60,7 +60,7 @@ func benchmark(n int, k int, rounds int) {
 				panic(err)
 				return
 			}
-			server, err := plumtree.NewServer(config, action)
+			server, err := broadcast.NewServer(config, action)
 			if err != nil {
 				log.Println(err)
 				return
@@ -83,7 +83,7 @@ func benchmark(n int, k int, rounds int) {
 				} else if mode == GossipMsg {
 					serverList[0].GossipMessage(msg, UserMsg)
 				} else if mode == EagerPush {
-					serverList[0].PlumTreeBroadcast(msg, UserMsg)
+					//serverList[0].PlumTreeBroadcast(msg, UserMsg)
 				}
 			}()
 		}

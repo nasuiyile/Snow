@@ -189,8 +189,8 @@ func (s *Server) handleConnection(conn net.Conn, isServer bool) {
 }
 
 func (s *Server) ConnectToPeer(ip string, member *membership.MetaData) (net.Conn, error) {
-	s.Member.Lock()
-	defer s.Member.Unlock()
+	member.Lock()
+	defer member.Unlock()
 	client := member.GetClient(false)
 	if client != nil {
 		return client, nil
@@ -214,9 +214,9 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 		return
 	}
 	go func() {
+
 		metaData := s.Member.GetOrPutMember(ip)
-		var conn net.Conn
-		conn = metaData.GetClient(true)
+		conn := metaData.GetClient(true)
 		if conn == nil {
 			//先建立一次链接进行尝试
 			newConn, err := s.ConnectToPeer(ip, metaData)
@@ -233,7 +233,6 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 		}
 		// 创建消息头，存储消息长度 (4字节大端序)
 		length := uint32(len(payload) + len(msg))
-
 		header := make([]byte, 4)
 		binary.BigEndian.PutUint32(header, length)
 		data := &SendData{
@@ -242,7 +241,11 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 			Payload: payload,
 			Msg:     msg,
 		}
+
+		metaData.Lock()
+		defer metaData.Unlock()
 		s.SendData(data)
+
 	}()
 }
 func (s *Server) SendData(data *SendData) {

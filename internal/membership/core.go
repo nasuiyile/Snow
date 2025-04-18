@@ -223,8 +223,8 @@ func (m *MemberShipList) GetOrPutMember(key string) *MetaData {
 func (m *MemberShipList) PutMemberIfNil(key string, value *MetaData) {
 	m.Lock()
 	defer m.Unlock()
-	data := m.MetaData[key]
-	if data == nil {
+	data, ok := m.MetaData[key]
+	if !ok {
 		m.MetaData[key] = value
 		return
 	}
