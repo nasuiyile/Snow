@@ -251,7 +251,7 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(builder.String()))
 }
 
-func exportDataset(w http.ResponseWriter, r *http.Request) {
+func exportDatasetOld(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	cacheData := make(map[string]string)
 
@@ -286,7 +286,7 @@ func exportDataset(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
-func exportDataset1(w http.ResponseWriter, r *http.Request) {
+func exportDataset(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	dataSet := make(map[int][]Message)
@@ -307,8 +307,6 @@ func exportDataset1(w http.ResponseWriter, r *http.Request) {
 }
 
 func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
-	cacheData := make(map[string]string)
-
 	dataSet := make(map[int][]Message)
 	for k, v := range cacheMap {
 		dataSet[k] = v.getMessages()
@@ -316,20 +314,6 @@ func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
 	data, err := json.Marshal(dataSet)
 	if err != nil {
 		log.Println("export dataSet", err)
-		return
-	}
-	cacheData["dataSet"] = string(data)
-
-	data, err = json.Marshal(msgIdMap)
-	if err != nil {
-		log.Println("export Marshal", err)
-		return
-	}
-	cacheData["msgIdMap"] = string(data)
-
-	data, err = json.Marshal(cacheData)
-	if err != nil {
-		log.Println("export Marshal", err)
 		return
 	}
 	// 生成当前时间戳文件名
@@ -350,7 +334,7 @@ func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func loadDataset1(w http.ResponseWriter, r *http.Request) {
+func loadDataset(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -386,7 +370,7 @@ func loadDataset1(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("success"))
 }
 
-func loadDataset(w http.ResponseWriter, r *http.Request) {
+func loadDatasetOld(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -503,7 +487,9 @@ func CreateWeb() {
 	mux.HandleFunc("/getCycleStatistics", getCycleStatistics)
 	mux.HandleFunc("/lack", lack)
 	mux.HandleFunc("/exportDataset", exportDataset)
+	mux.HandleFunc("/exportDatasetOld", exportDatasetOld)
 	mux.HandleFunc("/loadDataset", loadDataset)
+	mux.HandleFunc("/loadDatasetOld", loadDatasetOld)
 	mux.HandleFunc("/goChart", goChart1)
 	mux.HandleFunc("/goChart2", goChart2)
 	mux.HandleFunc("/", index)
