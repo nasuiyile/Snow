@@ -19,12 +19,12 @@ import (
 	"github.com/gorilla/schema"
 )
 
-var cacheMap map[string]*MessageCache
+var cacheMap map[int]*MessageCache
 var msgIdMap map[byte]map[string]int
 var rm sync.RWMutex
 var chartPath string
 
-func getMessageId(m Message) string {
+func getMessageCycle(m Message) int {
 	rm.Lock()
 	defer rm.Unlock()
 
@@ -35,7 +35,7 @@ func getMessageId(m Message) string {
 		msgIdMap[m.MsgType][m.Id] = len(msgIdMap[m.MsgType]) + 1
 	}
 	num := msgIdMap[m.MsgType][m.Id]
-	return fmt.Sprintf("%d", num)
+	return num
 }
 
 // 接收节点广播的消息
@@ -49,12 +49,12 @@ func putRing(w http.ResponseWriter, r *http.Request) {
 	}
 	//fmt.Println(message)
 	message.Timestamp = int(time.Now().UnixMilli())
-	message.Id = getMessageId(message)
+	message.Cycle = getMessageCycle(message)
 	rm.Lock()
-	if _, exisit := cacheMap[message.Id]; !exisit {
-		cacheMap[message.Id] = CreateMessageCache()
+	if _, exisit := cacheMap[message.Cycle]; !exisit {
+		cacheMap[message.Cycle] = CreateMessageCache()
 	}
-	cacheMap[message.Id].put(message)
+	cacheMap[message.Cycle].put(message)
 	rm.Unlock()
 }
 
@@ -75,7 +75,7 @@ func getRing(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAllMessage(w http.ResponseWriter, r *http.Request) {
-	messageMap := make(map[string][]Message)
+	messageMap := make(map[int][]Message)
 
 	for k, v := range cacheMap {
 		if _, exisit := messageMap[k]; !exisit {
@@ -94,7 +94,7 @@ func getAllMessage(w http.ResponseWriter, r *http.Request) {
 func getAllNode(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	nodeMap := make(map[string][]*MessageNode, 0)
+	nodeMap := make(map[int][]*MessageNode, 0)
 
 	for k, v := range cacheMap {
 		if _, exisit := nodeMap[k]; !exisit {
@@ -115,7 +115,7 @@ func totalCount(w http.ResponseWriter, r *http.Request) {
 }
 
 func clean(w http.ResponseWriter, r *http.Request) {
-	cacheMap = make(map[string]*MessageCache)
+	cacheMap = make(map[int]*MessageCache)
 	msgIdMap = make(map[byte]map[string]int)
 }
 
@@ -201,17 +201,17 @@ func lack(w http.ResponseWriter, r *http.Request) {
 	w.Write(marshal)
 }
 
-func getCycleTypeStatistics(message Message) map[byte]map[string]*MessageCycle {
-	cycleTypeMap := make(map[byte]map[string]*MessageCycle)
-	// msgTypes := []byte{RegularMsg, ColoringMsg, GossipMsg, EagerPush, Graft, LazyPush}
-	// for _, msgType := range msgTypes {
+func getCycleTypeStatistics(message Message) map[byte]map[int]*MessageCycle {
+	cycleTypeMap := make(map[byte]map[int]*MessageCycle)
 	for msgType, _ := range msgIdMap {
-		cycleMap := make(map[string]*MessageCycle)
+		cycleMap := make(map[int]*MessageCycle)
+		// 遍历轮次
 		for k, v := range cacheMap {
+			// 条件查找 msgType、Num、FanOut
 			messageGroup := v.getMessagesByGroup(msgType, message)
-			nodeCount := len(v.getNodes())
 			if len(messageGroup) > 0 {
-				cycle := staticticsCycle(messageGroup, nodeCount)
+				cycle := staticticsCycle(messageGroup)
+				cycle.Cycle = k
 				cycleMap[k] = &cycle
 			}
 		}
@@ -255,7 +255,7 @@ func exportDataset(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	cacheData := make(map[string]string)
 
-	dataSet := make(map[string][]Message)
+	dataSet := make(map[int][]Message)
 	for k, v := range cacheMap {
 		dataSet[k] = v.getMessages()
 	}
@@ -286,10 +286,10 @@ func exportDataset(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
-func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
-	cacheData := make(map[string]string)
+func exportDataset1(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	dataSet := make(map[string][]Message)
+	dataSet := make(map[int][]Message)
 	for k, v := range cacheMap {
 		dataSet[k] = v.getMessages()
 	}
@@ -298,20 +298,40 @@ func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
 		log.Println("export dataSet", err)
 		return
 	}
-	cacheData["dataSet"] = string(data)
 
-	data, err = json.Marshal(msgIdMap)
+	h := w.Header()
+	h.Set("Content-type", "application/octet-stream")
+	h.Set("CharacterEncoding", "utf-8")
+	h.Set("Content-Disposition", "attachment;filename=cacheData.json")
+	w.Write(data)
+}
+
+func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
+	// cacheData := make(map[string]string)
+
+	dataSet := make(map[int][]Message)
+	for k, v := range cacheMap {
+		dataSet[k] = v.getMessages()
+	}
+	data, err := json.Marshal(dataSet)
 	if err != nil {
-		log.Println("export Marshal msgIdMap", err)
+		log.Println("export dataSet", err)
 		return
 	}
-	cacheData["msgIdMap"] = string(data)
+	// cacheData["dataSet"] = string(data)
 
-	data, err = json.Marshal(cacheData)
-	if err != nil {
-		log.Println("export Marshal cacheData", err)
-		return
-	}
+	// data, err = json.Marshal(msgIdMap)
+	// if err != nil {
+	// 	log.Println("export Marshal msgIdMap", err)
+	// 	return
+	// }
+	// cacheData["msgIdMap"] = string(data)
+
+	// data, err = json.Marshal(cacheData)
+	// if err != nil {
+	// 	log.Println("export Marshal cacheData", err)
+	// 	return
+	// }
 	// 生成当前时间戳文件名
 	now := time.Now()
 	// 格式化时间为：2025-04-18_15-30-45
@@ -328,6 +348,42 @@ func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Data exported to %s\n", filename)
 
+}
+
+func loadDataset1(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		log.Println("load FormFile", err)
+		return
+	}
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		log.Println("load ReadAll", err)
+		return
+	}
+	cacheData := make(map[int][]Message)
+	err = json.Unmarshal(data, &cacheData)
+	if err != nil {
+		log.Println("load cacheData", err)
+		return
+	}
+
+	for i := range len(cacheData) {
+		for _, message := range cacheData[i+1] {
+			message.Cycle = getMessageCycle(message)
+			rm.Lock()
+			if _, exisit := cacheMap[message.Cycle]; !exisit {
+				cacheMap[message.Cycle] = CreateMessageCache()
+			}
+			cacheMap[message.Cycle].put(message)
+			rm.Unlock()
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("success"))
 }
 
 func loadDataset(w http.ResponseWriter, r *http.Request) {
@@ -350,23 +406,54 @@ func loadDataset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	msgIdMapStr := cacheData["msgIdMap"]
+	idSet := make(map[byte]map[string]int, 0)
+	err = json.Unmarshal([]byte(msgIdMapStr), &idSet)
+	if err != nil {
+		log.Println("load msgIdMap", err)
+		return
+	}
+
+	idRevertSet := make(map[int]map[byte]string, 0)
+	for msgType, v := range idSet {
+		for oldId, cycle := range v {
+			if _, e := idRevertSet[cycle]; !e {
+				idRevertSet[cycle] = make(map[byte]string, 0)
+			}
+			idRevertSet[cycle][msgType] = oldId
+		}
+	}
+
 	dataSetStr := cacheData["dataSet"]
-	dataSet := make(map[string][]Message)
+	dataSet := make(map[int][]Message)
 	err = json.Unmarshal([]byte(dataSetStr), &dataSet)
 	if err != nil {
 		log.Println("load dataSet", err)
 		return
 	}
-	for k, v := range dataSet {
-		cacheMap[k] = new(MessageCache)
-		cacheMap[k].messages = v
+
+	for i := range len(dataSet) {
+		for _, message := range dataSet[i+1] {
+			message.Id = idRevertSet[i+1][message.MsgType]
+		}
 	}
 
-	msgIdMapStr := cacheData["msgIdMap"]
-	err = json.Unmarshal([]byte(msgIdMapStr), &msgIdMap)
-	if err != nil {
-		log.Println("load msgIdMap", err)
-		return
+	for cycle, v := range dataSet {
+		for _, message := range v {
+			message.Id = idRevertSet[cycle][message.MsgType]
+		}
+	}
+
+	for i := range len(dataSet) {
+		for _, message := range dataSet[i+1] {
+			message.Cycle = getMessageCycle(message)
+			rm.Lock()
+			if _, exisit := cacheMap[message.Cycle]; !exisit {
+				cacheMap[message.Cycle] = CreateMessageCache()
+			}
+			cacheMap[message.Cycle].put(message)
+			rm.Unlock()
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -411,9 +498,9 @@ var server http.Server
 
 func CreateWeb() {
 	var mux = http.NewServeMux()
-	cacheMap = make(map[string]*MessageCache)
+	cacheMap = make(map[int]*MessageCache)
 	msgIdMap = make(map[byte]map[string]int)
-	chartPath = "./tool/benchmark/chart/"
+	// chartPath = "./tool/benchmark/chart/"
 	// chartPath = "./chart/"
 	// 注册路由和处理函数
 	mux.HandleFunc("/putRing", putRing)
