@@ -23,5 +23,4 @@ func (s *Server) ApplyLeave() {
 }
 func (s *Server) ReportLeave(ip []byte) {
 	s.PlumTreeBroadcast(ip, NodeLeave)
-
 }

@@ -18,12 +18,17 @@ func main() {
 	util.DebugLog()
 	////测试轮数
 	rounds := 100
-	//benchmark(600, 6, rounds)
 	//benchmark(600, 8, rounds)
+	//benchmark(600, 6, rounds)
 	//benchmark(600, 4, rounds)
 	//benchmark(600, 2, rounds)
 
-	benchmark(500, 4, rounds)
+	benchmark(1000, 4, rounds)
+	benchmark(900, 4, rounds)
+	benchmark(800, 4, rounds)
+	benchmark(700, 4, rounds)
+
+	//benchmark(500, 4, rounds)
 	//benchmark(400, 4, rounds)
 	//benchmark(300, 4, rounds)
 	//benchmark(200, 4, rounds)
@@ -38,7 +43,7 @@ func benchmark(n int, k int, rounds int) {
 	//消息大小
 	strLen := 100
 	initPort := 20000
-	testMode := []MsgType{EagerPush, RegularMsg, ColoringMsg, GossipMsg} //按数组中的顺序决定跑的时候的顺序
+	testMode := []MsgType{RegularMsg, EagerPush, ColoringMsg, GossipMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	util.Num = n
 	util.InitPort = initPort
@@ -105,8 +110,7 @@ func benchmark(n int, k int, rounds int) {
 func createAction(num int) broadcast.Action {
 	syncAction := func(bytes []byte) bool {
 		//随机睡眠时间，百分之5的节点是掉队者节点
-		i := util.IntHash(num)
-		if i%20 == 0 {
+		if num%20 == 0 {
 			time.Sleep(1 * time.Second)
 		} else {
 			randInt := util.RandInt(10, 200)

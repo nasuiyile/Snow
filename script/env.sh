@@ -6,4 +6,5 @@ ulimit -n 1048576
 mkdir dataset
 
 chmod +x ./web-linux
+chmod +x ./brokendown-linux
 chmod +x ./churn-linux

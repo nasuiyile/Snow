@@ -15,8 +15,14 @@ import (
 
 func main() {
 	util.DebugLog()
+	roundsPtr := flag.Int("r", 100, "Number of rounds") // 默认值为 5
+
+	// 解析命令行参数
+	flag.Parse()
+
+	// 获取 rounds 参数的值
+	rounds := *roundsPtr
 	////测试轮数
-	rounds := 100
 	benchmark(500, 4, rounds)
 
 	fmt.Println("done!!!")
@@ -34,7 +40,7 @@ func benchmark(n int, k int, rounds int) {
 	//消息大小
 	strLen := 100
 	initPort := 20000
-	testMode := []MsgType{EagerPush, GossipMsg, RegularMsg, ColoringMsg} //按数组中的顺序决定跑的时候的顺序
+	testMode := []MsgType{RegularMsg, EagerPush, GossipMsg, ColoringMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	util.Num = n
 	util.InitPort = initPort
@@ -102,7 +108,7 @@ func benchmark(n int, k int, rounds int) {
 		if mode == EagerPush {
 			time.Sleep(35 * time.Second)
 		} else {
-			time.Sleep(5 * time.Second)
+			time.Sleep(10 * time.Second)
 		}
 		for _, v := range serverList {
 			f := false
@@ -135,7 +141,7 @@ func benchmark(n int, k int, rounds int) {
 func createAction(num int) broadcast.Action {
 	syncAction := func(bytes []byte) bool {
 		//随机睡眠时间，百分之5的节点是掉队者节点
-		if util.IntHash(num)%20 == 0 {
+		if num%20 == 0 {
 			time.Sleep(1 * time.Second)
 		} else {
 			randInt := util.RandInt(10, 200)

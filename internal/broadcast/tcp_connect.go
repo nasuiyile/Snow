@@ -251,10 +251,7 @@ func (s *Server) SendData(data *SendData) {
 	if err != nil {
 		log.Error(err)
 	}
-	if s.Config.Test && s.Config.Report {
-		bytes := append(data.Payload, data.Msg...)
-		util.SendHttp(s.Config.ServerAddress, data.Conn.RemoteAddr().String(), bytes, s.Config.FanOut)
-	}
+
 	_, err = data.Conn.Write(data.Header)
 	if err != nil {
 		log.Errorf("Error sending header to %v: %v", data.Conn.RemoteAddr(), err)
