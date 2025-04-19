@@ -6,6 +6,7 @@ import (
 
 type Message struct {
 	Id        string
+	Cycle     int
 	Size      int
 	Target    string
 	From      string
@@ -32,7 +33,7 @@ type MessageNode struct {
 
 // 每个轮次统计统计信息
 type MessageCycle struct {
-	Id             string
+	Cycle          int
 	BroadcastCount int
 	FlowSum        int
 	Reliability    float64
@@ -42,7 +43,7 @@ type MessageCycle struct {
 	FlowOutS       float64
 }
 
-func staticticsCycle(message []Message, nodeCount int) MessageCycle {
+func staticticsCycle(message []Message) MessageCycle {
 	cycle := MessageCycle{}
 	// cycle.Id = k
 	// cycle.BroadcastCount = len(v.getMessages())
@@ -69,7 +70,7 @@ func staticticsCycle(message []Message, nodeCount int) MessageCycle {
 	cycle.LDT = endTime - startTime
 
 	m := 0
-	n := nodeCount
+	n := 0
 	for _, message := range message {
 		m += message.Size
 		n = message.Num
