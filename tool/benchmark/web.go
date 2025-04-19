@@ -251,7 +251,7 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(builder.String()))
 }
 
-func exportDataset(w http.ResponseWriter, r *http.Request) {
+func exportDatasetOld(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	cacheData := make(map[string]string)
 
@@ -286,7 +286,7 @@ func exportDataset(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
-func exportDataset1(w http.ResponseWriter, r *http.Request) {
+func exportDataset(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	dataSet := make(map[int][]Message)
@@ -350,7 +350,7 @@ func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func loadDataset1(w http.ResponseWriter, r *http.Request) {
+func loadDataset(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -386,7 +386,7 @@ func loadDataset1(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("success"))
 }
 
-func loadDataset(w http.ResponseWriter, r *http.Request) {
+func loadDatasetOld(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -503,7 +503,9 @@ func CreateWeb() {
 	mux.HandleFunc("/getCycleStatistics", getCycleStatistics)
 	mux.HandleFunc("/lack", lack)
 	mux.HandleFunc("/exportDataset", exportDataset)
+	mux.HandleFunc("/exportDatasetOld", exportDatasetOld)
 	mux.HandleFunc("/loadDataset", loadDataset)
+	mux.HandleFunc("/loadDatasetOld", loadDatasetOld)
 	mux.HandleFunc("/goChart", goChart1)
 	mux.HandleFunc("/goChart2", goChart2)
 	mux.HandleFunc("/", index)

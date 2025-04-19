@@ -53,6 +53,11 @@
         <button onclick="loadDataset()">load</button>
         <button class="btn" onclick="saveSvg()">save svg</button>
     </div>
+    <div style="margin-top: 20px;">
+        <button class="btn" onclick="exportDatasetOld()">old export</button>
+        <input class="btn" id="fileOld" type="file" name="file">
+        <button onclick="loadDatasetOld()">old load</button>
+    </div>
 </body>
 
 </html>
@@ -244,6 +249,10 @@
         window.location.href = "/exportDataset"
     }
 
+    function exportDatasetOld() {
+        window.location.href = "/exportDatasetOld"
+    }
+
     function loadDataset() {
         let files = document.getElementById("file")
         if (!files.files.length) {
@@ -255,6 +264,26 @@
         formData.append("file", files.files[0])
         let request = new XMLHttpRequest()
         request.open("POST", "/loadDataset")
+        request.onload = function () {
+            if (request.status >= 200 && request.status < 300) {
+                console.log("load over")
+                window.location.reload()
+            }
+        }
+        request.send(formData)
+    }
+
+    function loadDatasetOld() {
+        let files = document.getElementById("fileOld")
+        if (!files.files.length) {
+            alert("未选择文件")
+            console.log("未选择文件")
+            return
+        }
+        let formData = new FormData()
+        formData.append("file", files.files[0])
+        let request = new XMLHttpRequest()
+        request.open("POST", "/loadDatasetOld")
         request.onload = function () {
             if (request.status >= 200 && request.status < 300) {
                 console.log("load over")
