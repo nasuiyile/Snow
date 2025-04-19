@@ -2,7 +2,9 @@ package plumtree
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"net"
 	. "snow/common"
 	. "snow/config"
@@ -48,6 +50,13 @@ func NewServer(config *Config, action broadcast.Action) (*Server, error) {
 
 func (s *Server) Hand(msg []byte, conn net.Conn) {
 	parentIP := s.Config.GetServerIp(conn.RemoteAddr().String())
+
+	if s.IsClosed.Load() {
+		return
+	}
+	if s.Config.Test && s.Config.Report {
+		util.SendHttp(parentIP, s.Config.ServerAddress, msg, s.Config.FanOut)
+	}
 	//判断消息类型
 	msgType := msg[0]
 	//消息要进行的动作
@@ -161,4 +170,42 @@ func (s *Server) PlumTreeMessage(msg []byte) {
 		s.SendMessage(key, []byte{}, msg)
 		return true
 	})
+}
+
+func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
+	if s.IsClosed.Load() {
+		return
+	}
+	go func() {
+		metaData := s.Member.GetOrPutMember(ip)
+		conn := metaData.GetClient(true)
+		if conn == nil {
+			//先建立一次链接进行尝试
+			newConn, err := s.ConnectToPeer(ip, metaData)
+			if err != nil {
+				log.Error(s.Config.ServerAddress, "can't connect to ", ip)
+				// 避免递归调用导致的堆栈增长
+				if !s.IsClosed.Load() {
+					s.ReportLeave(util.IPv4To6Bytes(ip))
+				}
+				return
+			} else {
+				conn = newConn
+			}
+		}
+		// 创建消息头，存储消息长度 (4字节大端序)
+		length := uint32(len(payload) + len(msg))
+		header := make([]byte, 4)
+		binary.BigEndian.PutUint32(header, length)
+		data := &broadcast.SendData{
+			Conn:    conn,
+			Header:  header,
+			Payload: payload,
+			Msg:     msg,
+		}
+		metaData.Lock()
+		defer metaData.Unlock()
+		s.SendData(data)
+
+	}()
 }
