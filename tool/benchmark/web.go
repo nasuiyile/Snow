@@ -307,7 +307,7 @@ func exportDataset1(w http.ResponseWriter, r *http.Request) {
 }
 
 func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
-	// cacheData := make(map[string]string)
+	cacheData := make(map[string]string)
 
 	dataSet := make(map[int][]Message)
 	for k, v := range cacheMap {
@@ -318,20 +318,20 @@ func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
 		log.Println("export dataSet", err)
 		return
 	}
-	// cacheData["dataSet"] = string(data)
+	cacheData["dataSet"] = string(data)
 
-	// data, err = json.Marshal(msgIdMap)
-	// if err != nil {
-	// 	log.Println("export Marshal msgIdMap", err)
-	// 	return
-	// }
-	// cacheData["msgIdMap"] = string(data)
+	data, err = json.Marshal(msgIdMap)
+	if err != nil {
+		log.Println("export Marshal", err)
+		return
+	}
+	cacheData["msgIdMap"] = string(data)
 
-	// data, err = json.Marshal(cacheData)
-	// if err != nil {
-	// 	log.Println("export Marshal cacheData", err)
-	// 	return
-	// }
+	data, err = json.Marshal(cacheData)
+	if err != nil {
+		log.Println("export Marshal", err)
+		return
+	}
 	// 生成当前时间戳文件名
 	now := time.Now()
 	// 格式化时间为：2025-04-18_15-30-45
@@ -472,16 +472,6 @@ func goChart1(w http.ResponseWriter, r *http.Request) {
 
 func goChart2(w http.ResponseWriter, r *http.Request) {
 	tmpl, err := template.ParseFiles(fmt.Sprintf("%s%s", chartPath, "go_num_fanout_statistics.html"))
-	if err != nil {
-		fmt.Println("go chart, err:", err)
-		return
-	}
-	info := []byte{RegularMsg, ColoringMsg, GossipMsg, EagerPush}
-	tmpl.Execute(w, info)
-}
-
-func goChart3(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles(fmt.Sprintf("%s%s", chartPath, "go_num_statistics.html"))
 	if err != nil {
 		fmt.Println("go chart, err:", err)
 		return
