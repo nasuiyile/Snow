@@ -307,8 +307,6 @@ func exportDataset(w http.ResponseWriter, r *http.Request) {
 }
 
 func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
-	cacheData := make(map[string]string)
-
 	dataSet := make(map[int][]Message)
 	for k, v := range cacheMap {
 		dataSet[k] = v.getMessages()
@@ -316,20 +314,6 @@ func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
 	data, err := json.Marshal(dataSet)
 	if err != nil {
 		log.Println("export dataSet", err)
-		return
-	}
-	cacheData["dataSet"] = string(data)
-
-	data, err = json.Marshal(msgIdMap)
-	if err != nil {
-		log.Println("export Marshal", err)
-		return
-	}
-	cacheData["msgIdMap"] = string(data)
-
-	data, err = json.Marshal(cacheData)
-	if err != nil {
-		log.Println("export Marshal", err)
 		return
 	}
 	// 生成当前时间戳文件名
