@@ -40,7 +40,7 @@ func (server *PlumServer) init(port int) {
 	server.host = fmt.Sprintf("127.0.0.1:%d", port)
 	server.member = map[string]byte{}
 	server.member[server.host] = Start
-	server.member["127.0.0.1:40000"] = Online
+	server.member["127.0.0.1:20000"] = Online
 	server.message = make(chan []byte, 1)
 	server.broadcastHandler = PlumtreeBroadcast
 }
@@ -237,7 +237,7 @@ func TestMessageServer(t *testing.T) {
 	serverArr := make([]PlumServer, 0)
 	for i := range 5 {
 		server := new(PlumServer)
-		server.init(40000 + i)
+		server.init(20000 + i)
 		serverArr = append(serverArr, *server)
 	}
 

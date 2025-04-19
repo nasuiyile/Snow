@@ -7,7 +7,7 @@ import (
 
 func main() {
 
-	startPort := 40000
+	startPort := 20000
 	endPort := 46000
 
 	fmt.Printf("Checking ports from %d to %d...\n", startPort, endPort)

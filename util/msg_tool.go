@@ -12,7 +12,7 @@ import (
 var RemoteHttp = "127.0.0.1:8111"
 
 var Num = 100
-var InitPort = 40000
+var InitPort = 20000
 
 // 发送HTTP GET请求
 var Client = &http.Client{
