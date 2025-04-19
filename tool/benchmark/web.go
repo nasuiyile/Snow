@@ -500,7 +500,7 @@ func CreateWeb() {
 	var mux = http.NewServeMux()
 	cacheMap = make(map[int]*MessageCache)
 	msgIdMap = make(map[byte]map[string]int)
-	// chartPath = "./tool/benchmark/chart/"
+	chartPath = "./tool/benchmark/chart/"
 	// chartPath = "./chart/"
 	// 注册路由和处理函数
 	mux.HandleFunc("/putRing", putRing)
