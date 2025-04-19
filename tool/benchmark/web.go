@@ -184,7 +184,7 @@ func lack(w http.ResponseWriter, r *http.Request) {
 		flag := false
 		strArr := make([]string, 0)
 		for i := 1; i < 300; i++ {
-			strArr = append(strArr, fmt.Sprintf("%s%d", "127.0.0.1:", i+40000))
+			strArr = append(strArr, fmt.Sprintf("%s%d", "127.0.0.1:", i+20000))
 		}
 		for _, msg := range v.messages {
 			if msg.MsgType == RegularMsg {

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/hashicorp/go-msgpack/v2/codec"
+	log "github.com/sirupsen/logrus"
 	"github.com/zeebo/blake3"
 	"math"
 	"math/rand"
@@ -299,12 +300,12 @@ func IntHash(n int) int {
 
 func EchoMsgType(data MsgType) {
 	if data == RegularMsg {
-		fmt.Println("RegularMsg")
+		log.Info("RegularMsg")
 	} else if data == ColoringMsg {
-		fmt.Println("ColoringMsg")
+		log.Info("ColoringMsg")
 	} else if data == GossipMsg {
-		fmt.Println("GossipMsg")
+		log.Info("GossipMsg")
 	} else if data == EagerPush {
-		fmt.Println("EagerPush")
+		log.Info("EagerPush")
 	}
 }

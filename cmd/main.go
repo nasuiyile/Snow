@@ -14,7 +14,7 @@ func main() {
 	flag.StringVar(&configPath, "configPath", "E:\\code\\go\\Snow\\config\\config.yml", "config file path")
 	flag.Parse()
 	n := 60
-	initPort := 40000
+	initPort := 20000
 	serverList := make([]*broadcast.Server, 0)
 	serversAddresses := initAddress(n, initPort)
 	action := createAction()

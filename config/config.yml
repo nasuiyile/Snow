@@ -1,4 +1,4 @@
-port: 40000
+port: 20000
 Ipv6: false #是否使用IPv6, 注意所有客户端需要配重一直
 FanOut: 2  # 每个节点的扇出是多少
 LocalAddress: "127.0.0.1"  #启动后会自动把这个字段填充端口
@@ -12,8 +12,8 @@ PushPullInterval: 60s
 # tcp超时时间单位秒，和memberlist里不同。
 TCPTimeout: 5s
 #最开始要连接的那个服务器（用来通知加入集群）
-InitialServer: "127.0.0.1:40000"
-DefaultAddress: "127.0.0.1:40000"
+InitialServer: "127.0.0.1:20000"
+DefaultAddress: "127.0.0.1:20000"
 # 心跳检测的间隔时间
 HeartbeatInterval: 1s
 # 间接心跳检测的次数

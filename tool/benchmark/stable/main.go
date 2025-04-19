@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"snow/internal/plumtree"
 	"snow/util"
 
 	"math/rand"
@@ -36,8 +37,8 @@ func benchmark(n int, k int, rounds int) {
 	configPath := "./config/config.yml"
 	//消息大小
 	strLen := 100
-	initPort := 40000
-	testMode := []MsgType{ColoringMsg, GossipMsg, EagerPush, RegularMsg} //按数组中的顺序决定跑的时候的顺序
+	initPort := 20000
+	testMode := []MsgType{EagerPush, RegularMsg, ColoringMsg, GossipMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	util.Num = n
 	util.InitPort = initPort
@@ -47,7 +48,7 @@ func benchmark(n int, k int, rounds int) {
 	time.Sleep(time.Duration(n/200) * time.Second)
 	for _, mode := range testMode {
 		util.EchoMsgType(mode)
-		serverList := make([]*broadcast.Server, 0)
+		serverList := make([]*plumtree.Server, 0)
 		for i := 0; i < n; i++ {
 			action := createAction(i + 1)
 			f := func(config *Config) {
@@ -60,7 +61,7 @@ func benchmark(n int, k int, rounds int) {
 				panic(err)
 				return
 			}
-			server, err := broadcast.NewServer(config, action)
+			server, err := plumtree.NewServer(config, action)
 			if err != nil {
 				log.Println(err)
 				return
@@ -83,15 +84,14 @@ func benchmark(n int, k int, rounds int) {
 				} else if mode == GossipMsg {
 					serverList[0].GossipMessage(msg, UserMsg)
 				} else if mode == EagerPush {
-					//serverList[0].PlumTreeBroadcast(msg, UserMsg)
+					serverList[0].PlumTreeBroadcast(msg, UserMsg)
 				}
 			}()
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(8 * time.Second)
 		for _, v := range serverList {
 			v.IsClosed.Store(true)
 		}
-
 		for _, v := range serverList {
 			fmt.Println("关闭节点：", v.Config.ServerAddress)
 			v.Close()
@@ -105,7 +105,8 @@ func benchmark(n int, k int, rounds int) {
 func createAction(num int) broadcast.Action {
 	syncAction := func(bytes []byte) bool {
 		//随机睡眠时间，百分之5的节点是掉队者节点
-		if num%20 == 0 {
+		i := util.IntHash(num)
+		if i%20 == 0 {
 			time.Sleep(1 * time.Second)
 		} else {
 			randInt := util.RandInt(10, 200)

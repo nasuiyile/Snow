@@ -33,7 +33,7 @@ func benchmark(n int, k int, rounds int) {
 	flag.Parse()
 	//消息大小
 	strLen := 100
-	initPort := 40000
+	initPort := 20000
 	testMode := []MsgType{EagerPush, GossipMsg, RegularMsg, ColoringMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	util.Num = n

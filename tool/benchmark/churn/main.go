@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -13,20 +14,25 @@ import (
 )
 
 func main() {
+	roundsPtr := flag.Int("r", 100, "Number of rounds") // 默认值为 5
 
+	// 解析命令行参数
+	flag.Parse()
+
+	// 获取 rounds 参数的值
+	rounds := *roundsPtr
 	////测试轮数
-	rounds := 100
 	benchmark(500, 4, rounds)
 	fmt.Println("done!!!")
 	// 主线程保持运行
 	select {}
 }
 func benchmark(n int, k int, rounds int) {
-	configPath := "E:\\code\\go\\Snow\\config\\config.yml"
+	configPath := "./config/config.yml"
 	//消息大小
 	strLen := 100
-	initPort := 40000
-	testMode := []MsgType{ColoringMsg, EagerPush, RegularMsg, GossipMsg} //按数组中的顺序决定跑的时候的顺序
+	initPort := 20000
+	testMode := []MsgType{EagerPush, GossipMsg, ColoringMsg, RegularMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	util.Num = n
 	util.InitPort = initPort
@@ -111,6 +117,12 @@ func benchmark(n int, k int, rounds int) {
 			time.Sleep(35 * time.Second)
 		} else {
 			time.Sleep(5 * time.Second)
+		}
+		for _, v := range serverList {
+			v.IsClosed.Store(true)
+		}
+		for _, v := range serverTempList {
+			v.IsClosed.Store(true)
 		}
 		//释放所有链接重新跑
 		for _, v := range serverList {

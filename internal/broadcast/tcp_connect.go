@@ -214,7 +214,6 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 		return
 	}
 	go func() {
-
 		metaData := s.Member.GetOrPutMember(ip)
 		conn := metaData.GetClient(true)
 		if conn == nil {
@@ -241,7 +240,6 @@ func (s *Server) SendMessage(ip string, payload []byte, msg []byte) {
 			Payload: payload,
 			Msg:     msg,
 		}
-
 		metaData.Lock()
 		defer metaData.Unlock()
 		s.SendData(data)
