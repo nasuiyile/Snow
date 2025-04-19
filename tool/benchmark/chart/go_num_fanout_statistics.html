@@ -79,7 +79,7 @@
         Reliability_arr[xType] = {}
     }
 
-    function dealY(dataArr, yData, title) {
+    function dealY(dataArr, yData, title, xAxis) {
         for (type of types) {
             if (!yData[type]) yData[type] = []
 
@@ -91,9 +91,9 @@
                     sum += message[title]
                 }
                 if (n > 0) {
-                    yData[type].push((sum / n))
+                    yData[type][xAxis] = (sum / n)
                 } else {
-                    yData[type].push(0)
+                    yData[type][xAxis] = 0
                 }
             }
         }
@@ -154,22 +154,22 @@
                 {
                     name: 'Snow-Standard',
                     type: 'line',
-                    data: yData[types[0]]
+                    data: Object.values(yData[types[0]])
                 },
                 {
                     name: 'Coloring',
                     type: 'line',
-                    data: yData[types[1]]
+                    data: Object.values(yData[types[1]])
                 },
                 {
                     name: 'Gossip',
                     type: 'line',
-                    data: yData[types[2]]
+                    data: Object.values(yData[types[2]])
                 },
                 {
                     name: 'Plumtree',
                     type: 'line',
-                    data: yData[types[3]]
+                    data: Object.values(yData[types[3]])
                 },
             ]
         };
@@ -183,14 +183,14 @@
             let param = "?Fanout=" + fanout + "&Num=" + num
             let url = "/getCycleStatistics" + param
             let request = new XMLHttpRequest()
-            request.open("GET", url, false)
+            request.open("GET", url, true)
             request.onreadystatechange = function () {
                 if (request.readyState === 4) {
                     if (request.status == 200) {
                         let response = JSON.parse(request.responseText)
-                        dealY(response, LDT_arr["num"], "LDT")
-                        dealY(response, RMR_arr["num"], "RMR")
-                        dealY(response, Reliability_arr["num"], "Reliability")
+                        dealY(response, LDT_arr["num"], "LDT", num)
+                        dealY(response, RMR_arr["num"], "RMR", num)
+                        dealY(response, Reliability_arr["num"], "Reliability", num)
                         resolve("success");
                     } else {
                         reject("failed");
@@ -227,14 +227,14 @@
             let param = "?Fanout=" + fanout + "&Num=" + num
             let url = "/getCycleStatistics" + param
             let request = new XMLHttpRequest()
-            request.open("GET", url, false)
+            request.open("GET", url, true)
             request.onreadystatechange = function () {
                 if (request.readyState === 4) {
                     if (request.status == 200) {
                         let response = JSON.parse(request.responseText)
-                        dealY(response, LDT_arr["fanout"], "LDT")
-                        dealY(response, RMR_arr["fanout"], "RMR")
-                        dealY(response, Reliability_arr["fanout"], "Reliability")
+                        dealY(response, LDT_arr["fanout"], "LDT", fanout)
+                        dealY(response, RMR_arr["fanout"], "RMR", fanout)
+                        dealY(response, Reliability_arr["fanout"], "Reliability", fanout)
                         resolve("success");
                     } else {
                         reject("failed");
