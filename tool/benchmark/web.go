@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +11,7 @@ import (
 	"os"
 	. "snow/common"
 	"snow/util"
+	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -49,6 +52,14 @@ func putRing(w http.ResponseWriter, r *http.Request) {
 	}
 	//fmt.Println(message)
 	message.Timestamp = int(time.Now().UnixMilli())
+
+	idBts := []byte(message.Id)
+	ids := make([]string, 0)
+	for _, bt := range idBts {
+		ids = append(ids, fmt.Sprintf("%d", bt))
+	}
+	message.Id = strings.Join(ids, "")
+
 	message.Cycle = getMessageCycle(message)
 	rm.Lock()
 	if _, exisit := cacheMap[message.Cycle]; !exisit {
@@ -251,6 +262,46 @@ func getCycleStatistics(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(builder.String()))
 }
 
+func getNumFanoutStatistics(w http.ResponseWriter, r *http.Request) {
+	rm.RLock()
+	defer rm.RUnlock()
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	decoder := schema.NewDecoder()
+	message := Message{}
+	err := decoder.Decode(&message, r.URL.Query())
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	// 统计每个轮次的消息信息
+	cycleTypeMap := getCycleTypeStatistics(message)
+
+	typeData := make(map[byte]float64, 0)
+	for msgType, v := range cycleTypeMap {
+		LDT_sum := 0
+		RMR_sum := 0.0
+		Reliability_sum := 0.0
+		n := 0
+		for _, message := range v {
+			n++
+			LDT_sum += message.LDT
+			RMR_sum += message.RMR
+			Reliability_sum += message.Reliability
+		}
+		if n == 0 {
+			typeData[msgType] = 0.0
+		} else {
+			typeData[msgType] = 0.0
+		}
+	}
+
+	var builder strings.Builder
+	marshal, _ := json.Marshal(cycleTypeMap)
+	builder.WriteString(string(marshal))
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(builder.String()))
+}
+
 func exportDatasetOld(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	cacheData := make(map[string]string)
@@ -306,16 +357,55 @@ func exportDataset(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func exportDatasetCsv(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	lines := new(bytes.Buffer)
+	for _, v := range cacheMap {
+		for _, message := range v.getMessages() {
+			line := make([]string, 10)
+			line[0] = message.Id
+			line[1] = fmt.Sprintf("%d", message.Cycle)
+			line[2] = fmt.Sprintf("%d", message.Size)
+			line[3] = message.Target
+			line[4] = message.From
+			line[5] = fmt.Sprintf("%d", message.Timestamp)
+			line[6] = fmt.Sprintf("%d", message.MsgType)
+			line[7] = fmt.Sprintf("%d", message.Num)
+			line[8] = fmt.Sprintf("%d", message.FanOut)
+			line[9] = "\n"
+			str := strings.Join(line, ",")
+			lines.WriteString(str)
+		}
+	}
+
+	h := w.Header()
+	h.Set("Content-type", "application/octet-stream")
+	h.Set("CharacterEncoding", "utf-8")
+	h.Set("Content-Disposition", "attachment;filename=cacheData.csv")
+	w.Write([]byte(lines.Bytes()))
+}
+
 func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
-	dataSet := make(map[int][]Message)
-	for k, v := range cacheMap {
-		dataSet[k] = v.getMessages()
+	lines := new(bytes.Buffer)
+	for _, v := range cacheMap {
+		for _, message := range v.getMessages() {
+			line := make([]string, 10)
+			line[0] = message.Id
+			line[1] = fmt.Sprintf("%d", message.Cycle)
+			line[2] = fmt.Sprintf("%d", message.Size)
+			line[3] = message.Target
+			line[4] = message.From
+			line[5] = fmt.Sprintf("%d", message.Timestamp)
+			line[6] = fmt.Sprintf("%d", message.MsgType)
+			line[7] = fmt.Sprintf("%d", message.Num)
+			line[8] = fmt.Sprintf("%d", message.FanOut)
+			line[9] = "\n"
+			str := strings.Join(line, ",")
+			lines.WriteString(str)
+		}
 	}
-	data, err := json.Marshal(dataSet)
-	if err != nil {
-		log.Println("export dataSet", err)
-		return
-	}
+
 	// 生成当前时间戳文件名
 	now := time.Now()
 	// 格式化时间为：2025-04-18_15-30-45
@@ -324,7 +414,7 @@ func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
 	filename := fmt.Sprintf("dataset/%s.json", timestamp)
 
 	// 写入文件
-	err = os.WriteFile(filename, data, 0644)
+	err := os.WriteFile(filename, []byte(lines.Bytes()), 0644)
 	if err != nil {
 		log.Println("failed to write file", err)
 		return
@@ -356,6 +446,58 @@ func loadDataset(w http.ResponseWriter, r *http.Request) {
 
 	for i := range len(cacheData) {
 		for _, message := range cacheData[i+1] {
+			message.Cycle = getMessageCycle(message)
+			rm.Lock()
+			if _, exisit := cacheMap[message.Cycle]; !exisit {
+				cacheMap[message.Cycle] = CreateMessageCache()
+			}
+			cacheMap[message.Cycle].put(message)
+			rm.Unlock()
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("success"))
+}
+
+func loadDatasetCsv(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		log.Println("load FormFile", err)
+		return
+	}
+	defer file.Close()
+	reader := bufio.NewReader(file)
+
+	messageCycle := make(map[int][]Message)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			break
+		}
+		row := strings.Split(line, ",")
+
+		message := Message{}
+		message.Id = row[0]
+		message.Cycle, _ = strconv.Atoi(row[1])
+		message.Size, _ = strconv.Atoi(row[2])
+		message.Target = row[3]
+		message.From = row[4]
+		message.Timestamp, _ = strconv.Atoi(row[5])
+		msgType, _ := strconv.Atoi(row[6])
+		message.MsgType = byte(msgType)
+		message.Num, _ = strconv.Atoi(row[7])
+		message.FanOut, _ = strconv.Atoi(row[8])
+
+		if _, e := messageCycle[message.Cycle]; !e {
+			messageCycle[message.Cycle] = make([]Message, 0)
+		}
+		messageCycle[message.Cycle] = append(messageCycle[message.Cycle], message)
+	}
+
+	for i := range len(messageCycle) {
+		for _, message := range messageCycle[i+1] {
 			message.Cycle = getMessageCycle(message)
 			rm.Lock()
 			if _, exisit := cacheMap[message.Cycle]; !exisit {
@@ -485,11 +627,14 @@ func CreateWeb() {
 	mux.HandleFunc("/getAllNode", getAllNode)
 	mux.HandleFunc("/getNodeStatistics", getNodeStatistics)
 	mux.HandleFunc("/getCycleStatistics", getCycleStatistics)
+	mux.HandleFunc("/getNumFanoutStatistics", getNumFanoutStatistics)
 	mux.HandleFunc("/lack", lack)
 	mux.HandleFunc("/exportDataset", exportDataset)
+	mux.HandleFunc("/exportDatasetCsv", exportDatasetCsv)
 	mux.HandleFunc("/exportDatasetOld", exportDatasetOld)
 	mux.HandleFunc("/loadDataset", loadDataset)
 	mux.HandleFunc("/loadDatasetOld", loadDatasetOld)
+	mux.HandleFunc("/loadDatasetCsv", loadDatasetCsv)
 	mux.HandleFunc("/goChart", goChart1)
 	mux.HandleFunc("/goChart2", goChart2)
 	mux.HandleFunc("/", index)
