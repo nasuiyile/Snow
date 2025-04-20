@@ -58,6 +58,11 @@
         <input class="btn" id="fileOld" type="file" name="file">
         <button onclick="loadDatasetOld()">old load</button>
     </div>
+    <div style="margin-top: 20px;">
+        <button class="btn" onclick="exportDatasetCsv()">export csv</button>
+        <input class="btn" id="fileCsv" type="file" name="file">
+        <button onclick="loadDatasetCsv()">load csv</button>
+    </div>
 </body>
 
 </html>
@@ -254,6 +259,10 @@
 
     function exportDatasetOld() {
         window.location.href = "/exportDatasetOld"
+    }
+
+    function exportDatasetCsv() {
+        window.location.href = "/exportDatasetCsv"
     }
 
     function loadDataset() {
