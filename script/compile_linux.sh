@@ -15,4 +15,4 @@ $env:GOOS="linux"; $env:GOARCH="amd64"; go build -o brokendown-linux ./tool/benc
 
 
 #export
-curl 127.0.0.1/export
+curl 127.0.0.1:8111/exportDatasetAndClose

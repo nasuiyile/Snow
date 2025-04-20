@@ -18,21 +18,26 @@ func main() {
 	util.DebugLog()
 	////测试轮数
 	rounds := 100
-	//benchmark(600, 8, rounds)
-	//benchmark(600, 6, rounds)
+	benchmark(1100, 4, rounds)
+	benchmark(1200, 4, rounds)
+	benchmark(1300, 4, rounds)
+	benchmark(1400, 4, rounds)
+	benchmark(1500, 4, rounds)
+
+	//benchmark(1000, 4, rounds)
+	//benchmark(900, 4, rounds)
+	//benchmark(800, 4, rounds)
+	//benchmark(700, 4, rounds)
 	//benchmark(600, 4, rounds)
-	//benchmark(600, 2, rounds)
-
-	benchmark(1000, 4, rounds)
-	benchmark(900, 4, rounds)
-	benchmark(800, 4, rounds)
-	benchmark(700, 4, rounds)
-
 	//benchmark(500, 4, rounds)
 	//benchmark(400, 4, rounds)
 	//benchmark(300, 4, rounds)
 	//benchmark(200, 4, rounds)
 	//benchmark(100, 4, rounds)
+	//
+	//benchmark(600, 8, rounds)
+	//benchmark(600, 6, rounds)
+	//benchmark(600, 2, rounds)
 
 	fmt.Println("done!!!")
 	// 主线程保持运行
@@ -52,7 +57,6 @@ func benchmark(n int, k int, rounds int) {
 	//节点启动完之后再跑
 	time.Sleep(time.Duration(n/200) * time.Second)
 	for _, mode := range testMode {
-		util.EchoMsgType(mode)
 		serverList := make([]*plumtree.Server, 0)
 		for i := 0; i < n; i++ {
 			action := createAction(i + 1)
@@ -77,6 +81,8 @@ func benchmark(n int, k int, rounds int) {
 		//for _, v := range serverList {
 		//	v.StartHeartBeat()
 		//}
+		util.EchoMsgType(mode, rounds)
+
 		for i := range rounds {
 			// 1秒一轮,节点可能还没有离开新的广播就发出了
 			fmt.Printf("=== %d =====\n", i)

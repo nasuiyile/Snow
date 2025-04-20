@@ -8,3 +8,4 @@ mkdir dataset
 chmod +x ./web-linux
 chmod +x ./brokendown-linux
 chmod +x ./churn-linux
+chmod +x ./stable-linux
