@@ -48,15 +48,16 @@
     </div>
     <div style="margin-top: 20px;">
         <button class="btn" onclick="clean()">clean</button>
-        <button class="btn" onclick="exportDataset()">export</button>
-        <input class="btn" id="file" type="file" name="file">
-        <button onclick="loadDataset()">load</button>
         <button class="btn" onclick="saveSvg()">save svg</button>
     </div>
     <div style="margin-top: 20px;">
-        <button class="btn" onclick="exportDatasetOld()">old export</button>
-        <input class="btn" id="fileOld" type="file" name="file">
-        <button onclick="loadDatasetOld()">old load</button>
+        <button class="btn" onclick="exportDatasetCsv()">export csv</button>
+        <input class="btn" id="fileCsv" type="file" name="file">
+        <button onclick="loadDatasetCsv()">load csv</button>
+    </div>
+    <div style="margin-top: 20px;">
+        <input class="btn" id="filename" type="text" name="filename">
+        <button onclick="loadDatasetFile()">load file</button>
     </div>
 </body>
 
@@ -248,16 +249,12 @@
         request.send()
     }
 
-    function exportDataset() {
-        window.location.href = "/exportDataset"
+    function exportDatasetCsv() {
+        window.location.href = "/exportDatasetCsv"
     }
 
-    function exportDatasetOld() {
-        window.location.href = "/exportDatasetOld"
-    }
-
-    function loadDataset() {
-        let files = document.getElementById("file")
+    function loadDatasetCsv() {
+        let files = document.getElementById("fileCsv")
         if (!files.files.length) {
             alert("未选择文件")
             console.log("未选择文件")
@@ -266,7 +263,7 @@
         let formData = new FormData()
         formData.append("file", files.files[0])
         let request = new XMLHttpRequest()
-        request.open("POST", "/loadDataset")
+        request.open("POST", "/loadDatasetCsv")
         request.onload = function () {
             if (request.status >= 200 && request.status < 300) {
                 console.log("load over")
@@ -276,17 +273,18 @@
         request.send(formData)
     }
 
-    function loadDatasetOld() {
-        let files = document.getElementById("fileOld")
-        if (!files.files.length) {
+    function loadDatasetFile() {
+        let filename = document.getElementById("filename").value
+        if (!filename) {
             alert("未选择文件")
             console.log("未选择文件")
             return
         }
+
         let formData = new FormData()
-        formData.append("file", files.files[0])
+        formData.append("filename", filename)
         let request = new XMLHttpRequest()
-        request.open("POST", "/loadDatasetOld")
+        request.open("POST", "/loadDatasetFile")
         request.onload = function () {
             if (request.status >= 200 && request.status < 300) {
                 console.log("load over")
