@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,6 +52,14 @@ func putRing(w http.ResponseWriter, r *http.Request) {
 	}
 	//fmt.Println(message)
 	message.Timestamp = int(time.Now().UnixMilli())
+
+	idBts := []byte(message.Id)
+	ids := make([]string, 0)
+	for _, bt := range idBts {
+		ids = append(ids, fmt.Sprintf("%d", bt))
+	}
+	message.Id = strings.Join(ids, "")
+
 	message.Cycle = getMessageCycle(message)
 	rm.Lock()
 	if _, exisit := cacheMap[message.Cycle]; !exisit {
@@ -368,19 +376,6 @@ func exportDatasetCsv(w http.ResponseWriter, r *http.Request) {
 			line[9] = "\n"
 			str := strings.Join(line, ",")
 			lines.WriteString(str)
-
-			// file, err := os.Create("cacheData.csv")
-			// if err != nil {
-			// 	log.Println("export Create csv", err)
-			// 	return
-			// }
-			// defer file.Close()
-			// writer := csv.NewWriter(file)
-			// err = writer.Write(line)
-			// if err != nil {
-			// 	log.Println("export Write", err)
-			// 	return
-			// }
 		}
 	}
 
@@ -472,14 +467,17 @@ func loadDatasetCsv(w http.ResponseWriter, r *http.Request) {
 		log.Println("load FormFile", err)
 		return
 	}
-	reader := csv.NewReader(file)
-	records, err := reader.ReadAll() // 读取所有行
-	if err != nil {
-		fmt.Println("csv reader Error:", err)
-		return
-	}
+	defer file.Close()
+	reader := bufio.NewReader(file)
 
-	for _, row := range records {
+	messageCycle := make(map[int][]Message)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			break
+		}
+		row := strings.Split(line, ",")
+
 		message := Message{}
 		message.Id = row[0]
 		message.Cycle, _ = strconv.Atoi(row[1])
@@ -492,13 +490,22 @@ func loadDatasetCsv(w http.ResponseWriter, r *http.Request) {
 		message.Num, _ = strconv.Atoi(row[7])
 		message.FanOut, _ = strconv.Atoi(row[8])
 
-		message.Cycle += len(cacheMap)
-		rm.Lock()
-		if _, exisit := cacheMap[message.Cycle]; !exisit {
-			cacheMap[message.Cycle] = CreateMessageCache()
+		if _, e := messageCycle[message.Cycle]; !e {
+			messageCycle[message.Cycle] = make([]Message, 0)
 		}
-		cacheMap[message.Cycle].put(message)
-		rm.Unlock()
+		messageCycle[message.Cycle] = append(messageCycle[message.Cycle], message)
+	}
+
+	for i := range len(messageCycle) {
+		for _, message := range messageCycle[i+1] {
+			message.Cycle = getMessageCycle(message)
+			rm.Lock()
+			if _, exisit := cacheMap[message.Cycle]; !exisit {
+				cacheMap[message.Cycle] = CreateMessageCache()
+			}
+			cacheMap[message.Cycle].put(message)
+			rm.Unlock()
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
