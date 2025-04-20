@@ -411,7 +411,7 @@ func exportDatasetAndClose(w http.ResponseWriter, r *http.Request) {
 	// 格式化时间为：2025-04-18_15-30-45
 	timestamp := now.Format("2006-01-02_15-04-05")
 	// 使用格式化时间作为文件名
-	filename := fmt.Sprintf("dataset/%s.json", timestamp)
+	filename := fmt.Sprintf("dataset/%s.csv", timestamp)
 
 	// 写入文件
 	err := os.WriteFile(filename, []byte(lines.Bytes()), 0644)
