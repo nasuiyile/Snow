@@ -27,7 +27,7 @@ func main() {
 
 	fmt.Println("done!!!")
 	// 主线程保持运行
-	select {}
+	time.Sleep(10 * time.Second)
 }
 func benchmark(n int, k int, rounds int) {
 	portList := make([]int, 0)

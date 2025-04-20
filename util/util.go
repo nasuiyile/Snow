@@ -298,14 +298,14 @@ func IntHash(n int) int {
 	return int(hash)
 }
 
-func EchoMsgType(data MsgType) {
+func EchoMsgType(data MsgType, round int) {
 	if data == RegularMsg {
-		log.Info("RegularMsg")
+		log.Info("RegularMsg,round:", round)
 	} else if data == ColoringMsg {
-		log.Info("ColoringMsg")
+		log.Info("ColoringMsg,round:", round)
 	} else if data == GossipMsg {
-		log.Info("GossipMsg")
+		log.Info("GossipMsg,round:", round)
 	} else if data == EagerPush {
-		log.Info("EagerPush")
+		log.Info("EagerPush,round:", round)
 	}
 }
