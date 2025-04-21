@@ -384,6 +384,115 @@ func loadDatasetCsv(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("success"))
 }
 
+func exportDatasetOld(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	cacheData := make(map[string]string)
+
+	dataSet := make(map[int][]Message)
+	for k, v := range cacheMap {
+		dataSet[k] = v.getMessages()
+	}
+	data, err := json.Marshal(dataSet)
+	if err != nil {
+		log.Println("export dataSet", err)
+		return
+	}
+	cacheData["dataSet"] = string(data)
+
+	data, err = json.Marshal(msgIdMap)
+	if err != nil {
+		log.Println("export Marshal", err)
+		return
+	}
+	cacheData["msgIdMap"] = string(data)
+
+	data, err = json.Marshal(cacheData)
+	if err != nil {
+		log.Println("export Marshal", err)
+		return
+	}
+
+	h := w.Header()
+	h.Set("Content-type", "application/octet-stream")
+	h.Set("CharacterEncoding", "utf-8")
+	h.Set("Content-Disposition", "attachment;filename=cacheData.json")
+	w.Write(data)
+}
+
+func loadDatasetOld(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		log.Println("load FormFile", err)
+		return
+	}
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		log.Println("load ReadAll", err)
+		return
+	}
+	cacheData := make(map[string]string)
+	err = json.Unmarshal(data, &cacheData)
+	if err != nil {
+		log.Println("load cacheData", err)
+		return
+	}
+
+	msgIdMapStr := cacheData["msgIdMap"]
+	idSet := make(map[byte]map[string]int, 0)
+	err = json.Unmarshal([]byte(msgIdMapStr), &idSet)
+	if err != nil {
+		log.Println("load msgIdMap", err)
+		return
+	}
+
+	idRevertSet := make(map[int]map[byte]string, 0)
+	for msgType, v := range idSet {
+		for oldId, cycle := range v {
+			if _, e := idRevertSet[cycle]; !e {
+				idRevertSet[cycle] = make(map[byte]string, 0)
+			}
+			idRevertSet[cycle][msgType] = oldId
+		}
+	}
+
+	dataSetStr := cacheData["dataSet"]
+	dataSet := make(map[int][]Message)
+	err = json.Unmarshal([]byte(dataSetStr), &dataSet)
+	if err != nil {
+		log.Println("load dataSet", err)
+		return
+	}
+
+	for i := range len(dataSet) {
+		for _, message := range dataSet[i+1] {
+			message.Id = idRevertSet[i+1][message.MsgType]
+		}
+	}
+
+	for cycle, v := range dataSet {
+		for _, message := range v {
+			message.Id = idRevertSet[cycle][message.MsgType]
+		}
+	}
+
+	for i := range len(dataSet) {
+		for _, message := range dataSet[i+1] {
+			message.Cycle = getMessageCycle(message)
+			rm.Lock()
+			if _, exisit := cacheMap[message.Cycle]; !exisit {
+				cacheMap[message.Cycle] = CreateMessageCache()
+			}
+			cacheMap[message.Cycle].put(message)
+			rm.Unlock()
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("success"))
+}
+
 func loadDataFile(file io.Reader) {
 	reader := bufio.NewReader(file)
 
@@ -488,6 +597,8 @@ func CreateWeb() {
 	mux.HandleFunc("/getCycleStatistics", getCycleStatistics)
 	mux.HandleFunc("/getNumFanoutStatistics", getNumFanoutStatistics)
 	mux.HandleFunc("/lack", lack)
+	mux.HandleFunc("/exportDatasetOld", exportDatasetOld)
+	mux.HandleFunc("/loadDatasetOld", loadDatasetOld)
 	mux.HandleFunc("/exportDatasetCsv", exportDatasetCsv)
 	mux.HandleFunc("/loadDatasetCsv", loadDatasetCsv)
 	mux.HandleFunc("/loadDatasetFile", loadDatasetFile)
