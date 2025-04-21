@@ -18,26 +18,26 @@ func main() {
 	util.DebugLog()
 	////测试轮数
 	rounds := 100
-	benchmark(1100, 4, rounds)
-	benchmark(1200, 4, rounds)
-	benchmark(1300, 4, rounds)
-	benchmark(1400, 4, rounds)
 	benchmark(1500, 4, rounds)
+	benchmark(1400, 4, rounds)
+	benchmark(1300, 4, rounds)
+	benchmark(1200, 4, rounds)
+	benchmark(1100, 4, rounds)
 
-	//benchmark(1000, 4, rounds)
-	//benchmark(900, 4, rounds)
-	//benchmark(800, 4, rounds)
-	//benchmark(700, 4, rounds)
-	//benchmark(600, 4, rounds)
-	//benchmark(500, 4, rounds)
-	//benchmark(400, 4, rounds)
-	//benchmark(300, 4, rounds)
-	//benchmark(200, 4, rounds)
-	//benchmark(100, 4, rounds)
-	//
-	//benchmark(600, 8, rounds)
-	//benchmark(600, 6, rounds)
-	//benchmark(600, 2, rounds)
+	benchmark(1000, 4, rounds)
+	benchmark(900, 4, rounds)
+	benchmark(800, 4, rounds)
+	benchmark(700, 4, rounds)
+	benchmark(600, 4, rounds)
+	benchmark(500, 4, rounds)
+	benchmark(400, 4, rounds)
+	benchmark(300, 4, rounds)
+	benchmark(200, 4, rounds)
+	benchmark(100, 4, rounds)
+
+	benchmark(600, 8, rounds)
+	benchmark(600, 6, rounds)
+	benchmark(600, 2, rounds)
 
 	fmt.Println("done!!!")
 	// 主线程保持运行
@@ -48,7 +48,7 @@ func benchmark(n int, k int, rounds int) {
 	//消息大小
 	strLen := 100
 	initPort := 20000
-	testMode := []MsgType{RegularMsg, EagerPush, ColoringMsg, GossipMsg} //按数组中的顺序决定跑的时候的顺序
+	testMode := []MsgType{GossipMsg, EagerPush, ColoringMsg, RegularMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	util.Num = n
 	util.InitPort = initPort
@@ -81,7 +81,7 @@ func benchmark(n int, k int, rounds int) {
 		//for _, v := range serverList {
 		//	v.StartHeartBeat()
 		//}
-		util.EchoMsgType(mode, rounds)
+		util.EchoMsgType(mode, n)
 
 		for i := range rounds {
 			// 1秒一轮,节点可能还没有离开新的广播就发出了

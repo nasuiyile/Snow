@@ -300,12 +300,12 @@ func IntHash(n int) int {
 
 func EchoMsgType(data MsgType, round int) {
 	if data == RegularMsg {
-		log.Info("RegularMsg,round:", round)
+		log.Info("RegularMsg,n=", round)
 	} else if data == ColoringMsg {
-		log.Info("ColoringMsg,round:", round)
+		log.Info("ColoringMsg,n=:", round)
 	} else if data == GossipMsg {
-		log.Info("GossipMsg,round:", round)
+		log.Info("GossipMsg,n=:", round)
 	} else if data == EagerPush {
-		log.Info("EagerPush,round:", round)
+		log.Info("EagerPush,n=:", round)
 	}
 }
