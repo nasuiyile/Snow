@@ -134,10 +134,14 @@
         chartDom[title] = myChart
 
         let option = {
+            grid:{
+                left: '85',
+                right: '0',
+            },
             title: [{
                 text: title,
                 textStyle: {
-                    fontSize: '18px',
+                    fontSize: '22px',
                     fontWeight: 'bold'
                 }
             }, {
@@ -212,9 +216,11 @@
             legend: {
                 data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
                 textStyle: {
-                    fontSize: '16px',
-                    fontWeight: 'bold'
-                }
+                    fontSize: '19px',
+                    fontWeight: 'bold',
+                },
+                right: '1%',
+
             },
             series: [
                 {

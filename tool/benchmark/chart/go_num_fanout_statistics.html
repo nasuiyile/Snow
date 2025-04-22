@@ -109,10 +109,14 @@
         chartDom[title] = myChart
 
         var option = {
+            grid:{
+                left: '85',
+                right: '0',
+            },
             title: {
                 text: title,
                 textStyle: {
-                    fontSize: '25px',
+                    fontSize: '27px',
                     fontWeight: 'bold',
                 }
             },
@@ -125,7 +129,7 @@
                 data: xData[xType],
                 axisLabel: {
                     color: 'black',
-                    fontSize: '25px',
+                    fontSize: '27px',
                     fontWeight: 'bold'
                 },
                 axisTick: {
@@ -142,16 +146,17 @@
                         else return value.toFixed(0)
                     },
                     color: 'black',
-                    fontSize: '25px',
+                    fontSize: '27px',
                     fontWeight: 'bold'
                 }
             },
             legend: {
                 data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
                 textStyle: {
-                    fontSize: '18px',
-                    fontWeight: 'bold'
-                }
+                    fontSize: '21px',
+                    fontWeight: 'bold',
+                },
+                right: '0%',
             },
             series: [
                 {
