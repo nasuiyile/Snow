@@ -135,9 +135,8 @@
 
         let option = {
             grid:{
-                top: 70,
                 left: '85',
-                right: '60',
+                right: '0',
             },
             title: [{
                 text: title,
@@ -187,14 +186,6 @@
             },
             xAxis: {
                 type: 'category',
-                name: 'rounds',
-                nameGap: -15,
-                nameTextStyle: {
-                    fontSize: 15,
-                    fontWeight: 'bold',
-                    lineHeight: 30,
-                    verticalAlign: 'top',
-                },
                 interval: 0,
                 data: Object.keys(xData),
                 axisLabel: {
@@ -209,16 +200,6 @@
             },
             yAxis: {
                 type: 'value',
-                name: function() {
-                    if (title == 'LDT') return 'ms'
-                    else if (title == 'RMR') return 'bytes'
-                    else return 'proportion'
-                }(),
-                nameGap: 20,
-                nameTextStyle: {
-                    fontSize: 15,
-                    fontWeight: 'bold',
-                },
                 min: title == 'Reliability' ? 'dataMin' : 0,
                 max: 'dataMax',
                 axisLabel: {
@@ -230,9 +211,6 @@
                     color: 'black',
                     fontSize: '25px',
                     fontWeight: 'bold'
-                },
-                axisTick: {
-                    show: true
                 }
             },
             legend: {
