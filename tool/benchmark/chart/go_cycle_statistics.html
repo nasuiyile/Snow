@@ -46,6 +46,9 @@
         <div class="chart" id="RMR"></div>
         <div class="chart" id="Reliability"></div>
     </div>
+    <div style="display: flex;">
+        <div id="connon_legend" style="height: 100px; width: 100%;"></div>
+    </div>
     <div style="margin-top: 20px;">
         <button class="btn" onclick="clean()">clean</button>
         <button class="btn" onclick="saveSvg()">save svg</button>
@@ -67,6 +70,56 @@
 </body>
 
 </html>
+
+<script type="text/javascript">
+    let myChart = echarts.init(document.getElementById("connon_legend"), null, { renderer: 'svg' });
+    var option = {
+        grid:{
+            left: '85',
+            right: '0',
+            bottom: '100'
+        },
+        xAxis: {
+            show: false,
+            data: [],
+        },
+        yAxis: {
+        },
+        legend: {
+            data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
+            textStyle: {
+                fontSize: '30',
+                fontWeight: 'bold',
+            },
+            itemGap: 25,
+        },
+        series: [
+            {
+                name: 'Snow-Standard',
+                type: 'line',
+                data: []
+            },
+            {
+                name: 'Coloring',
+                type: 'line',
+                data: []
+            },
+            {
+                name: 'Gossip',
+                type: 'line',
+                data: []
+            },
+            {
+                name: 'Plumtree',
+                type: 'line',
+                data: []
+            },
+        ]
+    };
+
+    myChart.setOption(option);
+</script>
+
 
 <script type="text/javascript">
     let LDT_arr = {}
@@ -196,7 +249,7 @@
                 nameGap: 0,
                 nameTextStyle: {
                     fontSize: 25,
-                    lineHeight: 90,
+                    lineHeight: 100,
                     verticalAlign: 'top',
                     align: 'right',
                 },
@@ -210,10 +263,6 @@
                 },
                 axisTick: {
                     alignWithLabel: true // 将刻度线与标签对齐
-                },
-                axisLine: {
-                    show: true,
-                    symbol: ['none', 'arrow']
                 },
             },
             yAxis: {
@@ -246,7 +295,7 @@
                 },
             },
             legend: {
-                show: title == 'RMR',
+                show: false,
                 data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
                 textStyle: {
                     fontSize: '30',
@@ -393,21 +442,22 @@
         const svgs = document.querySelectorAll("svg");
         xOffset = svgs[0].getAttribute("width")
         yOffset = svgs[0].getAttribute("height")
+        yLegend = svgs[3].getAttribute("height")
 
         const newSVG = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         newSVG.setAttribute("width", 3 * xOffset);
-        newSVG.setAttribute("height", yOffset);
+        newSVG.setAttribute("height", 1 * yOffset +  1 * yLegend);
 
 
         svgs.forEach((svg, i) => {
             svg = svgs[i].cloneNode(true)
             svg.setAttribute("width", "100%");
-            svg.setAttribute("x", i * xOffset)
-            svg.setAttribute("y", "0")
+            svg.setAttribute("x", i % 3 * xOffset)
+            svg.setAttribute("y", Math.floor(i / 3) * yOffset)
             newSVG.appendChild(svg);
         });
         // 预览
-        document.body.appendChild(newSVG);
+        // document.body.appendChild(newSVG);
 
         const content = new XMLSerializer().serializeToString(newSVG);
         const blob = new Blob([content], { type: "xml/svg" })

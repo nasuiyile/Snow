@@ -28,13 +28,16 @@
     </div>
     <div style="display: flex;">
         <div class="chart" id="LDT_num"></div>
-        <div class="chart" id="RMR_num"></div>
         <div class="chart" id="Reliability_num"></div>
+        <div class="chart" id="RMR_num"></div>
     </div>
     <div style="display: flex;">
         <div class="chart" id="LDT_fanout"></div>
         <div class="chart" id="RMR_fanout"></div>
         <div class="chart" id="Reliability_fanout"></div>
+    </div>
+    <div style="display: flex;">
+        <div id="connon_legend" style="height: 100px; width: 66%;"></div>
     </div>
     <div>
         <span>num:
@@ -60,6 +63,55 @@
 </body>
 
 </html>
+
+<script type="text/javascript">
+    let myChart = echarts.init(document.getElementById("connon_legend"), null, { renderer: 'svg' });
+    var option = {
+        grid:{
+            left: '85',
+            right: '0',
+            bottom: '100'
+        },
+        xAxis: {
+            show: false,
+            data: [],
+        },
+        yAxis: {
+        },
+        legend: {
+            data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
+            textStyle: {
+                fontSize: '30',
+                fontWeight: 'bold',
+            },
+            itemGap: 25,
+        },
+        series: [
+            {
+                name: 'Snow-Standard',
+                type: 'line',
+                data: []
+            },
+            {
+                name: 'Coloring',
+                type: 'line',
+                data: []
+            },
+            {
+                name: 'Gossip',
+                type: 'line',
+                data: []
+            },
+            {
+                name: 'Plumtree',
+                type: 'line',
+                data: []
+            },
+        ]
+    };
+
+    myChart.setOption(option);
+</script>
 
 <script type="text/javascript">
     let xData = { "num": [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,1100,1200,1300,1400,1500], "fanout": [2, 4, 6, 8] }
@@ -131,7 +183,7 @@
                 nameGap: 0,
                 nameTextStyle: {
                     fontSize: 25,
-                    lineHeight: 90,
+                    lineHeight: 100,
                     verticalAlign: 'top',
                     align: 'right',
                 },
@@ -144,11 +196,7 @@
                 },
                 axisTick: {
                     alignWithLabel: true // 将刻度线与标签对齐
-                },
-                axisLine: {
-                    show: true,
-                    symbol: ['none', 'arrow']
-                },
+                }
             },
             yAxis: {
                 type: 'value',
@@ -179,7 +227,8 @@
                 },
             },
             legend: {
-                show: title == 'RMR' && xType == 'fanout',
+                // show: title == 'RMR' && xType == 'fanout',
+                show: false,
                 data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
                 textStyle: {
                     fontSize: '30',
@@ -309,10 +358,11 @@
         const svgs = document.querySelectorAll("svg");
         xOffset = svgs[0].getAttribute("width")
         yOffset = svgs[0].getAttribute("height")
+        yLegend = svgs[6].getAttribute("height")
 
         const newSVG = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         newSVG.setAttribute("width", 3 * xOffset);
-        newSVG.setAttribute("height", 2 * yOffset);
+        newSVG.setAttribute("height", 2 * yOffset +  1 * yLegend);
 
         svgs.forEach((svg, i) => {
             svg = svgs[i].cloneNode(true)
