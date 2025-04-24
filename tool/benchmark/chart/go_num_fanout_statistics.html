@@ -112,19 +112,29 @@
             grid:{
                 left: '85',
                 right: '0',
+                bottom: '100'
             },
             title: {
                 text: title,
                 textStyle: {
-                    fontSize: '27px',
+                    fontSize: '30',
                     fontWeight: 'bold',
-                }
+                },
+                left: 'center'
             },
             tooltip: {
                 trigger: 'axis'
             },
             xAxis: {
                 type: 'category',
+                name: xType == 'num' ? '(nodes)': '(fan-out)',
+                nameGap: 0,
+                nameTextStyle: {
+                    fontSize: 25,
+                    lineHeight: 90,
+                    verticalAlign: 'top',
+                    align: 'right',
+                },
                 interval: 0,
                 data: xData[xType],
                 axisLabel: {
@@ -134,10 +144,24 @@
                 },
                 axisTick: {
                     alignWithLabel: true // 将刻度线与标签对齐
-                }
+                },
+                axisLine: {
+                    show: true,
+                    symbol: ['none', 'arrow']
+                },
             },
             yAxis: {
                 type: 'value',
+                name: function() {
+                    if (title == 'LDT') return '(ms)'
+                    else if (title == 'RMR') return '(bytes)'
+                    else return '(ratio)'
+                }(),
+                nameGap: 20,
+                nameTextStyle: {
+                    fontSize: 25,
+                    align: 'left'
+                },
                 min: title == 'Reliability' ? 'dataMin' : 0,
                 max: 'dataMax',
                 axisLabel: {
@@ -148,15 +172,23 @@
                     color: 'black',
                     fontSize: '27px',
                     fontWeight: 'bold'
-                }
+                },
+                axisLine: {
+                    show: false,
+                    symbol: ['none', 'arrow']
+                },
             },
             legend: {
+                show: title == 'RMR' && xType == 'fanout',
                 data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
                 textStyle: {
-                    fontSize: '21px',
+                    fontSize: '30',
                     fontWeight: 'bold',
                 },
-                right: '0%',
+                bottom: '0%',
+                itemGap: 25,
+                // itemWidth: 30,
+                itemHeight: 30,
             },
             series: [
                 {
