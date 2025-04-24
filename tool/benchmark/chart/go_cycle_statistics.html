@@ -6,7 +6,7 @@
     <style type="text/css">
         .chart {
             width: 33%;
-            height: 500px;
+            height: 550px;
             justify-content: space-around;
         }
 
@@ -137,13 +137,15 @@
             grid:{
                 left: '85',
                 right: '0',
+                bottom: '100'
             },
             title: [{
                 text: title,
                 textStyle: {
-                    fontSize: '22px',
-                    fontWeight: 'bold'
-                }
+                    fontSize: '30',
+                    fontWeight: 'bold',
+                },
+                left: 'center'
             }, {
                 subtext: 'Snow-Standard Avg: ' + avgData[types[0]],
                 left: '0%',
@@ -152,7 +154,8 @@
                     color: 'black',
                     fontSize: '14px',
                     fontWeight: 'bold'
-                }
+                },
+                show: false
             }, {
                 subtext: 'Coloring Avg: ' + avgData[types[1]],
                 left: '30%',
@@ -161,7 +164,8 @@
                     color: 'black',
                     fontSize: '14px',
                     fontWeight: 'bold'
-                }
+                },
+                show: false
             }, {
                 subtext: 'Gossip Avg: ' + avgData[types[2]],
                 left: '53%',
@@ -170,7 +174,8 @@
                     color: 'black',
                     fontSize: '14px',
                     fontWeight: 'bold'
-                }
+                },
+                show: false
             }, {
                 subtext: 'Plumtree Avg: ' + avgData[types[3]],
                 left: '75%',
@@ -179,13 +184,22 @@
                     color: 'black',
                     fontSize: '14px',
                     fontWeight: 'bold'
-                }
+                },
+                show: false
             }],
             tooltip: {
                 trigger: 'axis'
             },
             xAxis: {
                 type: 'category',
+                name: '(rounds)',
+                nameGap: 0,
+                nameTextStyle: {
+                    fontSize: 25,
+                    lineHeight: 90,
+                    verticalAlign: 'top',
+                    align: 'right',
+                },
                 interval: 0,
                 data: Object.keys(xData),
                 axisLabel: {
@@ -196,10 +210,24 @@
                 },
                 axisTick: {
                     alignWithLabel: true // 将刻度线与标签对齐
-                }
+                },
+                axisLine: {
+                    show: true,
+                    symbol: ['none', 'arrow']
+                },
             },
             yAxis: {
                 type: 'value',
+                name: function() {
+                    if (title == 'LDT') return '(ms)'
+                    else if (title == 'RMR') return '(bytes)'
+                    else return '(ratio)'
+                }(),
+                nameGap: 20,
+                nameTextStyle: {
+                    fontSize: 25,
+                    align: 'left'
+                },
                 min: title == 'Reliability' ? 'dataMin' : 0,
                 max: 'dataMax',
                 axisLabel: {
@@ -211,16 +239,23 @@
                     color: 'black',
                     fontSize: '25px',
                     fontWeight: 'bold'
-                }
+                },
+                axisLine: {
+                    show: false,
+                    symbol: ['none', 'arrow']
+                },
             },
             legend: {
+                show: title == 'RMR',
                 data: ['Snow-Standard', 'Coloring', 'Gossip', 'Plumtree'],
                 textStyle: {
-                    fontSize: '19px',
+                    fontSize: '30',
                     fontWeight: 'bold',
                 },
-                right: '1%',
-
+                bottom: '0%',
+                itemGap: 25,
+                // itemWidth: 30,
+                itemHeight: 30,
             },
             series: [
                 {
@@ -372,7 +407,7 @@
             newSVG.appendChild(svg);
         });
         // 预览
-        // document.body.appendChild(newSVG);
+        document.body.appendChild(newSVG);
 
         const content = new XMLSerializer().serializeToString(newSVG);
         const blob = new Blob([content], { type: "xml/svg" })
