@@ -75,7 +75,7 @@ func staticticsCycle(message []Message) MessageCycle {
 		m += message.Size
 		n = message.Num
 	}
-	cycle.RMR = (float64(m) / float64(n-1)) - 1
+	cycle.RMR = (float64(m) / float64(n-1))
 
 	// 统计有多少节点收到消息
 	set := make(map[string]int)
