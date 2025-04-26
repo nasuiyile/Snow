@@ -19,8 +19,8 @@ func (s *SnowServer) ApplyLeave() {
 func (s *SnowServer) ColoringMessage(message []byte) {
 	s.server.ColoringMessage(message, UserMsg)
 }
-func (s *SnowServer) RegularMessage(message []byte) {
-	s.server.RegularMessage(message, UserMsg)
+func (s *SnowServer) StandardMessage(message []byte) {
+	s.server.StandardMessage(message, UserMsg)
 }
 func (s *SnowServer) ReliableMessage(message []byte, action *func(isSuccess bool)) {
 	s.server.ReliableMessage(message, UserMsg, action)

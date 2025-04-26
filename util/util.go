@@ -299,8 +299,8 @@ func IntHash(n int) int {
 }
 
 func EchoMsgType(data MsgType, round int) {
-	if data == RegularMsg {
-		log.Info("RegularMsg,n=", round)
+	if data == StandardMsg {
+		log.Info("StandardMsg,n=", round)
 	} else if data == ColoringMsg {
 		log.Info("ColoringMsg,n=:", round)
 	} else if data == GossipMsg {

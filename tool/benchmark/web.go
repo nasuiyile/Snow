@@ -198,7 +198,7 @@ func lack(w http.ResponseWriter, r *http.Request) {
 			strArr = append(strArr, fmt.Sprintf("%s%d", "127.0.0.1:", i+20000))
 		}
 		for _, msg := range v.messages {
-			if msg.MsgType == RegularMsg {
+			if msg.MsgType == StandardMsg {
 				flag = true
 			}
 			strArr = util.RemoveElement(strArr, msg.Target)
@@ -560,7 +560,7 @@ func goChart1(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("go chart, err:", err)
 		return
 	}
-	info := []byte{RegularMsg, ColoringMsg, GossipMsg, EagerPush}
+	info := []byte{StandardMsg, ColoringMsg, GossipMsg, EagerPush}
 	tmpl.Execute(w, info)
 }
 
@@ -570,7 +570,7 @@ func goChart2(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("go chart, err:", err)
 		return
 	}
-	info := []byte{RegularMsg, ColoringMsg, GossipMsg, EagerPush}
+	info := []byte{StandardMsg, ColoringMsg, GossipMsg, EagerPush}
 	tmpl.Execute(w, info)
 }
 

@@ -34,7 +34,7 @@ func main() {
 	go func() {
 		for i := 0; i < 50000000000000; i++ {
 			time.Sleep(1 * time.Second)
-			serverList[0].RegularMessage([]byte("hello from server!"))
+			serverList[0].StandardMessage([]byte("hello from server!"))
 		}
 	}()
 	// 主线程保持运行

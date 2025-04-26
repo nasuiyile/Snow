@@ -38,7 +38,7 @@ func joinStateSynchronizing(ip string, msg []byte, s *Server) {
 	//同步节点的信息，同步完毕之后请求加入节点
 	s.importState(msg)
 	//使用标准消息广播自己需要加入
-	s.RegularMessage(s.Config.IPBytes(), NodeJoin)
+	s.StandardMessage(s.Config.IPBytes(), NodeJoin)
 }
 
 func regularStateSynchronizing(msg []byte, s *Server) {

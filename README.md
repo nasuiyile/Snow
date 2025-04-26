@@ -25,7 +25,7 @@ if err != nil {
 }
 
 //发送消息
-server.RegularMessage(msg, common.UserMsg)
+server.StandardMessage(msg, common.UserMsg)
 ~~~
 
 这是对论文[Snow: Self-organizing Broadcast Protocol for Cloud](https://arxiv.org/abs/2504.02676)的实现。

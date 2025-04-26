@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-func (s *Server) RegularMessage(message []byte, msgAction MsgAction) {
-	member, _ := s.InitMessage(RegularMsg, msgAction)
+func (s *Server) StandardMessage(message []byte, msgAction MsgAction) {
+	member, _ := s.InitMessage(StandardMsg, msgAction)
 	newMsg := util.CopyMsg(message)
 	for ip, payload := range member {
 		s.SendMessage(ip, payload, newMsg)

@@ -10,7 +10,7 @@ const (
 	NodeChange
 	//这是消息的发送方式
 	ColoringMsg
-	RegularMsg     //普通的消息
+	StandardMsg    //普通的消息
 	ReliableMsg    //可靠消息
 	ReliableMsgAck //可靠消息回执
 	GossipMsg      //gossip消息

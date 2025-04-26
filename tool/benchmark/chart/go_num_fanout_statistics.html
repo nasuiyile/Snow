@@ -7,7 +7,7 @@
 <style type="text/css">
     .chart {
         min-width: 33%;
-        height: 550px;
+        height: 480px;
         justify-content: space-around;
     }
 </style>
@@ -28,8 +28,8 @@
     </div>
     <div style="display: flex;">
         <div class="chart" id="LDT_num"></div>
-        <div class="chart" id="Reliability_num"></div>
         <div class="chart" id="RMR_num"></div>
+        <div class="chart" id="Reliability_num"></div>
     </div>
     <div style="display: flex;">
         <div class="chart" id="LDT_fanout"></div>
@@ -37,7 +37,7 @@
         <div class="chart" id="Reliability_fanout"></div>
     </div>
     <div style="display: flex;">
-        <div id="connon_legend" style="height: 100px; width: 66%;"></div>
+        <div id="connon_legend" style="height: 100px; width: 66%;margin-top: -30px"></div>
     </div>
     <div>
         <span>num:
@@ -191,7 +191,7 @@
                 data: xData[xType],
                 axisLabel: {
                     color: 'black',
-                    fontSize: '27px',
+                    fontSize: '32px',
                     fontWeight: 'bold'
                 },
                 axisTick: {
@@ -218,7 +218,7 @@
                         else return value.toFixed(0)
                     },
                     color: 'black',
-                    fontSize: '27px',
+                    fontSize: '32px',
                     fontWeight: 'bold'
                 },
                 axisLine: {

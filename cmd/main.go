@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"snow/common"
 	"snow/config"
 	"snow/internal/broadcast"
 	"time"
@@ -35,7 +36,7 @@ func main() {
 	go func() {
 		for i := 0; i < 50000000000000; i++ {
 			time.Sleep(1 * time.Second)
-			serverList[0].ReliableMessage([]byte("hello from server!"), 0, nil)
+			serverList[0].StandardMessage([]byte("hello from server!"), common.UserMsg)
 
 			//time.Sleep(2 * time.Second)
 		}

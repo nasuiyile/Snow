@@ -32,7 +32,7 @@ func benchmark(n int, k int, rounds int) {
 	//消息大小
 	strLen := 100
 	initPort := 20000
-	testMode := []MsgType{EagerPush, GossipMsg, ColoringMsg, RegularMsg} //按数组中的顺序决定跑的时候的顺序
+	testMode := []MsgType{EagerPush, GossipMsg, ColoringMsg, StandardMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	util.Num = n
 	util.InitPort = initPort
@@ -96,8 +96,8 @@ func benchmark(n int, k int, rounds int) {
 				// 1秒一轮,节点可能还没有离开新的广播就发出了	4秒足够把消息广播到所有节点
 				fmt.Printf("=== %d =====\n", i+i2)
 				time.Sleep(1000 * time.Millisecond)
-				if mode == RegularMsg {
-					serverList[0].RegularMessage(msg, UserMsg)
+				if mode == StandardMsg {
+					serverList[0].StandardMessage(msg, UserMsg)
 				} else if mode == ColoringMsg {
 					serverList[0].ColoringMessage(msg, UserMsg)
 				} else if mode == GossipMsg {

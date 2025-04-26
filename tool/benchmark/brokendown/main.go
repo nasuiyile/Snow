@@ -40,7 +40,7 @@ func benchmark(n int, k int, rounds int) {
 	//消息大小
 	strLen := 100
 	initPort := 20000
-	testMode := []MsgType{RegularMsg, EagerPush, GossipMsg, ColoringMsg} //按数组中的顺序决定跑的时候的顺序
+	testMode := []MsgType{StandardMsg, EagerPush, GossipMsg, ColoringMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	util.Num = n
 	util.InitPort = initPort
@@ -82,8 +82,8 @@ func benchmark(n int, k int, rounds int) {
 			fmt.Printf("=== %d =====\n", i)
 			time.Sleep(1000 * time.Millisecond)
 
-			if mode == RegularMsg {
-				serverList[0].RegularMessage(msg, UserMsg)
+			if mode == StandardMsg {
+				serverList[0].StandardMessage(msg, UserMsg)
 			} else if mode == ColoringMsg {
 				serverList[0].ColoringMessage(msg, UserMsg)
 			} else if mode == GossipMsg {

@@ -38,7 +38,7 @@ func SendHttp(from string, target string, data []byte, k int) {
 		values.Add("From", from)
 		values.Add("Target", target)
 		values.Add("Size", fmt.Sprintf("%d", len(data)))
-		if data[0] == ColoringMsg || data[0] == RegularMsg || data[0] == ReliableMsg {
+		if data[0] == ColoringMsg || data[0] == StandardMsg || data[0] == ReliableMsg {
 			//if data[0] == ColoringMsg {
 			//	fmt.Println("coloring msg")
 			//}

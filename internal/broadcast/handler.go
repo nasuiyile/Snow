@@ -18,7 +18,7 @@ func (s *Server) Hand(msg []byte, conn net.Conn) {
 	msgAction := msg[1]
 
 	switch msgType {
-	case RegularMsg:
+	case StandardMsg:
 		body := util.CutBytes(msg)
 		if !IsFirst(body, msgType, msgAction, s) {
 			return
