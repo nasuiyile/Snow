@@ -17,7 +17,7 @@ import (
 type Server struct {
 	listener         net.Listener
 	Config           *Config
-	Member           membership.MemberShipList
+	Member           *membership.MemberShipList
 	State            state.State
 	Action           Action
 	client           net.Dialer  //客户端连接器
@@ -26,6 +26,7 @@ type Server struct {
 	StopCh           chan struct{}
 	HeartbeatService *Heartbeat // 心跳服务
 	UdpServer        *UDPServer // UDP服务器
+	Zk               *Zookeeper //zk服务后期抽象成接口
 }
 
 type area struct {
@@ -183,6 +184,7 @@ func (s *Server) ApplyLeave() {
 		//如果成功了，当前节点下线。如果不成功，在发起一次请求
 		if isSuccess {
 			time.Sleep(5 * time.Second)
+
 			//进行下线操作
 			stop := struct{}{}
 			s.StopCh <- stop

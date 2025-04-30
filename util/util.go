@@ -309,3 +309,12 @@ func EchoMsgType(data MsgType, round int) {
 		log.Info("EagerPush,n=:", round)
 	}
 }
+
+func IpArrToByteArr(strings []string) [][]byte {
+	sort.Strings(strings)
+	ips := make([][]byte, 0)
+	for _, v := range strings {
+		ips = append(ips, IPv4To6Bytes(v))
+	}
+	return ips
+}

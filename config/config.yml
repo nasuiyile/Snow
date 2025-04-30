@@ -25,6 +25,6 @@ Test: true  #测试模式下 membership list里的ip不会被删除。并且会�
 RemoteHttp: "127.0.0.1:8111"
 Report: true
 
-Zookeeper: false #是否使用zookeeper
+Zookeeper: true #是否使用zookeeper
 ZookeeperAddr:
-  - 127.0.0.1:2182
+  - 127.0.0.1:2181

@@ -34,6 +34,13 @@ func (m *MemberShipList) Clean() {
 	m.MetaData = make(map[string]*MetaData)
 }
 
+func (m *MemberShipList) UpdateMember(strings []string) {
+	m.Lock()
+	defer m.Unlock()
+	arr := util.IpArrToByteArr(strings)
+	m.IPTable = arr
+}
+
 func (m *MemberShipList) InitState(metaDataMap map[string]*MetaData) {
 	m.Lock()
 	defer m.Unlock()

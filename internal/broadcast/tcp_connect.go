@@ -40,7 +40,7 @@ func NewServer(config *config.Config, action Action) (*Server, error) {
 	server := &Server{
 		listener: listener,
 		Config:   config,
-		Member: membership.MemberShipList{
+		Member: &membership.MemberShipList{
 			IPTable:  make([][]byte, 0),
 			MetaData: make(map[string]*membership.MetaData),
 		},
@@ -57,6 +57,10 @@ func NewServer(config *config.Config, action Action) (*Server, error) {
 	server.SetDefaultServer(config.DefaultServer)
 	if server.Config.HeartBeat {
 		server.StartHeartBeat()
+	}
+	if server.Config.Zookeeper {
+
+		server.Zk = StartZk(server.Config, server.Member)
 	}
 
 	go server.startAcceptingConnections() // 启动接受连接的协程
@@ -79,7 +83,7 @@ func (s *Server) StartHeartBeat() {
 	// 初始化Heartbeat服务 - 直接传递server和udpServer
 	s.HeartbeatService = NewHeartbeat(
 		s.Config,
-		&s.Member,
+		s.Member,
 		s,
 		s.UdpServer,
 	)
@@ -294,6 +298,10 @@ func safeCloseConnection(conn net.Conn) {
 
 // Close 关闭服务器
 func (s *Server) Close() {
+	if s.Config.Zookeeper {
+		s.Zk.Stop()
+	}
+
 	s.Member.Lock()
 	defer s.Member.Unlock()
 	s.listener.Close()

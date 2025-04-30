@@ -22,7 +22,7 @@ func main() {
 	// 获取 rounds 参数的值
 	rounds := *roundsPtr
 	////测试轮数
-	benchmark(500, 4, rounds)
+	benchmark(150, 4, rounds)
 	fmt.Println("done!!!")
 	// 主线程保持运行
 	select {}
@@ -32,7 +32,7 @@ func benchmark(n int, k int, rounds int) {
 	//消息大小
 	strLen := 100
 	initPort := 20000
-	testMode := []MsgType{EagerPush, GossipMsg, ColoringMsg, StandardMsg} //按数组中的顺序决定跑的时候的顺序
+	testMode := []MsgType{StandardMsg, EagerPush, GossipMsg, ColoringMsg} //按数组中的顺序决定跑的时候的顺序
 	serversAddresses := initAddress(n, initPort)
 	util.Num = n
 	util.InitPort = initPort

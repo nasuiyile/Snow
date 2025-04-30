@@ -37,7 +37,6 @@ func registerService(zkHosts []string, serviceName, serviceAddr string) {
 	if err != nil {
 		panic(err)
 	}
-
 	// 保持连接，节点会随连接断开而自动删除
 	// 在实际应用中应该处理连接断开和重连逻辑
 }

@@ -37,9 +37,6 @@ func DebugLog() {
 	// 示例日志
 	log.Println("程序开始运行")
 
-	// 测试输出
-	log.Println("这是一个日志输出示例")
-
 	log.SetFormatter(&ColorFormatter{})
 	log.SetLevel(log.InfoLevel)
 }

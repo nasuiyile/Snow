@@ -28,6 +28,7 @@ func main() {
 		config, err := config.NewConfig(configPath, f)
 		server, err := broadcast.NewServer(config, action)
 		if err != nil {
+			panic(err)
 			return
 		}
 		serverList = append(serverList, server)
