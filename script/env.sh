@@ -9,6 +9,7 @@ chmod +x ./web-linux
 chmod +x ./brokendown-linux
 chmod +x ./churn-linux
 chmod +x ./stable-linux
+chmod +x ./latency-tool
 
 #设置tcp
 sudo vim /etc/security/limits.conf

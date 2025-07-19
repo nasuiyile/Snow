@@ -14,5 +14,9 @@ $env:GOOS="linux"; $env:GOARCH="amd64"; go build -o churn-linux ./tool/benchmark
 $env:GOOS="linux"; $env:GOARCH="amd64"; go build -o brokendown-linux ./tool/benchmark/brokendown
 
 
+
+$env:GOOS="linux"; $env:GOARCH="amd64"; go build -o latency-tool ./tool/simulation/latency
+
+
 #export
 curl 127.0.0.1:8111/exportDatasetAndClose

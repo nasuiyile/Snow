@@ -23,7 +23,7 @@ HeartBeat: false #是否使用心跳检测
 Test: true  #测试模式下 membership list里的ip不会被删除。并且会发送额外的信息到固定的服务端进行调试
 #默认没有tls  127.0.0.1:8111
 RemoteHttp: "127.0.0.1:8111"
-Report: true
+Report: true 
 
 Zookeeper: true #是否使用zookeeper
 ZookeeperAddr:
