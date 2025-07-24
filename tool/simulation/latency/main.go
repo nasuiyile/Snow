@@ -12,12 +12,13 @@ var counter = atomic.Int32{}
 func main() {
 	port := 0
 	latency := 0
+	jitter := 0
 	flag.IntVar(&port, "port", 8100, "Port to apply latency")
-	flag.IntVar(&latency, "latency", 500, "Latency in microseconds")
+	flag.IntVar(&latency, "latency", 500, "Latency")
+	flag.IntVar(&jitter, "jitter", 500, "jitter")
 	flag.Parse()
-
 	InitRule()
-	AddLatency(port, latency) // 添加延迟规则，端口范围从20000到20004
+	AddLatency(port, latency, jitter) // 添加延迟规则，端口范围从20000到20004
 }
 
 func InitRule() {
@@ -33,9 +34,9 @@ func InitRule() {
 		println(err.Error())
 	}
 }
-func AddLatency(port int, latency int) {
+func AddLatency(port int, latency int, jitter int) {
 	add := counter.Add(1)
-	setLatency := fmt.Sprintf("sudo tc qdisc replace dev lo parent 1:%d handle 10: netem delay %dus", add, latency)
+	setLatency := fmt.Sprintf("sudo tc qdisc replace dev lo parent 1:%d handle 10: netem delay %dus %dus distribution normal limit 1048576", add, latency, jitter)
 	fmt.Println(setLatency)
 	err := exec.Command("bash", "-c", setLatency).Run()
 	if err != nil {

@@ -5,7 +5,7 @@ sudo tc qdisc del dev lo root
 sudo tc qdisc replace  dev lo root handle 1: prio
 
 # 3. 为特定端口添加延迟
-sudo tc qdisc replace  dev lo parent 1:1 handle 10: netem delay 500us
+sudo tc qdisc replace  dev lo parent 1:1 handle 10: netem delay 500us 100us distribution normal
 
 # 4. 设置过滤器，匹配多个目标端口
 sudo tc filter replace  dev lo protocol ip parent 1:0 prio 1 u32 match ip dport 8100 0xffff flowid 1:1
