@@ -15,34 +15,8 @@ if [ "$#" -lt 1 ]; then
     echo "警告：没有提供主机参数，将使用默认主机列表: $DEFAULT_HOSTS" | tee -a $OUTPUT_FILE
     HOSTS=$DEFAULT_HOSTS
 else
-    # 获取所有本地IP地址（IPv4）
-    LOCAL_IPS=$(ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*')
-
-    # 过滤掉本地IP地址
-    FILTERED_HOSTS=""
-    for host in "$@"; do
-        is_local=0
-        for ip in $LOCAL_IPS; do
-            if [ "$host" = "$ip" ]; then
-                is_local=1
-                break
-            fi
-        done
-
-        if [ $is_local -eq 0 ]; then
-            FILTERED_HOSTS="$FILTERED_HOSTS $host"
-        else
-            echo "排除本地IP: $host" | tee -a $OUTPUT_FILE
-        fi
-    done
-
-    # 检查过滤后是否还有主机
-    if [ -z "$FILTERED_HOSTS" ]; then
-        echo "错误：所有提供的主机都是本地IP地址，将使用默认主机列表: $DEFAULT_HOSTS" | tee -a $OUTPUT_FILE
-        HOSTS=$DEFAULT_HOSTS
-    else
-        HOSTS=$FILTERED_HOSTS
-    fi
+    # 直接使用所有提供的主机参数，不进行本地IP过滤
+    HOSTS="$@"
 fi
 
 NUM_HOSTS=$(echo $HOSTS | wc -w)
@@ -80,7 +54,7 @@ while [ $LOOP_COUNT -lt $MAX_LOOPS ]; do
     LOOP_COUNT=$((LOOP_COUNT + 1))
 
     # 等待1秒
-    sleep 1
+    sleep 0.1
 done
 
 

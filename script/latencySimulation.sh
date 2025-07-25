@@ -5,6 +5,10 @@ sudo tc qdisc del dev lo root
 sudo tc qdisc replace  dev lo root handle 1: prio
 
 # 3. 为特定端口添加延迟
+
+#sudo tc qdisc replace dev lo parent 1:1 handle 10: netem delay 165us 30us distribution paretonormal
+sudo tc qdisc replace  dev lo parent 1:1 handle 10: netem delay 500us 100us distribution normal
+
 sudo tc qdisc replace  dev lo parent 1:1 handle 10: netem delay 500us 100us distribution normal
 
 # 4. 设置过滤器，匹配多个目标端口
@@ -21,3 +25,8 @@ curl -o /dev/null -s -w "%{time_total}\n" 127.0.0.1:8100  | awk '{print $1 * 100
 
 
 ./latency-tool  -port=8100 -latency=300
+
+
+#sudo tc qdisc replace dev lo root handle 1: netem delay 40us
+#sudo tc qdisc replace dev lo root netem delay 83us 15us distribution paretonormal
+#sh ./latency-local.sh 127.0.0.1 | tee output.log
